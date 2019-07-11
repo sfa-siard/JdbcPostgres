@@ -1,5 +1,5 @@
 JdbcPostgres - SIARD 2.1 Postgres JDBC Wrapper
-==========================================
+==============================================
 
 This package contains the JDBC Wrapper for Oracle DBMS for SIARD 2.1.
 
