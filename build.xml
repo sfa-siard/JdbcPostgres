@@ -2,7 +2,7 @@
 <!-- build.xml =========================================================
 ANT build file of jdbcpostgres
 Application: SIARD Suite 2.1
-Description: ANT build file of JdbcOracle
+Description: ANT build file of JdbcPostgres
 Platform   : JAVA, ANT
 ========================================================================
 Copyright  : 2016, Enter AG, Rüti ZH, Switzerland

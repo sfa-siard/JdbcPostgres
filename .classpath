@@ -12,5 +12,6 @@
 	<classpathentry kind="lib" path="lib/jdbcbase-test.jar"/>
 	<classpathentry kind="lib" path="lib/jdbcbase.jar"/>
 	<classpathentry kind="lib" path="lib/sqlparser.jar"/>
+	<classpathentry kind="lib" path="lib/postgresql-42.2.5.jar"/>
 	<classpathentry kind="output" path="build"/>
 </classpath>
