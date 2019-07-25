@@ -13,5 +13,6 @@
 	<classpathentry kind="lib" path="lib/jdbcbase.jar"/>
 	<classpathentry kind="lib" path="lib/sqlparser.jar"/>
 	<classpathentry kind="lib" path="lib/postgresql-42.2.5.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="output" path="build"/>
 </classpath>
