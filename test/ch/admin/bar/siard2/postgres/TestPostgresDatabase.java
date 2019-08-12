@@ -3,8 +3,7 @@ package ch.admin.bar.siard2.postgres;
 import static org.junit.Assert.assertSame;
 
 import java.io.*;
-import java.math.BigDecimal;
-import java.math.BigInteger;
+import java.math.*;
 import java.sql.*;
 import java.sql.Date;
 import java.util.*;
@@ -22,10 +21,23 @@ public class TestPostgresDatabase
   public static QualifiedId getQualifiedSimpleTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_SIMPLE); }
   private static final String _sTEST_TABLE_COMPLEX = "TPGCOMPLEX";
   public static QualifiedId getQualifiedComplexTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_COMPLEX); }
-  private static final String _sTEST_TYPE_DISTINCT = "TPGDIST";
-  public static QualifiedId getQualifiedDistinctType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_DISTINCT); }
+  private static final String _sTEST_INTEGER_DOMAIN = "TPGDOMAIN";
+  public static QualifiedId getQualifiedDomainType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_INTEGER_DOMAIN); }
+  private static final String _sTEST_BUILTIN_RANGE = "TPGBUILTIN";
+  public static QualifiedId getQualifiedBuiltinRange() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_BUILTIN_RANGE); }
+  private static final String _sTEST_TYPE_ENUM = "TPGENUM";
+  public static QualifiedId getQualifiedEnumType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_ENUM); }
+  private static final String _sTEST_TYPE_COMP = "TPGCOMP";
+  public static QualifiedId getQualifiedCompositeType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_COMP); }
+  private static final String _sTEST_TYPE_RANGE = "TPGRANGE";
+  public static QualifiedId getQualifiedRangeType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_RANGE); }
+  private static final String _sTEST_STRING_ARRAY = "TPGARRAY";
+  public static QualifiedId getQualifiedArrayType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_STRING_ARRAY); }
+  private static final String _sTEST_DOUBLE_MATRIX = "TPGMATRIX";
+  public static QualifiedId getQualifiedMatrixType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_DOUBLE_MATRIX); }
 
-  private static class ColumnDefinition extends TestColumnDefinition
+  /*------------------------------------------------------------------*/
+  private  static class ColumnDefinition extends TestColumnDefinition
   {
     @Override
     public String getValueLiteral()
@@ -33,15 +45,92 @@ public class TestPostgresDatabase
       String sValueLiteral = "NULL";
       if (_oValue != null)
       {
-        if (_sType.equals("GEOMETRY") ||
-            _sType.equals("POINT") ||
-            _sType.equals("LINESTRING") ||
-            _sType.equals("POLYGON") ||
-            _sType.equals("MULTIPOINT") ||
-            _sType.equals("MULTILINESTRING") ||
-            _sType.equals("MULTIPOLYGON") ||
-            _sType.equals("GEOMETRYCOLLECTION"))
-          sValueLiteral = "GeomFromText("+super.getValueLiteral()+")";
+        if (getName().equals("CINT_BUILTIN") || getName().equals("CSTRING_RANGE"))
+        {
+          StringBuilder sb = new StringBuilder();
+          @SuppressWarnings("unchecked")
+          List<ColumnDefinition> listCd = (List<ColumnDefinition>)getValue();
+          ColumnDefinition cd0 = listCd.get(0);
+          ColumnDefinition cd1 = listCd.get(1);
+          if (cd0.getName().equals("min"))
+            sb.append("[");
+          else if (cd0.getName().equals("inf"))
+            sb.append("(");
+          else
+            throw new IllegalArgumentException("Invalid lower bound type of RANGE "+cd0.getName()+"!");
+          sb.append(cd0.getValueLiteral());
+          sb.append(", ");
+          sb.append(cd1.getValueLiteral());
+          if (cd1.getName().equals("max"))
+            sb.append("]");
+          else if (cd1.getName().equals("sup"))
+            sb.append(")");
+          else
+            throw new IllegalArgumentException("Invalid upper bound type of RANGE "+cd1.getName()+"!");
+          sValueLiteral = PostgresLiterals.formatStringLiteral(sb.toString());
+        }
+        else if (getName().equals("CINT_DOMAIN") || getName().equals("CENUM_SUIT"))
+        {
+          @SuppressWarnings("unchecked")
+          List<ColumnDefinition> listCd = (List<ColumnDefinition>)getValue();
+          ColumnDefinition cd = listCd.get(0);
+          sValueLiteral = cd.getValueLiteral();
+        }
+        else if (getName().equals("CCOMPOSITE"))
+        {
+          StringBuilder sb = new StringBuilder("(");
+          @SuppressWarnings("unchecked")
+          List<ColumnDefinition> listCd = (List<ColumnDefinition>)getValue();
+          for (int iAttribute = 0; iAttribute < listCd.size(); iAttribute++)
+          {
+            ColumnDefinition cd = listCd.get(iAttribute);
+            if (iAttribute > 0)
+              sb.append(", ");
+            sb.append(cd.getValueLiteral());
+          }
+          sb.append(")");
+          sValueLiteral = sb.toString();
+        }
+        else if (getName().equals("CSTRING_ARRAY"))
+        {
+          StringBuilder sb = new StringBuilder("{");
+          @SuppressWarnings("unchecked")
+          List<ColumnDefinition> listCd = (List<ColumnDefinition>)getValue();
+          for (int iElement = 0; iElement < listCd.size(); iElement++)
+          {
+            ColumnDefinition cd = listCd.get(iElement);
+            if (iElement > 0)
+              sb.append(", ");
+            sb.append(cd.getValueLiteral());
+          }
+          sb.append("}");
+          sValueLiteral = PostgresLiterals.formatStringLiteral(sb.toString());
+        }
+        else if (getName().equals("CDOUBLE_MATRIX"))
+        {
+          StringBuilder sb = new StringBuilder("{");
+          @SuppressWarnings("unchecked")
+          List<ColumnDefinition> listRowCd = (List<ColumnDefinition>)getValue();
+          for (int iRow = 0; iRow < listRowCd.size(); iRow++)
+          {
+            ColumnDefinition cdRow = listRowCd.get(iRow);
+            if (iRow > 0)
+              sb.append(", ");
+            sb.append("{");
+            @SuppressWarnings("unchecked")
+            List<ColumnDefinition> listColumnCd = (List<ColumnDefinition>)cdRow.getValue();
+            for (int iColumn = 0; iColumn < listColumnCd.size(); iColumn++)
+            {
+              ColumnDefinition cdColumn = listColumnCd.get(iColumn);
+              if (iColumn > 0)
+                sb.append(", ");
+              sb.append(cdColumn.getValueLiteral());
+            }
+            sb.append("}");
+          }
+          sb.append("}");
+          sValueLiteral = PostgresLiterals.formatStringLiteral(sb.toString());
+        }
         else
           sValueLiteral = super.getValueLiteral();
       }
@@ -52,21 +141,23 @@ public class TestPostgresDatabase
       super(sName,sType,oValue);
     }
   } /* class ColumnDefinition */
+  /*------------------------------------------------------------------*/
   
   public static int _iPrimarySimple = -1;
   public static int _iCandidateSimple = -1;
   @SuppressWarnings("deprecation")
-  private static List<TestColumnDefinition> getCdSimple() 
+  private static List<ColumnDefinition> getCdSimple() 
   {
-    List<TestColumnDefinition> listCdSimple = new ArrayList<TestColumnDefinition>();
+    List<ColumnDefinition> listCdSimple = new ArrayList<ColumnDefinition>();
     
     // Numeric Data Types: Integer Types (Exact Values)
     _iPrimarySimple = listCdSimple.size(); // next column will be primary key column 
-    listCdSimple.add(new ColumnDefinition("CINTEGER",PostgresType.INTEGER.getKeyword(),Integer.valueOf(1000000)));
+    listCdSimple.add(new ColumnDefinition("CINTEGER",PostgresType.INTEGER.getKeyword(),Integer.valueOf(-1000000)));
     listCdSimple.add(new ColumnDefinition("CSMALLINT",PostgresType.SMALLINT.getKeyword(),Short.valueOf((short)-32767)));
     listCdSimple.add(new ColumnDefinition("CBIGINT",PostgresType.BIGINT.getKeyword(),Long.valueOf(-2147483648L)));
+    listCdSimple.add(new ColumnDefinition("COID",PostgresType.OID.getKeyword(),Integer.valueOf(19)));
     _iCandidateSimple = listCdSimple.size(); // next column will be candidate key column 
-    listCdSimple.add(new ColumnDefinition("CSERIAL",PostgresType.SERIAL.getKeyword(),Integer.valueOf(-1000000)));
+    listCdSimple.add(new ColumnDefinition("CSERIAL",PostgresType.SERIAL.getKeyword(),Integer.valueOf(1000000)));
     listCdSimple.add(new ColumnDefinition("CSMALLSERIAL",PostgresType.SMALLSERIAL.getKeyword(),Short.valueOf((short)32767)));
     listCdSimple.add(new ColumnDefinition("CBIGSERIAL",PostgresType.BIGSERIAL.getKeyword(),Long.valueOf(2147483648L)));
     listCdSimple.add(new ColumnDefinition("CMONEY",PostgresType.MONEY.getKeyword(),BigDecimal.valueOf(12345678901234l, 2)));
@@ -75,8 +166,8 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CNUMERIC_5_2",PostgresType.NUMERIC.getKeyword()+"(5,2)",BigDecimal.valueOf(12345, 2)));
     listCdSimple.add(new ColumnDefinition("CDECIMAL_15_5",PostgresType.DECIMAL.getKeyword()+"(15,5)",new BigDecimal("123455679.12345")));
     // Numeric Data Types: Floating-Point Types (Approximate Values)
-    listCdSimple.add(new ColumnDefinition("CDOUBLE_16_14",PostgresType.DOUBLE.getKeyword()+"(16,14)",Double.valueOf(Math.E)));
-    listCdSimple.add(new ColumnDefinition("CREAL_9_7",PostgresType.REAL.getKeyword()+"(9,7)",new Float(Double.valueOf(Math.PI).floatValue())));
+    listCdSimple.add(new ColumnDefinition("CDOUBLE",PostgresType.DOUBLE.getKeyword(),Double.valueOf(Math.E)));
+    listCdSimple.add(new ColumnDefinition("CREAL",PostgresType.REAL.getKeyword(),new Float(Double.valueOf(Math.PI).floatValue())));
     listCdSimple.add(new ColumnDefinition("CBOOL",PostgresType.BOOLEAN.getKeyword(),Boolean.FALSE));
 
     // Date and Time Types
@@ -86,7 +177,7 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CTIMESTAMP",PostgresType.TIMESTAMP.getKeyword(),new Timestamp(2016-1900,10,30,12,34,56,0)));
     listCdSimple.add(new ColumnDefinition("CTIMESTAMPTZ",PostgresType.TIMESTAMP.getKeyword(),new Timestamp(2019-1900,07,29,9,34,56,0)));
     listCdSimple.add(new ColumnDefinition("CINTERVALYM",PostgresType.INTERVAL.getKeyword()+" year to month",new Interval(1,1,3)));
-    listCdSimple.add(new ColumnDefinition("CINTERVALDM",PostgresType.INTERVAL.getKeyword()+" day to micro",new Interval(-1,1,11,23,34,456789000l)));
+    listCdSimple.add(new ColumnDefinition("CINTERVALDM",PostgresType.INTERVAL.getKeyword()+" day to second(6)",new Interval(-1,1,11,23,34,456789000l)));
 
     // CHAR/VARCHAR
     listCdSimple.add(new ColumnDefinition("CCHAR_4",PostgresType.CHAR.getKeyword()+"(4)",TestUtils.getString(3)));
@@ -120,29 +211,128 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CTSQUERY",PostgresType.TSQUERY.getKeyword(),"fat:ab & cat"));
 
     // BINARY/VARBINARY
-    listCdSimple.add(new ColumnDefinition("CBIT_256",PostgresType.BIT.getKeyword()+"(256)",TestUtils.getBytes(32)));
-    listCdSimple.add(new ColumnDefinition("CVARBIT_805",PostgresType.VARBIT.getKeyword()+"(805)",TestUtils.getBytes(101)));
-    listCdSimple.add(new ColumnDefinition("CBYTEA",PostgresType.BYTEA.getKeyword()+"(5000)",TestUtils.getBytes(5000)));
+    listCdSimple.add(new ColumnDefinition("CBIT_256",PostgresType.BIT.getKeyword()+"(256)",PostgresLiterals.formatBitString(TestUtils.getBytes(32),256)));
+    listCdSimple.add(new ColumnDefinition("CVARBIT_805",PostgresType.VARBIT.getKeyword()+"(805)",PostgresLiterals.formatBitString(TestUtils.getBytes(101),805)));
+    listCdSimple.add(new ColumnDefinition("CBYTEA",PostgresType.BYTEA.getKeyword(),TestUtils.getBytes(5000)));
     listCdSimple.add(new ColumnDefinition("CUUID",PostgresType.UUID.getKeyword(),UUID.randomUUID()));
+    listCdSimple.add(new ColumnDefinition("CMACADDR",PostgresType.MACADDR.getKeyword(),PostgresLiterals.formatMacAddr(TestUtils.getBytes(6))));
+    listCdSimple.add(new ColumnDefinition("CMACADDR8",PostgresType.MACADDR8.getKeyword(),PostgresLiterals.formatMacAddr(TestUtils.getBytes(8))));
     
-    // BLOB
-    listCdSimple.add(new ColumnDefinition("COID",PostgresType.OID.getKeyword(),TestUtils.getBytes(500)));
-    listCdSimple.add(new ColumnDefinition("CMACADDR",PostgresType.MACADDR.getKeyword(),TestUtils.getBytes(6)));
-    listCdSimple.add(new ColumnDefinition("CMACADDR8",PostgresType.MACADDR8.getKeyword(),TestUtils.getBytes(8)));
-    
-    /* spatial */
-    listCdSimple.add(new ColumnDefinition("CGEOMETRY","GEOMETRY","POINT (1 2)"));
-    listCdSimple.add(new ColumnDefinition("CPOINT","POINT","POINT (1 2)"));
-    listCdSimple.add(new ColumnDefinition("CLINESTRING","LINESTRING","LINESTRING (0 0, 1 1, 2 2)"));
-    listCdSimple.add(new ColumnDefinition("CPOLYGON","POLYGON","POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0), (5 5, 7 5, 7 7, 5 7, 5 5))"));
-    listCdSimple.add(new ColumnDefinition("CMULTIPOINT","MULTIPOINT","MULTIPOINT (1 1, 2 2, 3 3)"));
-    listCdSimple.add(new ColumnDefinition("CMULTILINESTRING","MULTILINESTRING","MULTILINESTRING ((10 10, 20 20), (15 15, 30 15))"));
-    listCdSimple.add(new ColumnDefinition("CMULTIPOLYGON","MULTIPOLYGON","MULTIPOLYGON (((0 0, 10 0, 10 10, 0 10, 0 0)), ((5 5, 7 5, 7 7, 5 7, 5 5)))"));
-    listCdSimple.add(new ColumnDefinition("CGEOMETRYCOLLECTION","GEOMETRYCOLLECTION","GEOMETRYCOLLECTION (POINT (1 1), LINESTRING (0 0, 1 1, 2 2, 3 3, 4 4))"));
+    // spatial
+    listCdSimple.add(new ColumnDefinition("CPOINT",PostgresType.POINT.getKeyword(),"(1.5, 2.0)"));
+    listCdSimple.add(new ColumnDefinition("CLINE",PostgresType.LINE.getKeyword(),"{0.5, -0.1, 1.0}"));
+    listCdSimple.add(new ColumnDefinition("CLSEG",PostgresType.LSEG.getKeyword(),"[(1.2, 2.1), (4.8, 5.1)]"));
+    listCdSimple.add(new ColumnDefinition("CBOX",PostgresType.BOX.getKeyword(),"((1, 1), (2, 2))"));
+    listCdSimple.add(new ColumnDefinition("CPATH",PostgresType.PATH.getKeyword(),"[(0, 0), (10, 0), (10, 10), (0, 10)]"));
+    listCdSimple.add(new ColumnDefinition("CPOLYGON",PostgresType.POLYGON.getKeyword(),"((0, 0), (10, 0), (10, 10), (0, 10))"));
+    listCdSimple.add(new ColumnDefinition("CCIRCLE",PostgresType.CIRCLE.getKeyword(),"<(1.0, 0.0),5.0>"));
     
     return listCdSimple;    
   }
-  public static List<TestColumnDefinition> _listCdSimple = getCdSimple();
+  public static List<ColumnDefinition> _listCdSimple = getCdSimple();
+  
+  /* complex type : builtin int4range */
+  private static List<ColumnDefinition> getListBuiltinRange()
+  {
+    List<ColumnDefinition> listBuiltinRange = new ArrayList<ColumnDefinition>();
+    listBuiltinRange.add(new ColumnDefinition("min","int4",Integer.valueOf(473)));
+    listBuiltinRange.add(new ColumnDefinition("sup","int4",Integer.valueOf(5435)));
+    return listBuiltinRange;
+  }
+  public static List<ColumnDefinition> _listBuiltinRange = getListBuiltinRange();
+  
+  /* complex type : domain */
+  private static List<ColumnDefinition> getListBaseDomain()
+  {
+    List<ColumnDefinition> listBaseDomain = new ArrayList<ColumnDefinition>();
+    listBaseDomain.add(new ColumnDefinition(getQualifiedDomainType().format(),"int4",Integer.valueOf(999)));
+    return listBaseDomain;
+  }
+  public static List<ColumnDefinition> _listBaseDomain = getListBaseDomain();
+  
+  /* complex type : composite */
+  private static List<ColumnDefinition> getListCompositeType()
+  {
+    List<ColumnDefinition> listCompositeType = new ArrayList<ColumnDefinition>();
+    listCompositeType.add(new ColumnDefinition("F1","int4",Integer.valueOf(-25)));
+    listCompositeType.add(new ColumnDefinition("F2","text",TestUtils.getString(511)));
+    return listCompositeType;
+  }
+  public static List<ColumnDefinition> _listCompositeType = getListCompositeType();
+  
+  /* complex type : enum */
+  private static List<ColumnDefinition> getListEnumType()
+  {
+    List<ColumnDefinition> listEnumType = new ArrayList<ColumnDefinition>();
+    listEnumType.add(new ColumnDefinition(getQualifiedEnumType().format(),"ENUM ('clubs','spades','hearts','diamonds')","hearts"));
+    return listEnumType;
+  }
+  public static List<ColumnDefinition> _listEnumType = getListEnumType();
+  
+  /* complex type : string RANGE */
+  private static List<ColumnDefinition> getListRangeType()
+  {
+    List<ColumnDefinition> listRangeType = new ArrayList<ColumnDefinition>();
+    listRangeType.add(new ColumnDefinition("min","text","b"));
+    listRangeType.add(new ColumnDefinition("sup","text","c"));
+    return listRangeType;
+  }
+  public static List<ColumnDefinition> _listRangeType = getListRangeType();
+  
+  /* complex type : string ARRAY */
+  private static List<ColumnDefinition> getListStringArray()
+  {
+    List<ColumnDefinition> listStringArray = new ArrayList<ColumnDefinition>();
+    listStringArray.add(new ColumnDefinition("CARRAY[1]","text","line1"));
+    listStringArray.add(new ColumnDefinition("CARRAY[2]","text","line2"));
+    listStringArray.add(new ColumnDefinition("CARRAY[3]","text","line3"));
+    listStringArray.add(new ColumnDefinition("CARRAY[4]","text","line4"));
+    return listStringArray;
+  }
+  public static List<ColumnDefinition> _listStringArray = getListStringArray();
+  
+  /* complex type : double MATRIX */
+  private static List<ColumnDefinition> getListDoubleMatrix()
+  {
+    List<ColumnDefinition> listDoubleMatrix = new ArrayList<ColumnDefinition>();
+    List<ColumnDefinition> listDoubleArray = new ArrayList<ColumnDefinition>();
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][1]","float8",Double.valueOf(0.1)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][2]","float8",Double.valueOf(0.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][3]","float8",Double.valueOf(0.5)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][4]","float8",Double.valueOf(2.0)));
+    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[1]","float8[]",listDoubleArray));
+    listDoubleArray = new ArrayList<ColumnDefinition>();
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][1]","float8",Double.valueOf(10.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][2]","float8",null));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][3]","float8",Double.valueOf(2.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][4]","float8",Double.valueOf(0.5)));
+    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[2]","float8[]",listDoubleArray));
+    listDoubleArray = new ArrayList<ColumnDefinition>();
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][1]","float8",Double.valueOf(5.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][2]","float8",Double.valueOf(0.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][3]","float8",Double.valueOf(0.25)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][4]","float8",Double.valueOf(1.0)));
+    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[3]","float8[]",listDoubleArray));
+    return listDoubleMatrix;
+  }
+  public static List<ColumnDefinition> _listDoubleMatrix = getListDoubleMatrix();
+  
+  /* all complex types */
+  private static List<ColumnDefinition> getCdComplex() 
+  {
+    List<ColumnDefinition> listCdComplex = new ArrayList<ColumnDefinition>();
+    /* domain type */
+    listCdComplex.add(new ColumnDefinition("CINT_BUILTIN",getQualifiedBuiltinRange().format(),_listBuiltinRange));
+    listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
+    listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
+    listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));
+    listCdComplex.add(new ColumnDefinition("CSTRING_RANGE",getQualifiedRangeType().format(),_listRangeType));
+    listCdComplex.add(new ColumnDefinition("CSTRING_ARRAY",getQualifiedRangeType().format(),_listStringArray));
+    listCdComplex.add(new ColumnDefinition("CDOUBLE_MATRIX",getQualifiedRangeType().format(),_listDoubleMatrix));
+    return listCdComplex;
+  }
+  public static List<ColumnDefinition> _listCdComplex = getCdComplex();
+  
   
   private Connection _conn = null;
   private String _sDbUser = null;
@@ -207,12 +397,18 @@ public class TestPostgresDatabase
 
   private void dropTypes()
   {
-    dropType(getQualifiedDistinctType());
+    dropType(getQualifiedDomainType());
+    dropType(getQualifiedCompositeType());
+    dropType(getQualifiedEnumType());
+    dropType(getQualifiedRangeType());
   } /* dropTypes */
   
   private void dropType(QualifiedId qiType)
   {
-    executeDrop("DROP TYPE "+qiType.format()); 
+    if (qiType.getName().equals(_sTEST_INTEGER_DOMAIN))
+      executeDrop("DROP DOMAIN "+qiType.format());
+    else
+      executeDrop("DROP TYPE "+qiType.format());
   } /* dropType */
   
   private void dropSchema()
@@ -243,21 +439,56 @@ public class TestPostgresDatabase
   {
     SchemaId sid = new SchemaId(null,_sTEST_SCHEMA);
     executeCreate("CREATE SCHEMA "+sid.format()+" AUTHORIZATION "+_sDbUser);
+    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON TABLES TO "+_sDbUser);
+    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON TYPES TO "+_sDbUser);
+    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON SEQUENCES TO "+_sDbUser);
+    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON FUNCTIONS TO "+_sDbUser);
   } /* createSchema */
   
   private void createTypes()
     throws SQLException
   {
-    /**
-    createType(getQualifiedDistinctType(),_listBaseDistinct);
-    **/
+    createType(getQualifiedDomainType(),_listBaseDomain);
+    createType(getQualifiedCompositeType(),_listCompositeType);
+    createType(getQualifiedEnumType(),_listEnumType);
+    createType(getQualifiedRangeType(),_listRangeType);
   } /* createTypes */
 
-  private void createType(QualifiedId qiType, List<TestColumnDefinition> listBase)
+  private void createType(QualifiedId qiType, List<ColumnDefinition> listAttributes)
     throws SQLException
   {
-    TestColumnDefinition tcd = listBase.get(0);
-    executeCreate("CREATE TYPE "+qiType.format()+" FROM "+tcd.getType());
+    if (qiType.getName().equals(_sTEST_INTEGER_DOMAIN))
+    {
+      ColumnDefinition cd = listAttributes.get(0);
+      executeCreate("CREATE DOMAIN "+qiType.format()+" AS "+cd.getType());
+    }
+    else if (qiType.getName().equals(_sTEST_TYPE_COMP))
+    {
+      StringBuilder sb = new StringBuilder("CREATE TYPE ");
+      sb.append(qiType.format());
+      sb.append(" AS (");
+      for (int iAttribute = 0; iAttribute < listAttributes.size(); iAttribute++)
+      {
+        ColumnDefinition cd = listAttributes.get(iAttribute);
+        if (iAttribute > 0)
+          sb.append(",");
+        sb.append("\r\n  ");
+        sb.append(PostgresLiterals.formatId(cd.getName()));
+        sb.append(" ");
+        sb.append(cd.getType());
+      }
+      sb.append("\r\n)");
+      executeCreate(sb.toString());
+    }
+    else if (qiType.getName().equals(_sTEST_TYPE_ENUM))
+    {
+      ColumnDefinition cd = listAttributes.get(0);
+      executeCreate("CREATE TYPE "+qiType.format()+" AS "+cd.getType());
+    }
+    else if (qiType.getName().equals(_sTEST_TYPE_RANGE))
+    {
+      executeCreate("CREATE TYPE "+qiType.format()+" AS RANGE (subtype=text)");
+    }
   } /* createType */
 
   private void createTables()
@@ -266,12 +497,10 @@ public class TestPostgresDatabase
     createTable(getQualifiedSimpleTable(),_listCdSimple,
       Arrays.asList(new String[] {_listCdSimple.get(_iPrimarySimple).getName()}),
       Arrays.asList(new String[] {_listCdSimple.get(_iCandidateSimple).getName()}));
-    /**
     createTable(getQualifiedComplexTable(),_listCdComplex,null,null);
-    **/
   } /* createTables */
   
-  private void createTable(QualifiedId qiTable, List<TestColumnDefinition> listCd,
+  private void createTable(QualifiedId qiTable, List<ColumnDefinition> listCd,
     List<String> listPrimary, List<String> listUnique)
     throws SQLException
   {
@@ -280,12 +509,19 @@ public class TestPostgresDatabase
     sbSql.append("\r\n(\r\n  ");
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
-      TestColumnDefinition tcd = listCd.get(iColumn); 
+      ColumnDefinition cd = listCd.get(iColumn); 
       if (iColumn > 0)
         sbSql.append(",\r\n  ");
-      sbSql.append(tcd.getName());
+      sbSql.append(cd.getName());
       sbSql.append(" ");
-      sbSql.append(tcd.getType());
+      if (cd.getName().equals("CINT_BUILTIN"))
+        sbSql.append("int4range");
+      else if (cd.getName().equals("CSTRING_ARRAY"))
+        sbSql.append("text[4]");
+      else if (cd.getName().equals("CDOUBLE_MATRIX"))
+        sbSql.append("float8[3][4]");
+      else
+        sbSql.append(cd.getType());
     }
     if (listPrimary != null)
     {
@@ -310,13 +546,11 @@ public class TestPostgresDatabase
   private void insertTables()
     throws SQLException
   {
-    /**
     insertTable(getQualifiedSimpleTable(),_listCdSimple);
     insertTable(getQualifiedComplexTable(),_listCdComplex);
-    **/
   } /* insertTables */
   
-  private void insertTable(QualifiedId qiTable, List<TestColumnDefinition> listCd)
+  private void insertTable(QualifiedId qiTable, List<ColumnDefinition> listCd)
     throws SQLException
   {
     StringBuilder sbSql = new StringBuilder("INSERT INTO ");
@@ -324,30 +558,30 @@ public class TestPostgresDatabase
     sbSql.append("\r\n(\r\n  ");
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
-      TestColumnDefinition tcd = listCd.get(iColumn); 
-      if (tcd.getValue() != null)
+      ColumnDefinition cd = listCd.get(iColumn); 
+      if (cd.getValue() != null)
       {
         if (iColumn > 0)
           sbSql.append(",\r\n  ");
-        sbSql.append(tcd.getName());
+        sbSql.append(cd.getName());
       }
     }
     sbSql.append("\r\n)\r\nVALUES\r\n(\r\n  ");
     List<Object> listLobs = new ArrayList<Object>();
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
-      TestColumnDefinition tcd = listCd.get(iColumn);
-      if (tcd.getValue() != null)
+      ColumnDefinition cd = listCd.get(iColumn);
+      if (cd.getValue() != null)
       {
         if (iColumn > 0)
           sbSql.append(",\r\n  ");
-        String sLiteral = tcd.getValueLiteral();
+        String sLiteral = cd.getValueLiteral();
         if (sLiteral.length() < 1000)
           sbSql.append(sLiteral);
         else
         {
           sbSql.append("?");
-          listLobs.add(tcd.getValue());
+          listLobs.add(cd.getValue());
         }
       }
     }
