@@ -163,7 +163,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       {
         String sTableView = iterTableView.next();
         System.out.println("\nTable/View: "+sTableView);
-        // print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
+        print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
         if (sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
         {
           ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
@@ -174,11 +174,32 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             String sTypeName = rsColumns.getString("TYPE_NAME");
             int iColumnSize = rsColumns.getInt("COLUMN_SIZE");
             int iDecimalDigits = rsColumns.getInt("DECIMAL_DIGITS");
-            if (sColumnName.equals("cinteger"))
+            if (sColumnName.equalsIgnoreCase("CINTEGER"))
             {
               assertEquals("Data type "+String.valueOf(Types.INTEGER)+" expected for "+sColumnName+"!",Types.INTEGER,iDataType);
               assertEquals("Type name "+PreType.INTEGER.getKeyword()+" expected for "+sColumnName+"!",PreType.INTEGER.getKeyword(),sTypeName);
-              assertEquals("Column size 10 expected for "+sColumnName,10,iColumnSize);
+              assertEquals("Column size 10 expected for "+sColumnName,10,iColumnSize); // should really be 11 (for sign)?
+              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
+            }
+            else if (sColumnName.equalsIgnoreCase("CSMALLINT"))
+            {
+              assertEquals("Data type "+String.valueOf(Types.SMALLINT)+" expected for "+sColumnName+"!",Types.SMALLINT,iDataType);
+              assertEquals("Type name "+PreType.SMALLINT.getKeyword()+" expected for "+sColumnName+"!",PreType.SMALLINT.getKeyword(),sTypeName);
+              assertEquals("Column size 10 expected for "+sColumnName,5,iColumnSize);
+              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
+            }
+            else if (sColumnName.equalsIgnoreCase("CBIGINT"))
+            {
+              assertEquals("Data type "+String.valueOf(Types.BIGINT)+" expected for "+sColumnName+"!",Types.BIGINT,iDataType);
+              assertEquals("Type name "+PreType.BIGINT.getKeyword()+" expected for "+sColumnName+"!",PreType.BIGINT.getKeyword(),sTypeName);
+              assertEquals("Column size 19 expected for "+sColumnName,19,iColumnSize); // should really be 20 (for sign?)
+              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
+            }
+            else if (sColumnName.equalsIgnoreCase("COID"))
+            {
+              assertEquals("Data type "+String.valueOf(Types.INTEGER)+" expected for "+sColumnName+"!",Types.INTEGER,iDataType);
+              assertEquals("Type name "+PreType.INTEGER.getKeyword()+" expected for "+sColumnName+"!",PreType.INTEGER.getKeyword(),sTypeName);
+              assertEquals("Column size 10 expected for "+sColumnName,10,iColumnSize); // is unsigned
               assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
             }
           }

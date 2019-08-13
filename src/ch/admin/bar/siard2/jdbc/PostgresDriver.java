@@ -78,7 +78,11 @@ public class PostgresDriver
     _il.enter(url, info);
     Connection conn = super.connect(url, info);
     if (conn != null)
-      conn = new PostgresConnection(super.connect(url, info)); 
+    {
+      if (conn instanceof PostgresConnection)
+        throw new SQLException("PostgresDriver.connect() returned a wrapped connection!");
+      conn = new PostgresConnection(conn);
+    }
     _il.exit(conn);
     return conn;
   } /* connect */

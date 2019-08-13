@@ -58,7 +58,14 @@ public class PostgresDataSource
   @Override
   public Connection getConnection() throws SQLException
   {
-    return new PostgresConnection(super.getConnection());
+    Connection conn = super.getConnection();
+    if (conn != null)
+    {
+      /* wrapped native DataSource gets connection from DriverManager and therefore from PostgresDriver */
+      if (!(conn instanceof PostgresConnection))
+        conn = new PostgresConnection(conn);
+    }
+    return conn;
   } /* getConnection */
 
   /*------------------------------------------------------------------*/
@@ -69,7 +76,14 @@ public class PostgresDataSource
   public Connection getConnection(String username, String password)
       throws SQLException
   {
-    return new PostgresConnection(super.getConnection(username, password));
+    Connection conn = super.getConnection(username, password);
+    if (conn != null)
+    {
+      /* wrapped native DataSource gets connection from DriverManager and therefore from PostgresDriver */
+      if (!(conn instanceof PostgresConnection))
+        conn = new PostgresConnection(conn);
+    }
+    return conn;
   } /* getConnection */
 
   /*------------------------------------------------------------------*/

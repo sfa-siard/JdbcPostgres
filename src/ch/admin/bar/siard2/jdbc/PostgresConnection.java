@@ -37,9 +37,27 @@ implements Connection
     throws SQLException
   {
     super(connWrapped);
-    _dmd = new PostgresDatabaseMetaData(super.getMetaData(),this);    
+    DatabaseMetaData dmd = super.getMetaData();
+    if (dmd != null)
+    {
+      if (dmd instanceof PostgresDatabaseMetaData)
+        throw new SQLException("PostgresConnection() returned a wrapped meta data instance!");
+      dmd = new PostgresDatabaseMetaData(dmd,this);
+    }
+    _dmd = dmd;    
   } /* constructor */
   
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc}
+   * returns wrapped database meta data.
+   */
+  @Override
+  public DatabaseMetaData getMetaData()
+    throws SQLException
+  {
+    return _dmd;
+  } /* getMetadata */
+
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
@@ -177,16 +195,5 @@ implements Connection
     CallableStatement cs = super.prepareCall(sNative, resultSetType, resultSetConcurrency, resultSetHoldability);
     return cs;
   } /* prepareCall */
-
-  /*------------------------------------------------------------------*/
-  /** {@inheritDoc}
-   * wraps database meta data.
-   */
-  @Override
-  public DatabaseMetaData getMetaData()
-    throws SQLException
-  {
-    return _dmd;
-  } /* getMetadata */
 
 } /* class PostgresConnection */

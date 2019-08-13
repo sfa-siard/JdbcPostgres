@@ -50,8 +50,9 @@ public class PostgresDatabaseMetaData
     String tableNamePattern, String columnNamePattern)
     throws SQLException
   {
-    return new PostgresMetaColumns(super.getColumns(catalog, schemaPattern, 
-      tableNamePattern, columnNamePattern),_conn,1,2,5,6,7,7,9);
+    DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
+    ResultSet rs = dmd.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
+    return new PostgresMetaColumns(rs,_conn,1,2,5,6,7,7,9);
   } /* getColumns */
 
   /*------------------------------------------------------------------*/

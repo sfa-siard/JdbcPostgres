@@ -1,13 +1,12 @@
 package ch.admin.bar.siard2.jdbcx;
 
-import static org.junit.Assert.*;
-
 import java.sql.*;
-
 import javax.sql.DataSource;
 
+import static org.junit.Assert.*;
 import org.junit.*;
 import ch.enterag.utils.base.*;
+import ch.admin.bar.siard2.jdbc.*;
 
 public class PostgresDataSourceTester
 {
@@ -49,12 +48,17 @@ public class PostgresDataSourceTester
   } /* testWrapper */
   
   @Test
-  public void testConnection()
+  public void testGetConnection()
   {
     _dsPostgres.setUrl(_sDB_URL);
     _dsPostgres.setUser(_sDB_USER);
     _dsPostgres.setPassword(_sDB_PASSWORD);
-    try { _conn = _dsPostgres.getConnection(); }
+    try 
+    {
+      _conn = _dsPostgres.getConnection();
+      if (_conn.unwrap(Connection.class) instanceof PostgresConnection)
+        fail("Double wrap!");
+    }
     catch(SQLException se) { fail(se.getClass().getName()+": "+se.getMessage()); }
   } /* testConnection */
   

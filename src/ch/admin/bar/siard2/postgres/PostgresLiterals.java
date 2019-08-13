@@ -18,6 +18,12 @@ import ch.enterag.utils.*;
  */
 public abstract class PostgresLiterals extends SqlLiterals
 {
+  /*------------------------------------------------------------------*/
+  /** format a bit string
+   * @param buffer bytes for bit string.
+   * @param iMaxBits maximum number of bits.
+   * @return formatted bit string.
+   */
   public static String formatBitString(byte[] buffer, int iMaxBits)
   {
     StringBuilder sb = new StringBuilder();
@@ -38,15 +44,19 @@ public abstract class PostgresLiterals extends SqlLiterals
       }
     }
     return sb.toString();
-  }
+  } /* formatBitString */
   
+  /*------------------------------------------------------------------*/
+  /** format a binary MAC address as a string.
+   * @param buffer binary MAC address.
+   * @return string representation.
+   */
   public static String formatMacAddr(byte[] buffer)
   {
     String[] as = new String[buffer.length];
     for (int i = 0; i < buffer.length; i++)
       as[i] = BU.toHex(buffer[i]);
     return String.join(":", as);
-  }
+  } /* formatMacAddr */
   
-
 } /* class PostgresLiterals */

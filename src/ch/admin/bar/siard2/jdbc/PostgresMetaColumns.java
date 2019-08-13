@@ -116,8 +116,8 @@ public class PostgresMetaColumns
   } /* getTypeName */
   
   /*------------------------------------------------------------------*/
-  static int getDataType(int iType, String sTypeName,
-    Connection conn, String sCatalogName, String sSchemaName)
+  private int getDataType(int iType, String sTypeName,
+    String sCatalogName, String sSchemaName)
     throws SQLException
   {
     PreType pt = mapNAME_POSTGRES_TO_ISO.get(sTypeName);
@@ -186,19 +186,48 @@ public class PostgresMetaColumns
   @Override
   public int getInt(int columnIndex) throws SQLException
   {
-    int iResult = -1;
+    int iResult = super.getInt(columnIndex);
     if (columnIndex == _iDataType)
     {
       iResult = getDataType(
-        super.getInt(_iDataType), 
+        iResult, 
         super.getString(_iTypeName),
-        _conn,
         super.getString(_iCatalog), 
         super.getString(_iSchema));
     }
-    else
-      iResult = super.getInt(columnIndex);
     return iResult;
   } /* getInt */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc}
+   * Mapped java.sql.Types type is returned in DATA_TYPE.
+   * Type name (mapped to ISO SQL) is returned in TYPE_NAME.
+   */
+  @Override
+  public Object getObject(int columnIndex) throws SQLException
+  {
+    Object oResult = super.getObject(columnIndex);
+    if (columnIndex == _iDataType)
+    {
+      oResult = getDataType(
+        ((Integer)oResult).intValue(), 
+        super.getString(_iTypeName),
+        super.getString(_iCatalog), 
+        super.getString(_iSchema));
+    }
+    else if (columnIndex == _iTypeName)
+    {
+      int iLength = super.getInt(_iPrecision);
+      if (iLength <= 0)
+        iLength = super.getInt(_iLength);
+      oResult = getTypeName(
+        (String)oResult, 
+        iLength, 
+        super.getInt(_iScale),
+        super.getString(_iCatalog), 
+        super.getString(_iSchema));
+    }
+    return oResult;
+  } /* getObject */
 
 } /* PostgresMetaColumns */
