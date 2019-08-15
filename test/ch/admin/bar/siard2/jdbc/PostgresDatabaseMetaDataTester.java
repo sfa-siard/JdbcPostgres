@@ -6,7 +6,7 @@ import java.util.*;
 import static org.junit.Assert.*;
 import org.junit.*;
 
-import ch.enterag.sqlparser.datatype.enums.PreType;
+import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
 import ch.enterag.utils.jdbc.*;
@@ -150,6 +150,182 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     return setTables;
   } /* getTablesUser */
   
+  /** compute size in characters of the int type with the given maximum.
+   * N.B.: Postgres uses this value. The correct value would be
+   * length(2*kMaxUnsigned+1)+1 for unsigned types with sign.
+   * @param lMaxSigned maximum of signed int type.
+   * @return size in characters
+   */
+  private int sizeFromMax(long lMaxSigned)
+  {
+    int iSize = String.valueOf(lMaxSigned).length();
+    return iSize;
+  }
+  
+  /** split type name from rest
+   * @param sType type with qualifications.
+   * @return array with type name as first element and possibly 
+   *   qualifications as second element. 
+   */
+  
+  /** extract precision from type in column definition.
+   * @param sType type in column definition.
+   * @return precision.
+   */
+  private int parsePrecision(String sType)
+  {
+    int iPrecision = 0;
+    String[] asType = sType.split("\\(",2);
+    PostgresType pgt = PostgresType.getByKeyword(asType[0]);
+    if (pgt != null)
+    {
+      PreType pt = pgt.getPreType();
+      if (asType.length > 1)
+      {
+        String sPrecision = asType[1].substring(0,asType[1].length()-1);
+        int iComma = sPrecision.indexOf(",");
+        if (iComma >= 0)
+          sPrecision = sPrecision.substring(0,iComma);
+        iPrecision = Integer.valueOf(sPrecision);
+        if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
+          iPrecision = (iPrecision + 7)/8;
+      }
+      else
+      {
+        if (pt == PreType.INTEGER)
+          iPrecision = sizeFromMax(Integer.MAX_VALUE);
+        else if (pt == PreType.SMALLINT)
+          iPrecision = sizeFromMax(Short.MAX_VALUE);
+        else if (pt == PreType.BIGINT)
+          iPrecision = sizeFromMax(Long.MAX_VALUE);
+        else if (pt == PreType.DOUBLE)
+          iPrecision = 17;
+        else if (pt == PreType.REAL)
+          iPrecision = 8;
+        else if (pt == PreType.DECIMAL)
+          iPrecision = Integer.MAX_VALUE;
+        else if (pt == PreType.BOOLEAN)
+          iPrecision = 1;
+        else if (pt == PreType.DATE)
+          iPrecision = 13;
+        if (pgt == PostgresType.TIME)
+          iPrecision = 15;
+        else if (pgt == PostgresType.TIMETZ)
+          iPrecision = 21;
+        else if (pgt == PostgresType.TIMESTAMP)
+          iPrecision = 29;
+        else if (pgt == PostgresType.TIMESTAMPTZ)
+          iPrecision = 29;
+        else if (pt == PreType.CLOB)
+          iPrecision = Integer.MAX_VALUE;
+        else if (pt == PreType.XML)
+          iPrecision = Integer.MAX_VALUE;
+        else if (pt == PreType.BLOB)
+          iPrecision = Integer.MAX_VALUE;
+        else if (pgt == PostgresType.UUID)
+          iPrecision = 16;
+        else if (pgt == PostgresType.MACADDR)
+          iPrecision = 6;
+        else if (pgt == PostgresType.MACADDR8)
+          iPrecision = 8;
+        else if ((pgt == PostgresType.POINT) ||
+                 (pgt == PostgresType.LINE) ||
+                 (pgt == PostgresType.LSEG) ||
+                 (pgt == PostgresType.BOX) ||
+                 (pgt == PostgresType.PATH) ||
+                 (pgt == PostgresType.POLYGON) ||
+                 (pgt == PostgresType.CIRCLE))
+          iPrecision = Integer.MAX_VALUE;
+      }
+    }
+    else
+    {
+      asType = sType.split("\\s",2);
+      pgt = PostgresType.getByKeyword(asType[0]);
+      PreType pt = pgt.getPreType();
+      if (pt == PreType.INTERVAL)
+        iPrecision = 49;
+    } 
+    return iPrecision;
+  } /* parsePrecision */
+  
+  private int parseScale(String sType)
+  {
+    int iScale = 0;
+    String[] asType = sType.split("\\(",2);
+    PostgresType pgt = PostgresType.getByKeyword(asType[0]);
+    if (pgt != null)
+    {
+      PreType pt = pgt.getPreType();
+      if (asType.length > 1)
+      {
+        String sPrecision = asType[1].substring(0,asType[1].length()-1);
+        int iComma = sPrecision.indexOf(",");
+        if (iComma >= 0)
+        {
+          String sScale = sPrecision.substring(iComma+1);
+          iScale = Integer.valueOf(sScale);
+        }
+      }
+      else
+      {
+        if (pt == PreType.DOUBLE)
+          iScale = 17;
+        else if (pt == PreType.REAL)
+          iScale = 8;
+        else if (pt == PreType.TIME)
+          iScale = 6;
+        else if (pt == PreType.TIMESTAMP)
+          iScale = 6;
+      }
+    }
+    else
+    {
+      iScale = 0; // default value for interval (??)
+      asType = sType.split("\\s",2);
+      pgt = PostgresType.getByKeyword(asType[0]);
+      if (asType.length > 1)
+      {
+        String[] asPrecision = asType[1].split("\\(");
+        if (asPrecision.length > 1)
+        {
+          String sScale = asPrecision[1].substring(0,asPrecision[1].length()-1);
+          iScale = Integer.valueOf(sScale);
+        }
+      }
+    } 
+    return iScale;
+  } /* parseScale */
+  
+  private PostgresType parseType(String sType)
+  {
+    String[] asType = sType.split("\\(",2);
+    PostgresType pgt = PostgresType.getByKeyword(asType[0]);
+    if (pgt == null)
+    {
+      asType = sType.split("\\s",2);
+      pgt = PostgresType.getByKeyword(asType[0]);
+    } 
+    return pgt;
+  }
+  
+  /** find column definition in list with matching column name.
+   * @param sColumnName column name.
+   * @param listCd list
+   * @return column definition.
+   */
+  private TestPostgresDatabase.ColumnDefinition findColumnDefinition(String sColumnName, List<TestPostgresDatabase.ColumnDefinition> listCd)
+  {
+    TestPostgresDatabase.ColumnDefinition cdFound = null;
+    for (Iterator<TestPostgresDatabase.ColumnDefinition> iterCd = listCd.iterator(); (cdFound == null) && iterCd.hasNext(); )
+    {
+      TestPostgresDatabase.ColumnDefinition cd = iterCd.next();
+      if (cd.getName().equalsIgnoreCase(sColumnName))
+        cdFound = cd;
+    }
+    return cdFound;
+  } /* findColumnDefinition */
+  
   /** list columns of user tables
    */
   @Test
@@ -162,11 +338,12 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       for (Iterator<String> iterTableView = setUserTablesViews.iterator(); iterTableView.hasNext(); )
       {
         String sTableView = iterTableView.next();
-        System.out.println("\nTable/View: "+sTableView);
-        print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
-        if (sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
+        if ((sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
+            (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase())))
         {
+          System.out.println("\nTable/View: "+sTableView);
           ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
+          int iPosition = 0;
           while (rsColumns.next())
           {
             String sColumnName = rsColumns.getString("COLUMN_NAME");
@@ -174,36 +351,81 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             String sTypeName = rsColumns.getString("TYPE_NAME");
             int iColumnSize = rsColumns.getInt("COLUMN_SIZE");
             int iDecimalDigits = rsColumns.getInt("DECIMAL_DIGITS");
-            if (sColumnName.equalsIgnoreCase("CINTEGER"))
+            int iNumPrecRadix = rsColumns.getInt("NUM_PREC_RADIX");
+            int iNullable = rsColumns.getInt("NULLABLE");
+            int iCharOctetLength = rsColumns.getInt("CHAR_OCTET_LENGTH");
+            int iOrdinalPosition = rsColumns.getInt("ORDINAL_POSITION");
+            String sIsNullable = rsColumns.getString("IS_NULLABLE");
+            String sIsAutoIncrement = rsColumns.getString("IS_AUTOINCREMENT");
+            
+            String sAutoIncrement = "NO";
+            int iNulls = DatabaseMetaData.columnNullable;
+            String sNullable = "YES";
+            int iPrecision = Integer.MAX_VALUE;
+            int iScale = 0;
+            int iRadix = 10;
+            int iType = Types.NULL;
+            String sType = sTypeName;
+            TestPostgresDatabase.ColumnDefinition cd = null;
+            if (sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
+              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
+            else if (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase()))
+              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
+            if (!(cd.getValue() instanceof List<?>))
             {
-              assertEquals("Data type "+String.valueOf(Types.INTEGER)+" expected for "+sColumnName+"!",Types.INTEGER,iDataType);
-              assertEquals("Type name "+PreType.INTEGER.getKeyword()+" expected for "+sColumnName+"!",PreType.INTEGER.getKeyword(),sTypeName);
-              assertEquals("Column size 10 expected for "+sColumnName,10,iColumnSize); // should really be 11 (for sign)?
-              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
+              PostgresType pgt = parseType(cd.getType());
+              iType = pgt.getPreType().getSqlType();
+              sType = pgt.getPreType().getKeyword();
+              if (cd.getType().indexOf("serial") >= 0)
+                sAutoIncrement = "YES";
+              if ((iPosition == TestPostgresDatabase._iPrimarySimple) ||
+                  (sAutoIncrement.equals("YES")))
+                iNulls = DatabaseMetaData.columnNoNulls;
+              if (iNulls == DatabaseMetaData.columnNoNulls)
+                sNullable = "NO";
+              else if (iNulls == DatabaseMetaData.columnNullableUnknown)
+                sNullable = "";
+              iPrecision = parsePrecision(cd.getType());
+              iScale = parseScale(cd.getType());
+              if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
+                iRadix = 2;
             }
-            else if (sColumnName.equalsIgnoreCase("CSMALLINT"))
+            else if (sColumnName.equalsIgnoreCase("CINT_DOMAIN"))
+              iType = Types.DISTINCT;
+            else if (sColumnName.equalsIgnoreCase("CCOMPOSITE"))
+              iType = Types.STRUCT;
+            else if (sColumnName.equalsIgnoreCase("CENUM_SUIT"))
+              iType = Types.VARCHAR;
+            else if (sColumnName.equalsIgnoreCase("CINT_BUILTIN"))
+              iType = Types.OTHER; // TODO: change to ARRAY or STRUCT!!
+            else if (sColumnName.equalsIgnoreCase("CSTRING_RANGE"))
+              iType = Types.OTHER; // TODO: change to ARRAY or STRUCT!!
+            else if (sColumnName.equalsIgnoreCase("CSTRING_ARRAY"))
             {
-              assertEquals("Data type "+String.valueOf(Types.SMALLINT)+" expected for "+sColumnName+"!",Types.SMALLINT,iDataType);
-              assertEquals("Type name "+PreType.SMALLINT.getKeyword()+" expected for "+sColumnName+"!",PreType.SMALLINT.getKeyword(),sTypeName);
-              assertEquals("Column size 10 expected for "+sColumnName,5,iColumnSize);
-              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
+              iType = Types.ARRAY;
+              sTypeName = "_text";
             }
-            else if (sColumnName.equalsIgnoreCase("CBIGINT"))
+            else if (sColumnName.equalsIgnoreCase("CDOUBLE_MATRIX"))
             {
-              assertEquals("Data type "+String.valueOf(Types.BIGINT)+" expected for "+sColumnName+"!",Types.BIGINT,iDataType);
-              assertEquals("Type name "+PreType.BIGINT.getKeyword()+" expected for "+sColumnName+"!",PreType.BIGINT.getKeyword(),sTypeName);
-              assertEquals("Column size 19 expected for "+sColumnName,19,iColumnSize); // should really be 20 (for sign?)
-              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
+              iType = Types.ARRAY;
+              sTypeName = "_float8";
             }
-            else if (sColumnName.equalsIgnoreCase("COID"))
-            {
-              assertEquals("Data type "+String.valueOf(Types.INTEGER)+" expected for "+sColumnName+"!",Types.INTEGER,iDataType);
-              assertEquals("Type name "+PreType.INTEGER.getKeyword()+" expected for "+sColumnName+"!",PreType.INTEGER.getKeyword(),sTypeName);
-              assertEquals("Column size 10 expected for "+sColumnName,10,iColumnSize); // is unsigned
-              assertEquals("Decimal digits 0 expected for "+sColumnName,0,iDecimalDigits);
-            }
+            
+            assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);
+            assertEquals("Unexpected type name for "+sColumnName,sType,sTypeName);
+            assertEquals("Unexpected column size for "+sColumnName,iPrecision,iColumnSize);
+            assertEquals("Unexpected decimal digits for "+sColumnName,iScale,iDecimalDigits);
+            assertEquals("Unexpected radix for "+sColumnName,iRadix,iNumPrecRadix);
+            assertEquals("Unexpected nullable for "+sColumnName,iNulls,iNullable);
+            assertEquals("Unexpected length for "+sColumnName,iPrecision,iCharOctetLength);        
+            iPosition = iPosition + 1;
+            assertEquals("Unexpected ordinal_position for "+sColumnName,iPosition,iOrdinalPosition);
+            assertEquals("Unexpected is_nullable for "+sColumnName,sNullable,sIsNullable);
+            assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
           }
           rsColumns.close();
+          print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
+          
         }
       }
     }

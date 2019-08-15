@@ -37,7 +37,7 @@ public class TestPostgresDatabase
   public static QualifiedId getQualifiedMatrixType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_DOUBLE_MATRIX); }
 
   /*------------------------------------------------------------------*/
-  private  static class ColumnDefinition extends TestColumnDefinition
+  public static class ColumnDefinition extends TestColumnDefinition
   {
     @Override
     public String getValueLiteral()
@@ -164,7 +164,7 @@ public class TestPostgresDatabase
     
     // Numeric Data Types: Fixed-Point Types (Exact Values)
     listCdSimple.add(new ColumnDefinition("CNUMERIC_5_2",PostgresType.NUMERIC.getKeyword()+"(5,2)",BigDecimal.valueOf(12345, 2)));
-    listCdSimple.add(new ColumnDefinition("CDECIMAL_15_5",PostgresType.DECIMAL.getKeyword()+"(15,5)",new BigDecimal("123455679.12345")));
+    listCdSimple.add(new ColumnDefinition("CDECIMAL_15_5",PostgresType.NUMERIC.getAliases().toArray()[0]+"(15,5)",new BigDecimal("123455679.12345")));
     // Numeric Data Types: Floating-Point Types (Approximate Values)
     listCdSimple.add(new ColumnDefinition("CDOUBLE",PostgresType.DOUBLE.getKeyword(),Double.valueOf(Math.E)));
     listCdSimple.add(new ColumnDefinition("CREAL",PostgresType.REAL.getKeyword(),new Float(Double.valueOf(Math.PI).floatValue())));
@@ -321,11 +321,10 @@ public class TestPostgresDatabase
   private static List<ColumnDefinition> getCdComplex() 
   {
     List<ColumnDefinition> listCdComplex = new ArrayList<ColumnDefinition>();
-    /* domain type */
-    listCdComplex.add(new ColumnDefinition("CINT_BUILTIN",getQualifiedBuiltinRange().format(),_listBuiltinRange));
     listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
     listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
     listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));
+    listCdComplex.add(new ColumnDefinition("CINT_BUILTIN",getQualifiedBuiltinRange().format(),_listBuiltinRange));
     listCdComplex.add(new ColumnDefinition("CSTRING_RANGE",getQualifiedRangeType().format(),_listRangeType));
     listCdComplex.add(new ColumnDefinition("CSTRING_ARRAY",getQualifiedRangeType().format(),_listStringArray));
     listCdComplex.add(new ColumnDefinition("CDOUBLE_MATRIX",getQualifiedRangeType().format(),_listDoubleMatrix));

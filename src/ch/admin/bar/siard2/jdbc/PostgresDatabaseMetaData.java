@@ -52,7 +52,7 @@ public class PostgresDatabaseMetaData
   {
     DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
     ResultSet rs = dmd.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
-    return new PostgresMetaColumns(rs,_conn,1,2,5,6,7,7,9);
+    return new PostgresMetaColumns(rs,_conn,1,2,5,6,7,16,9);
   } /* getColumns */
 
   /*------------------------------------------------------------------*/
@@ -63,7 +63,7 @@ public class PostgresDatabaseMetaData
     throws SQLException
   {
     return new PostgresMetaColumns(super.getAttributes(catalog, schemaPattern, 
-      typeNamePattern, attributeNamePattern),_conn,1,2,5,6,7,7,8);
+      typeNamePattern, attributeNamePattern),_conn,1,2,5,6,7,15,8);
   } /* getAttributes */
 
   /*------------------------------------------------------------------*/

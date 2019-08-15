@@ -11,12 +11,8 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
-import java.util.HashMap;
-import java.util.Map;
 
-import ch.enterag.sqlparser.datatype.*;
 import ch.enterag.sqlparser.datatype.enums.*;
-import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
 
 /*====================================================================*/
@@ -33,84 +29,20 @@ public class PostgresMetaColumns
   private int _iPrecision = -1;
   private int _iLength = -1;
   private int _iScale = -1;
-  
-  private Connection _conn = null;
-  
-  private static Map<String,PreType> mapNAME_POSTGRES_TO_ISO = new HashMap<String,PreType>();
-  static
-  {
-    mapNAME_POSTGRES_TO_ISO.put("bool",PreType.BOOLEAN);
-    mapNAME_POSTGRES_TO_ISO.put("bytea",PreType.BINARY);
-    mapNAME_POSTGRES_TO_ISO.put("char",PreType.CHAR);
-    mapNAME_POSTGRES_TO_ISO.put("name",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("int8",PreType.BIGINT);
-    mapNAME_POSTGRES_TO_ISO.put("bigserial",PreType.BIGINT);
-    mapNAME_POSTGRES_TO_ISO.put("int2",PreType.SMALLINT);
-    mapNAME_POSTGRES_TO_ISO.put("int4",PreType.INTEGER);
-    mapNAME_POSTGRES_TO_ISO.put("serial",PreType.INTEGER);
-    mapNAME_POSTGRES_TO_ISO.put("text",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("oid",PreType.INTEGER);
-    mapNAME_POSTGRES_TO_ISO.put("json",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("xml",PreType.XML);
-    mapNAME_POSTGRES_TO_ISO.put("point",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("lseg",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("path",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("box",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("polygon",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("line",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("float4",PreType.REAL);
-    mapNAME_POSTGRES_TO_ISO.put("float8",PreType.DOUBLE);
-    mapNAME_POSTGRES_TO_ISO.put("circle",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("money",PreType.DECIMAL);
-    mapNAME_POSTGRES_TO_ISO.put("macaddr",PreType.BINARY);
-    mapNAME_POSTGRES_TO_ISO.put("inet",PreType.VARBINARY);
-    mapNAME_POSTGRES_TO_ISO.put("cidr",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("macaddr8",PreType.BINARY);
-    mapNAME_POSTGRES_TO_ISO.put("varchar",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("date",PreType.DATE);
-    mapNAME_POSTGRES_TO_ISO.put("time",PreType.TIME);
-    mapNAME_POSTGRES_TO_ISO.put("timestamp",PreType.TIMESTAMP);
-    mapNAME_POSTGRES_TO_ISO.put("timestamptz",PreType.TIMESTAMP);
-    mapNAME_POSTGRES_TO_ISO.put("interval",PreType.INTERVAL);
-    mapNAME_POSTGRES_TO_ISO.put("timetz",PreType.TIME);
-    mapNAME_POSTGRES_TO_ISO.put("bit",PreType.BINARY);
-    mapNAME_POSTGRES_TO_ISO.put("varbit",PreType.VARBINARY);
-    mapNAME_POSTGRES_TO_ISO.put("numeric",PreType.NUMERIC);
-    mapNAME_POSTGRES_TO_ISO.put("uuid",PreType.BINARY);
-    mapNAME_POSTGRES_TO_ISO.put("tsvector",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("tsquery",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("jsonb",PreType.VARCHAR);
-    mapNAME_POSTGRES_TO_ISO.put("txid_snapshot",PreType.VARCHAR);
-  }
+
+  @SuppressWarnings("unused")
+  private Connection _conn;
   
   /*------------------------------------------------------------------*/
   private String getTypeName(String sTypeName, int iColumnSize, int iDecimals,
     String sCatalogName, String sSchemaName)
     throws SQLException
   {
-    PreType pt = mapNAME_POSTGRES_TO_ISO.get(sTypeName);
-    if (pt != null)
+    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+    if (pgt != null)
     {
-      PostgresSqlFactory psf = new PostgresSqlFactory();
-      PredefinedType preType = psf.newPredefinedType();
-      preType.initialize(pt.getSqlType(), iColumnSize, iDecimals);
-      sTypeName = preType.format();
-    }
-    else
-    {
-      String sTypeSchema = null;
-      PostgresDatabaseMetaData dmd = (PostgresDatabaseMetaData)_conn.getMetaData();
-      ResultSet rs = dmd.getUDTs(null, null, dmd.toPattern(sTypeName), null);
-      while ((!sSchemaName.equals(sTypeSchema)) && rs.next())
-      {
-        if (sCatalogName.equals(rs.getString("TYPE_CAT")))
-          sTypeSchema = rs.getString("TYPE_SCHEM");
-      }
-      rs.close();
-      QualifiedId qiType = new QualifiedId(null,null,sTypeName);
-      if (!sSchemaName.equals(sTypeSchema))
-        qiType.setSchema(sTypeSchema);
-      sTypeName = qiType.format();
+      PreType pt = pgt.getPreType();
+      sTypeName = pt.getKeyword();
     }
     return sTypeName;
   } /* getTypeName */
@@ -120,11 +52,49 @@ public class PostgresMetaColumns
     String sCatalogName, String sSchemaName)
     throws SQLException
   {
-    PreType pt = mapNAME_POSTGRES_TO_ISO.get(sTypeName);
-    if (pt != null)
-      iType = pt.getSqlType();
+    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+    if (pgt != null)
+    {
+      PreType pt = pgt.getPreType();
+      if (pt != null)
+        iType = pt.getSqlType();
+    }
     return iType;
   } /* getDataType */
+  
+  /*------------------------------------------------------------------*/
+  private int getPrecision(int iPrecision, int iType, String sTypeName)
+  {
+    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+    if (pgt != null)
+    {
+      if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
+        iPrecision = (iPrecision + 7) / 8;
+      else if (pgt == PostgresType.UUID)
+        iPrecision = 16;
+      else if (pgt == PostgresType.MACADDR)
+        iPrecision = 6;
+      else if (pgt == PostgresType.MACADDR8)
+        iPrecision = 8;
+    }
+    else if ((iType == Types.ARRAY) || (iType == Types.STRUCT) || (iType == Types.DISTINCT))
+      iPrecision = Integer.MAX_VALUE;
+    return iPrecision;
+  } /* getPrecision */
+  
+  /*------------------------------------------------------------------*/
+  private int getScale(int iScale, int iType, String sTypeName)
+  {
+    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+    if (pgt != null)
+    {
+      if ((pgt == PostgresType.INTERVAL) && (iScale > 6))
+        iScale = 0;
+    }
+    else if ((iType == Types.ARRAY) || (iType == Types.STRUCT) || (iType == Types.DISTINCT))
+      iScale = 0;
+    return iScale;
+  } /* getPrecision */
   
   /*------------------------------------------------------------------*/
   /** constructor
@@ -195,6 +165,27 @@ public class PostgresMetaColumns
         super.getString(_iCatalog), 
         super.getString(_iSchema));
     }
+    else if (columnIndex == _iPrecision)
+    {
+      iResult = getPrecision(
+        iResult,
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
+    }
+    else if (columnIndex == _iScale)
+    {
+      iResult = getScale(
+        iResult,
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
+    }
+    else if (columnIndex == _iLength)
+    {
+      iResult = getPrecision(
+        iResult,
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
+    }
     return iResult;
   } /* getInt */
 
@@ -214,6 +205,27 @@ public class PostgresMetaColumns
         super.getString(_iTypeName),
         super.getString(_iCatalog), 
         super.getString(_iSchema));
+    }
+    else if (columnIndex == _iPrecision)
+    {
+      oResult = getPrecision(
+        ((Integer)oResult).intValue(),
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
+    }
+    else if (columnIndex == _iScale)
+    {
+      oResult = getScale(
+        ((Integer)oResult).intValue(),
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
+    }
+    else if (columnIndex == _iLength)
+    {
+      oResult = getPrecision(
+        Integer.valueOf((String)oResult).intValue(),
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iTypeName)
     {
