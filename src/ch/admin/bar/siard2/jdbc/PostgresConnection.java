@@ -65,8 +65,9 @@ implements Connection
     throws SQLException
   {
     _il.enter(sql);
-    SqlFactory sf = new PostgresSqlFactory();
-    SqlStatement ss = sf.newSqlStatement();
+    PostgresSqlFactory psf = new PostgresSqlFactory();
+    psf.setConnection(this);
+    SqlStatement ss = psf.newSqlStatement();
     ss.parse(sql);
     sql = ss.format();
     _il.exit(sql);

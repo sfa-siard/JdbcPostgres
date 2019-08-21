@@ -88,4 +88,36 @@ public enum PostgresType
     }
     return pgt;
   } /* getByKeyword */
+  public static PostgresType getByPreType(PreType pt)
+  {
+    PostgresType pgt = null;
+    switch(pt)
+    {
+      case CHAR: pgt = CHAR; break;
+      case VARCHAR: pgt = VARCHAR; break;
+      case CLOB: pgt = TEXT; break;
+      case NCHAR: pgt = CHAR; break;
+      case NVARCHAR: pgt = VARCHAR; break;
+      case NCLOB: pgt = TEXT; break;
+      case XML: pgt = XML; break;
+      case BINARY: pgt = BYTEA; break;
+      case VARBINARY: pgt = BYTEA; break;
+      case BLOB: pgt = BYTEA; break;
+      case NUMERIC: pgt = NUMERIC; break;
+      case DECIMAL: pgt = NUMERIC; break;
+      case SMALLINT: pgt = SMALLINT; break;
+      case INTEGER: pgt = INTEGER; break;
+      case BIGINT: pgt = BIGINT; break;
+      case FLOAT: pgt = DOUBLE; break;
+      case REAL: pgt = REAL; break;
+      case DOUBLE: pgt = DOUBLE; break;
+      case BOOLEAN: pgt = BOOLEAN; break;
+      case DATE: pgt = DATE; break;
+      case TIME: pgt = TIME; break;
+      case TIMESTAMP: pgt = TIMESTAMP; break;
+      case INTERVAL: pgt = INTERVAL; break;
+      default:
+    }
+    return pgt;
+  } /* getByPreType */
 } /* enum PostgresType */

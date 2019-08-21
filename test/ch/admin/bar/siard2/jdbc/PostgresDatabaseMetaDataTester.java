@@ -40,8 +40,10 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       dsPostgres.setPassword(_sDBA_PASSWORD);
       PostgresConnection connPostgres = (PostgresConnection)dsPostgres.getConnection();
       /* drop and create the test databases */
-      // new TestSqlDatabase(connMsSql);
+      new TestSqlDatabase(connPostgres,_sDB_USER);
+      TestPostgresDatabase.grantSchemaUser(connPostgres, TestSqlDatabase._sTEST_SCHEMA, _sDB_USER);
       new TestPostgresDatabase(connPostgres,_sDB_USER);
+      TestPostgresDatabase.grantSchemaUser(connPostgres, TestPostgresDatabase._sTEST_SCHEMA, _sDB_USER);
       connPostgres.close();
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }

@@ -19,6 +19,34 @@ import ch.enterag.utils.*;
 public abstract class PostgresLiterals extends SqlLiterals
 {
   /*------------------------------------------------------------------*/
+  /** quote an identifier in normal form (upper case, regular).
+   * @param sIdentifier identifier in normal form.
+   * @return identifier suitably delimited.
+   */
+  public static String formatId(String sIdentifier)
+  {
+    String sDelimited = null;
+    if (sIdentifier != null)
+    {
+      if ((sIdentifier.length() >= iMIN_IDENTIFIER_LENGTH) && 
+          (sIdentifier.length() <= iMAX_IDENTIFIER_LENGTH))
+      {
+        if ((!sIdentifier.equals(sIdentifier.toUpperCase())) || (!isRegular(sIdentifier)))
+          sDelimited = sQUOTE + sIdentifier.replace(sQUOTE, sDOUBLE_QUOTE) + sQUOTE;
+        else
+          sDelimited = sIdentifier.toLowerCase();
+      }
+      else
+        throw new IllegalArgumentException("Identifier length ("+sIdentifier+") " +
+          "must be at least " + String.valueOf(iMIN_IDENTIFIER_LENGTH) + " " + 
+          "and at most " + String.valueOf(iMAX_IDENTIFIER_LENGTH) + "!");
+    }
+    else
+      throw new NullPointerException("Identifier must not be null!");
+    return sDelimited;
+  } /* formatId */
+  
+  /*------------------------------------------------------------------*/
   /** format a bit string
    * @param buffer bytes for bit string.
    * @param iMaxBits maximum number of bits.

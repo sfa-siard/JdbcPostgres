@@ -19,7 +19,7 @@ import ch.enterag.sqlparser.identifier.*;
 
 public class TestSqlDatabase 
 {
-  public static final String _sTEST_SCHEMA = "TESTSQLUSER";
+  public static final String _sTEST_SCHEMA = "TESTSQLSCHEMA";
   private static final String _sTEST_TABLE_SIMPLE = "TSQLSIMPLE";
   public static QualifiedId getQualifiedSimpleTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_SIMPLE); }
   private static final String _sTEST_TABLE_COMPLEX = "TSQLCOMPLEX";
@@ -118,15 +118,16 @@ public class TestSqlDatabase
   }
   public static List<TestColumnDefinition> _listCdComplex = getListCdComplex();
   
-  private SqlFactory _sf = new PostgresSqlFactory();
+  private SqlFactory _sf = new BaseSqlFactory();
   private Connection _conn = null;
-  private String _sTestUser = null;
+  private String _sDbUser = null;
 
 	/*------------------------------------------------------------------*/
-	public TestSqlDatabase(Connection conn) 
+	public TestSqlDatabase(Connection conn, String sDbUser) 
 		throws SQLException
 	{
 		_conn = conn;
+		_sDbUser = sDbUser;
     try { _conn.setAutoCommit(false); }
     catch (SQLException se) { rollback("Autocommit", se); }
 		drop();
@@ -227,7 +228,13 @@ public class TestSqlDatabase
       stmt.close();
       _conn.commit();
     }
-    catch(SQLException se) { System.out.println(EU.getExceptionMessage(se)); }
+    catch(SQLException se) 
+    { 
+      System.out.println(EU.getExceptionMessage(se));
+      /* terminate transaction */
+      try { _conn.rollback(); }
+      catch(SQLException seRollback) { System.out.println("Rollback failed with "+EU.getExceptionMessage(seRollback)); }
+    }
   } /* executeDrop */
 
 	/*------------------------------------------------------------------*/
@@ -245,7 +252,7 @@ public class TestSqlDatabase
     throws SQLException
   {
       CreateSchemaStatement css = _sf.newCreateSchemaStatement();
-      css.initialize(new SchemaId(null,_sTEST_SCHEMA), new Identifier(_sTestUser));
+      css.initialize(new SchemaId(null,_sTEST_SCHEMA), new Identifier(_sDbUser));
       Statement stmt = _conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,ResultSet.CONCUR_UPDATABLE);
       int iResult = stmt.executeUpdate(css.format());
       if (iResult != 0)
@@ -365,35 +372,7 @@ public class TestSqlDatabase
     throws SQLException
   {
     DataType dt = _sf.newDataType();
-    if (tcd.getValue() instanceof List<?>)
-    {
-      try 
-      { 
-        QualifiedId qiType = new QualifiedId(tcd.getType());
-        dt.initStructType(qiType);
-      }
-      catch(ParseException pe) { throw new SQLException("Type name "+tcd.getType()+" could not be parsed!",pe); }
-    }
-    else
-    {
-      PredefinedType pt = null;
-      try
-      {
-        pt = _sf.newPredefinedType();
-        pt.parse(tcd.getType());
-        dt.initPredefinedDataType(pt);
-      }
-      catch(IllegalArgumentException iae) {}
-      if (pt.getType() == null)
-      {
-        try 
-        { 
-          QualifiedId qiType = new QualifiedId(tcd.getType());
-          dt.initStructType(qiType);
-        }
-        catch(ParseException pe) { throw new SQLException("Type name "+tcd.getType()+" could not be parsed!",pe); }
-      }
-    }
+    dt.parse(tcd.getType());
     ColumnDefinition cd = _sf.newColumnDefinition();
     if (bNotNull)
     {

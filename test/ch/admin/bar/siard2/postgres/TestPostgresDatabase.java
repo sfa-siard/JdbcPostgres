@@ -36,6 +36,28 @@ public class TestPostgresDatabase
   private static final String _sTEST_DOUBLE_MATRIX = "TPGMATRIX";
   public static QualifiedId getQualifiedMatrixType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_DOUBLE_MATRIX); }
 
+  public static void grantSchemaUser(Connection conn, String sSchema, 
+    String sDbUser) throws SQLException 
+  {
+    Statement stmt = conn.createStatement();
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON TABLES TO "+sDbUser);
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON TYPES TO "+sDbUser);
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON SEQUENCES TO "+sDbUser);
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON FUNCTIONS TO "+sDbUser);
+    conn.commit();
+  } /* grantSchemaUser */
+  
+  public static void revokeSchemaUser(Connection conn, String sSchema, 
+    String sDbUser) throws SQLException 
+  {
+    Statement stmt = conn.createStatement();
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" REVOKE ALL ON TABLES TO "+sDbUser);
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" REVOKE ALL ON TYPES TO "+sDbUser);
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" REVOKE ALL ON SEQUENCES TO "+sDbUser);
+    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" REVOKE ALL ON FUNCTIONS TO "+sDbUser);
+    conn.commit();
+  } /* revokeSchemaUser */
+  
   /*------------------------------------------------------------------*/
   public static class ColumnDefinition extends TestColumnDefinition
   {
@@ -438,10 +460,6 @@ public class TestPostgresDatabase
   {
     SchemaId sid = new SchemaId(null,_sTEST_SCHEMA);
     executeCreate("CREATE SCHEMA "+sid.format()+" AUTHORIZATION "+_sDbUser);
-    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON TABLES TO "+_sDbUser);
-    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON TYPES TO "+_sDbUser);
-    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON SEQUENCES TO "+_sDbUser);
-    executeCreate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sid.format()+" GRANT ALL ON FUNCTIONS TO "+_sDbUser);
   } /* createSchema */
   
   private void createTypes()
