@@ -13,9 +13,11 @@ package ch.admin.bar.siard2.postgres;
 import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.*;
 import ch.enterag.sqlparser.ddl.*;
+import ch.enterag.sqlparser.expression.*;
 import ch.admin.bar.siard2.jdbc.*;
 import ch.admin.bar.siard2.postgres.datatype.*;
 import ch.admin.bar.siard2.postgres.ddl.*;
+import ch.admin.bar.siard2.postgres.expression.*;
 
 /* =============================================================================== */
 /** PostgresSqlFactory implements a wrapped SqlFactory for Postgres.
@@ -50,5 +52,17 @@ public class PostgresSqlFactory extends BaseSqlFactory implements SqlFactory
   {
     return new PostgresDropTypeStatement(this);
   } /* newDropTypeStatement */
+  
+  @Override 
+  public ValueExpressionPrimary newValueExpressionPrimary()
+  {
+    return new PostgresValueExpressionPrimary(this);
+  } /* newValueExpressionPrimary */
+  
+  @Override 
+  public UnsignedLiteral newUnsignedLiteral()
+  {
+    return new PostgresUnsignedLiteral(this);
+  } /* newUnsignedLiteral */
   
 } /* class PostgresSqlFactory */

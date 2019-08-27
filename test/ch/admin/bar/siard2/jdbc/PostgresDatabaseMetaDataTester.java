@@ -23,11 +23,11 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   private static final String _sDBA_PASSWORD = _cp.getDbaPassword();
   private static Set<String> _setTestTables = new HashSet<String>(Arrays.asList(new String[] {
     TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase(), // irritating lower case for identifiers ...
-    TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase() /**,
-    TestSqlDatabase.getQualifiedSimpleTable().getName(),
-    TestSqlDatabase.getQualifiedComplexTable().getName()**/}));
+    TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase(),
+    TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase(),
+    TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase()}));
   private static Set<String> _setTestViews = new HashSet<String>(Arrays.asList(new String[] {
-    /** TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()**/}));
+    TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()}));
 
   @BeforeClass
   public static void setUpClass()
@@ -311,6 +311,18 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     return pgt;
   }
   
+  private PreType parsePreType(String sType)
+  {
+    String[] asType = sType.split("\\(",2);
+    PreType pt = PreType.getByKeyword(asType[0]);
+    if (pt == null)
+    {
+      asType = sType.split("\\s",2);
+      pt = PreType.getByKeyword(asType[0]);
+    } 
+    return pt;
+  }
+  
   /** find column definition in list with matching column name.
    * @param sColumnName column name.
    * @param listCd list
@@ -327,6 +339,23 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     }
     return cdFound;
   } /* findColumnDefinition */
+  
+  /** find column definition in list with matching column name.
+   * @param sColumnName column name.
+   * @param listCd list
+   * @return column definition.
+   */
+  private TestColumnDefinition findTestColumnDefinition(String sColumnName, List<TestColumnDefinition> listCd)
+  {
+    TestColumnDefinition cdFound = null;
+    for (Iterator<TestColumnDefinition> iterCd = listCd.iterator(); (cdFound == null) && iterCd.hasNext(); )
+    {
+      TestColumnDefinition cd = iterCd.next();
+      if (cd.getName().equalsIgnoreCase(sColumnName))
+        cdFound = cd;
+    }
+    return cdFound;
+  } /* findTestColumnDefinition */
   
   /** list columns of user tables
    */
@@ -427,8 +456,85 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           }
           rsColumns.close();
           print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
-          
+            
         }
+        else if ((sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
+          (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase())) ||
+          (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase())))
+        {
+          System.out.println("\nTable/View: "+sTableView);
+          ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
+          int iPosition = 0;
+          while (rsColumns.next())
+          {
+            String sColumnName = rsColumns.getString("COLUMN_NAME");
+            int iDataType = rsColumns.getInt("DATA_TYPE");
+            String sTypeName = rsColumns.getString("TYPE_NAME");
+            int iColumnSize = rsColumns.getInt("COLUMN_SIZE");
+            int iDecimalDigits = rsColumns.getInt("DECIMAL_DIGITS");
+            int iNumPrecRadix = rsColumns.getInt("NUM_PREC_RADIX");
+            int iNullable = rsColumns.getInt("NULLABLE");
+            int iCharOctetLength = rsColumns.getInt("CHAR_OCTET_LENGTH");
+            int iOrdinalPosition = rsColumns.getInt("ORDINAL_POSITION");
+            String sIsNullable = rsColumns.getString("IS_NULLABLE");
+            String sIsAutoIncrement = rsColumns.getString("IS_AUTOINCREMENT");
+            
+            String sAutoIncrement = "NO";
+            int iNulls = DatabaseMetaData.columnNullable;
+            String sNullable = "YES";
+            int iPrecision = Integer.MAX_VALUE;
+            int iScale = 0;
+            int iRadix = 10;
+            int iType = Types.NULL;
+            String sType = sTypeName;
+            TestColumnDefinition tcd = null;
+            if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
+              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
+            else if (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase()))
+              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdComplex);
+            else if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()))
+              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
+            if (!(tcd.getValue() instanceof List<?>))
+            {
+              PreType pt = parsePreType(tcd.getType());
+              iType = pt.getSqlType();
+              sType = pt.getKeyword();
+              if (iPosition == TestSqlDatabase._iPrimarySimple)
+                iNulls = DatabaseMetaData.columnNoNulls;
+              if (iNulls == DatabaseMetaData.columnNoNulls)
+                sNullable = "NO";
+              else if (iNulls == DatabaseMetaData.columnNullableUnknown)
+                sNullable = "";
+              iPrecision = parsePrecision(tcd.getType());
+              iScale = parseScale(tcd.getType());
+            }
+            else if (sColumnName.equalsIgnoreCase("CDISTINCT"))
+              iType = Types.DISTINCT;
+            else if (sColumnName.equalsIgnoreCase("CUDT"))
+              iType = Types.STRUCT;
+            else if (sColumnName.equalsIgnoreCase("CARRAY"))
+            {
+              iType = Types.ARRAY;
+              sTypeName = "VARCHAR(255)";
+            }
+            
+            assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);
+            assertEquals("Unexpected type name for "+sColumnName,sType,sTypeName);
+            assertEquals("Unexpected column size for "+sColumnName,iPrecision,iColumnSize);
+            assertEquals("Unexpected decimal digits for "+sColumnName,iScale,iDecimalDigits);
+            assertEquals("Unexpected radix for "+sColumnName,iRadix,iNumPrecRadix);
+            assertEquals("Unexpected nullable for "+sColumnName,iNulls,iNullable);
+            assertEquals("Unexpected length for "+sColumnName,iPrecision,iCharOctetLength);        
+            iPosition = iPosition + 1;
+            assertEquals("Unexpected ordinal_position for "+sColumnName,iPosition,iOrdinalPosition);
+            assertEquals("Unexpected is_nullable for "+sColumnName,sNullable,sIsNullable);
+            assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
+          }
+          rsColumns.close();
+          print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
+            
+        }
+         
       }
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }

@@ -13,6 +13,7 @@ import ch.enterag.sqlparser.datatype.*;
 import ch.enterag.sqlparser.ddl.*;
 import ch.enterag.sqlparser.ddl.enums.*;
 import ch.enterag.sqlparser.dml.*;
+import ch.enterag.sqlparser.dml.enums.SpecialValue;
 import ch.enterag.sqlparser.expression.*;
 import ch.enterag.sqlparser.expression.enums.*;
 import ch.enterag.sqlparser.identifier.*;
@@ -98,7 +99,7 @@ public class TestSqlDatabase
   {
     List<TestColumnDefinition> listCd = new ArrayList<TestColumnDefinition>();
     listCd.add(new TestColumnDefinition("CARRAY[1]","VARCHAR(255)",TestUtils.getString(196)));
-    listCd.add(new TestColumnDefinition("CARRAY[2]","VARCHAR(255)",null));
+    listCd.add(new TestColumnDefinition("CARRAY[2]","VARCHAR(255)",""));
     listCd.add(new TestColumnDefinition("CARRAY[3]","VARCHAR(255)",TestUtils.getString(5)));
     listCd.add(new TestColumnDefinition("CARRAY[4]","VARCHAR(255)",TestUtils.getString(64)));
     return listCd;
@@ -165,9 +166,9 @@ public class TestSqlDatabase
   /*------------------------------------------------------------------*/
   private void dropTables()
   {
+    dropView(getQualifiedSimpleView()); // before referenced tables ...
     dropTable(getQualifiedComplexTable()); // first, because of foreign key ...
     dropTable(getQualifiedSimpleTable());
-    dropView(getQualifiedSimpleView());
   } /* dropTables */
 
   /*------------------------------------------------------------------*/
@@ -460,10 +461,14 @@ public class TestSqlDatabase
   {
     Statement stmt = _conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,ResultSet.CONCUR_UPDATABLE);
     int iResult = stmt.executeUpdate(sSql);
-    if (iResult != 0)
-      throw new SQLException(sSql + " failed!");
     stmt.close();
-    _conn.commit();
+    if (iResult == 0)
+      _conn.commit();
+    else
+    {
+      _conn.rollback();
+      throw new SQLException(sSql + " failed!");
+    }
   } /* executeCreate */
 
   /*------------------------------------------------------------------*/
@@ -502,10 +507,14 @@ public class TestSqlDatabase
         throw new SQLException("Invalid LOB!");
     }
     int iResult = pstmt.executeUpdate();
-    if (iResult != 1)
-      throw new SQLException("Insert into table "+qiTable.format()+" failed!");
     pstmt.close();
-    _conn.commit();  
+    if (iResult == 1)
+      _conn.commit();
+    else
+    {
+      _conn.rollback();
+      throw new SQLException("Insert into table "+qiTable.format()+" failed!");
+    }
   } /* insertTable */
 
   /*------------------------------------------------------------------*/
@@ -696,7 +705,6 @@ public class TestSqlDatabase
     {
       try
       {
-        QualifiedId qiType = new QualifiedId(tcd.getType()); 
         @SuppressWarnings("unchecked")
         List<TestColumnDefinition> listCd = (List<TestColumnDefinition>)o;
         if (listCd.size() == 4)
@@ -714,6 +722,7 @@ public class TestSqlDatabase
         }
         else
         {
+          QualifiedId qiType = new QualifiedId(tcd.getType()); 
           // UDT or DISTINCT
           List<SqlArgument> listAttributeValues = new ArrayList<SqlArgument>();
           for (int iAttribute = 0; iAttribute < listCd.size(); iAttribute++)
@@ -749,10 +758,15 @@ public class TestSqlDatabase
     List<TestColumnDefinition> listLobs)
     throws SQLException
   {
-    ValueExpression ve = getValueExpression(tcd,listLobs);
     UpdateSource us = _sf.newUpdateSource();
-    us.initialize(ve, null);
+    if (tcd.getValue() != null)
+    {
+      ValueExpression ve = getValueExpression(tcd,listLobs);
+      us.initialize(ve, null);
+    }
+    else
+      us.initialize(null, SpecialValue.NULL);
     return us;
-  } /* getAssignedRow */
+  } /* getUpdateSource */
   
 } /* TestSqlDatabase */

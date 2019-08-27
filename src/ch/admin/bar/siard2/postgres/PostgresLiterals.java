@@ -10,6 +10,7 @@ Created    : 30.10.2016, Simon Jutz
 package ch.admin.bar.siard2.postgres;
 
 import ch.enterag.sqlparser.*;
+import ch.enterag.sqlparser.datatype.enums.IntervalField;
 import ch.enterag.utils.*;
 
 /* =============================================================================== */
@@ -45,6 +46,125 @@ public abstract class PostgresLiterals extends SqlLiterals
       throw new NullPointerException("Identifier must not be null!");
     return sDelimited;
   } /* formatId */
+  
+  /*------------------------------------------------------------------*/
+  /** format byte buffer value.
+   * @param bufValue byte buffer value to be formatted.
+   * @return byte string literal.
+   */
+  public static String formatBytesLiteral(byte[] bufValue)
+  {
+    String sFormatted = sNULL;
+    if (bufValue != null)
+      sFormatted = formatStringLiteral("\\x"+BU.toHex(bufValue));
+    return sFormatted;
+  } /* formatBytesLiteral */
+  
+  /*------------------------------------------------------------------*/
+  /** format an interval value
+   * @param ivValue interval value to be formatted.
+   * @return interval literal.
+   */
+  public static String formatIntervalLiteral(Interval ivValue)
+  {
+    String sFormatted = sNULL;
+    if (ivValue != null)
+    {
+      IntervalField ifStart = null;
+      IntervalField ifEnd = null;
+      String sValue = null;
+      int iSecondsPrecision = -1;
+      if (ivValue.getYears() != 0)
+      {
+        ifStart = IntervalField.YEAR;
+        sValue = String.valueOf(ivValue.getYears());
+      }
+      if (ivValue.getMonths() != 0)
+      {
+        if (ifStart == null)
+        {
+          ifStart = IntervalField.MONTH;
+          sValue = String.valueOf(ivValue.getMonths());
+        }
+        else
+        {
+          ifEnd = IntervalField.MONTH;
+          sValue = sValue + sHYPHEN + String.valueOf(ivValue.getMonths()); 
+        }
+      }
+      if (ivValue.getDays() != 0)
+      {
+        ifStart = IntervalField.DAY;
+        sValue = String.valueOf(ivValue.getDays());
+      }
+      if (ivValue.getHours() != 0)
+      {
+        if (ifStart == null)
+        {
+          ifStart = IntervalField.HOUR;
+          sValue = String.valueOf(ivValue.getHours());
+        }
+        else
+        {
+          ifEnd = IntervalField.HOUR;
+          sValue = sValue + sSP + String.valueOf(ivValue.getHours());
+        }
+      }
+      if (ivValue.getMinutes() != 0)
+      {
+        if (ifStart == null)
+        {
+          ifStart = IntervalField.MINUTE;
+          sValue = String.valueOf(ivValue.getMinutes());
+        }
+        else
+        {
+          ifEnd = IntervalField.MINUTE;
+          sValue = sValue + sCOLON + String.valueOf(ivValue.getMinutes());
+        }
+      }
+      if ((ivValue.getSeconds() != 0) || (ivValue.getNanoSeconds() != 0))
+      {
+        if (ifStart == null)
+        {
+          ifStart = IntervalField.SECOND;
+          sValue = String.valueOf(ivValue.getSeconds());
+        }
+        else
+        {
+          ifEnd = IntervalField.SECOND;
+          sValue = sValue + sCOLON + String.valueOf(ivValue.getSeconds());
+        }
+        if (ivValue.getNanoSeconds() != 0)
+        {
+          String sNanos = String.valueOf(ivValue.getNanoSeconds());
+          while (sNanos.length() < 9)
+            sNanos = sZERO + sNanos;
+          while (sNanos.endsWith(sZERO))
+            sNanos = sNanos.substring(0,sNanos.length()-1);
+          sValue = sValue + sPERIOD + sNanos;
+          if (sNanos.length() > 6)
+            iSecondsPrecision = sNanos.length();
+        }
+      }
+      sFormatted = sINTERVAL_LITERAL_PREFIX + sSP;
+      if (ivValue.getSign() < 0)
+        sValue = sMINUS + sSP + sValue;
+      sFormatted = sFormatted + formatStringLiteral(sValue) + 
+        sSP + ifStart.getKeywords();
+      if ((ifStart == IntervalField.SECOND) && (iSecondsPrecision >= 0))
+      {
+        if ((ifStart == IntervalField.SECOND) && (iSecondsPrecision >= 0))
+          sFormatted = sFormatted + sCOMMA + sSP + String.valueOf(iSecondsPrecision);
+        sFormatted = sFormatted + sRIGHT_PAREN;
+      }
+      if (ifEnd != null)
+        sFormatted = sFormatted + sSP + K.TO.getKeyword() + sSP + ifEnd.getKeywords();
+      if ((ifEnd == IntervalField.SECOND) && (iSecondsPrecision >= 0))
+        sFormatted = sFormatted + sLEFT_PAREN + String.valueOf(iSecondsPrecision) + sRIGHT_PAREN;
+    }
+    return sFormatted;
+  } /* formatIntervalLiteral */
   
   /*------------------------------------------------------------------*/
   /** format a bit string
