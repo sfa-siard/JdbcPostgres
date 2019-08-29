@@ -39,11 +39,15 @@ public class TestPostgresDatabase
   public static void grantSchemaUser(Connection conn, String sSchema, 
     String sDbUser) throws SQLException 
   {
-    Statement stmt = conn.createStatement();
-    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON TABLES TO "+sDbUser);
-    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON TYPES TO "+sDbUser);
-    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON SEQUENCES TO "+sDbUser);
-    stmt.unwrap(Statement.class).executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON FUNCTIONS TO "+sDbUser);
+    Statement stmt = conn.createStatement().unwrap(Statement.class);
+    stmt.executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON TABLES TO "+sDbUser);
+    stmt.executeUpdate("GRANT ALL ON ALL TABLES IN SCHEMA "+sSchema+" TO "+sDbUser);
+    stmt.executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON TYPES TO "+sDbUser);
+    // stmt.executeUpdate("GRANT ALL ON ALL TYPES IN SCHEMA "+sSchema+" TO "+sDbUser);
+    stmt.executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON SEQUENCES TO "+sDbUser);
+    stmt.executeUpdate("GRANT ALL ON ALL SEQUENCES IN SCHEMA "+sSchema+" TO "+sDbUser);
+    stmt.executeUpdate("ALTER DEFAULT PRIVILEGES IN SCHEMA "+sSchema+" GRANT ALL ON FUNCTIONS TO "+sDbUser);
+    stmt.executeUpdate("GRANT ALL ON ALL FUNCTIONS IN SCHEMA "+sSchema+" TO "+sDbUser);
     conn.commit();
   } /* grantSchemaUser */
   
@@ -168,9 +172,9 @@ public class TestPostgresDatabase
   public static int _iPrimarySimple = -1;
   public static int _iCandidateSimple = -1;
   @SuppressWarnings("deprecation")
-  private static List<ColumnDefinition> getCdSimple() 
+  private static List<TestColumnDefinition> getCdSimple() 
   {
-    List<ColumnDefinition> listCdSimple = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listCdSimple = new ArrayList<TestColumnDefinition>();
     
     // Numeric Data Types: Integer Types (Exact Values)
     _iPrimarySimple = listCdSimple.size(); // next column will be primary key column 
@@ -251,86 +255,86 @@ public class TestPostgresDatabase
     
     return listCdSimple;    
   }
-  public static List<ColumnDefinition> _listCdSimple = getCdSimple();
+  public static List<TestColumnDefinition> _listCdSimple = getCdSimple();
   
   /* complex type : builtin int4range */
-  private static List<ColumnDefinition> getListBuiltinRange()
+  private static List<TestColumnDefinition> getListBuiltinRange()
   {
-    List<ColumnDefinition> listBuiltinRange = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listBuiltinRange = new ArrayList<TestColumnDefinition>();
     listBuiltinRange.add(new ColumnDefinition("min","int4",Integer.valueOf(473)));
     listBuiltinRange.add(new ColumnDefinition("sup","int4",Integer.valueOf(5435)));
     return listBuiltinRange;
   }
-  public static List<ColumnDefinition> _listBuiltinRange = getListBuiltinRange();
+  public static List<TestColumnDefinition> _listBuiltinRange = getListBuiltinRange();
   
   /* complex type : domain */
-  private static List<ColumnDefinition> getListBaseDomain()
+  private static List<TestColumnDefinition> getListBaseDomain()
   {
-    List<ColumnDefinition> listBaseDomain = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listBaseDomain = new ArrayList<TestColumnDefinition>();
     listBaseDomain.add(new ColumnDefinition(getQualifiedDomainType().format(),"int4",Integer.valueOf(999)));
     return listBaseDomain;
   }
-  public static List<ColumnDefinition> _listBaseDomain = getListBaseDomain();
+  public static List<TestColumnDefinition> _listBaseDomain = getListBaseDomain();
   
   /* complex type : composite */
   public static int _iPrimaryComplex = -1;
-  private static List<ColumnDefinition> getListCompositeType()
+  private static List<TestColumnDefinition> getListCompositeType()
   {
-    List<ColumnDefinition> listCompositeType = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listCompositeType = new ArrayList<TestColumnDefinition>();
     listCompositeType.add(new ColumnDefinition("F1","int4",Integer.valueOf(-25)));
     listCompositeType.add(new ColumnDefinition("F2","text",TestUtils.getString(511)));
     return listCompositeType;
   }
-  public static List<ColumnDefinition> _listCompositeType = getListCompositeType();
+  public static List<TestColumnDefinition> _listCompositeType = getListCompositeType();
   
   /* complex type : enum */
-  private static List<ColumnDefinition> getListEnumType()
+  private static List<TestColumnDefinition> getListEnumType()
   {
-    List<ColumnDefinition> listEnumType = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listEnumType = new ArrayList<TestColumnDefinition>();
     listEnumType.add(new ColumnDefinition(getQualifiedEnumType().format(),"ENUM ('clubs','spades','hearts','diamonds')","hearts"));
     return listEnumType;
   }
-  public static List<ColumnDefinition> _listEnumType = getListEnumType();
+  public static List<TestColumnDefinition> _listEnumType = getListEnumType();
   
   /* complex type : string RANGE */
-  private static List<ColumnDefinition> getListRangeType()
+  private static List<TestColumnDefinition> getListRangeType()
   {
-    List<ColumnDefinition> listRangeType = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listRangeType = new ArrayList<TestColumnDefinition>();
     listRangeType.add(new ColumnDefinition("min","text","b"));
     listRangeType.add(new ColumnDefinition("sup","text","c"));
     return listRangeType;
   }
-  public static List<ColumnDefinition> _listRangeType = getListRangeType();
+  public static List<TestColumnDefinition> _listRangeType = getListRangeType();
   
   /* complex type : string ARRAY */
-  private static List<ColumnDefinition> getListStringArray()
+  private static List<TestColumnDefinition> getListStringArray()
   {
-    List<ColumnDefinition> listStringArray = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listStringArray = new ArrayList<TestColumnDefinition>();
     listStringArray.add(new ColumnDefinition("CARRAY[1]","text","line1"));
     listStringArray.add(new ColumnDefinition("CARRAY[2]","text","line2"));
     listStringArray.add(new ColumnDefinition("CARRAY[3]","text","line3"));
     listStringArray.add(new ColumnDefinition("CARRAY[4]","text","line4"));
     return listStringArray;
   }
-  public static List<ColumnDefinition> _listStringArray = getListStringArray();
+  public static List<TestColumnDefinition> _listStringArray = getListStringArray();
   
   /* complex type : double MATRIX */
-  private static List<ColumnDefinition> getListDoubleMatrix()
+  private static List<TestColumnDefinition> getListDoubleMatrix()
   {
-    List<ColumnDefinition> listDoubleMatrix = new ArrayList<ColumnDefinition>();
-    List<ColumnDefinition> listDoubleArray = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listDoubleMatrix = new ArrayList<TestColumnDefinition>();
+    List<TestColumnDefinition> listDoubleArray = new ArrayList<TestColumnDefinition>();
     listDoubleArray.add(new ColumnDefinition("CMATRIX[1][1]","float8",Double.valueOf(0.1)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[1][2]","float8",Double.valueOf(0.0)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[1][3]","float8",Double.valueOf(0.5)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[1][4]","float8",Double.valueOf(2.0)));
     listDoubleMatrix.add(new ColumnDefinition("CMATRIX[1]","float8[]",listDoubleArray));
-    listDoubleArray = new ArrayList<ColumnDefinition>();
+    listDoubleArray = new ArrayList<TestColumnDefinition>();
     listDoubleArray.add(new ColumnDefinition("CMATRIX[2][1]","float8",Double.valueOf(10.0)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[2][2]","float8",null));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[2][3]","float8",Double.valueOf(2.0)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[2][4]","float8",Double.valueOf(0.5)));
     listDoubleMatrix.add(new ColumnDefinition("CMATRIX[2]","float8[]",listDoubleArray));
-    listDoubleArray = new ArrayList<ColumnDefinition>();
+    listDoubleArray = new ArrayList<TestColumnDefinition>();
     listDoubleArray.add(new ColumnDefinition("CMATRIX[3][1]","float8",Double.valueOf(5.0)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[3][2]","float8",Double.valueOf(0.0)));
     listDoubleArray.add(new ColumnDefinition("CMATRIX[3][3]","float8",Double.valueOf(0.25)));
@@ -338,12 +342,12 @@ public class TestPostgresDatabase
     listDoubleMatrix.add(new ColumnDefinition("CMATRIX[3]","float8[]",listDoubleArray));
     return listDoubleMatrix;
   }
-  public static List<ColumnDefinition> _listDoubleMatrix = getListDoubleMatrix();
+  public static List<TestColumnDefinition> _listDoubleMatrix = getListDoubleMatrix();
   
   /* all complex types */
-  private static List<ColumnDefinition> getCdComplex() 
+  private static List<TestColumnDefinition> getCdComplex() 
   {
-    List<ColumnDefinition> listCdComplex = new ArrayList<ColumnDefinition>();
+    List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();
     listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
     listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
     listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));
@@ -353,7 +357,7 @@ public class TestPostgresDatabase
     listCdComplex.add(new ColumnDefinition("CDOUBLE_MATRIX",getQualifiedRangeType().format(),_listDoubleMatrix));
     return listCdComplex;
   }
-  public static List<ColumnDefinition> _listCdComplex = getCdComplex();
+  public static List<TestColumnDefinition> _listCdComplex = getCdComplex();
   
   
   private Connection _conn = null;
@@ -472,12 +476,12 @@ public class TestPostgresDatabase
     createType(getQualifiedRangeType(),_listRangeType);
   } /* createTypes */
 
-  private void createType(QualifiedId qiType, List<ColumnDefinition> listAttributes)
+  private void createType(QualifiedId qiType, List<TestColumnDefinition> listAttributes)
     throws SQLException
   {
     if (qiType.getName().equals(_sTEST_INTEGER_DOMAIN))
     {
-      ColumnDefinition cd = listAttributes.get(0);
+      TestColumnDefinition cd = listAttributes.get(0);
       executeCreate("CREATE DOMAIN "+qiType.format()+" AS "+cd.getType());
     }
     else if (qiType.getName().equals(_sTEST_TYPE_COMP))
@@ -487,7 +491,7 @@ public class TestPostgresDatabase
       sb.append(" AS (");
       for (int iAttribute = 0; iAttribute < listAttributes.size(); iAttribute++)
       {
-        ColumnDefinition cd = listAttributes.get(iAttribute);
+        TestColumnDefinition cd = listAttributes.get(iAttribute);
         if (iAttribute > 0)
           sb.append(",");
         sb.append("\r\n  ");
@@ -500,7 +504,7 @@ public class TestPostgresDatabase
     }
     else if (qiType.getName().equals(_sTEST_TYPE_ENUM))
     {
-      ColumnDefinition cd = listAttributes.get(0);
+      TestColumnDefinition cd = listAttributes.get(0);
       executeCreate("CREATE TYPE "+qiType.format()+" AS "+cd.getType());
     }
     else if (qiType.getName().equals(_sTEST_TYPE_RANGE))
@@ -518,7 +522,7 @@ public class TestPostgresDatabase
     createTable(getQualifiedComplexTable(),_listCdComplex,null,null);
   } /* createTables */
   
-  private void createTable(QualifiedId qiTable, List<ColumnDefinition> listCd,
+  private void createTable(QualifiedId qiTable, List<TestColumnDefinition> listCd,
     List<String> listPrimary, List<String> listUnique)
     throws SQLException
   {
@@ -527,7 +531,7 @@ public class TestPostgresDatabase
     sbSql.append("\r\n(\r\n  ");
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
-      ColumnDefinition cd = listCd.get(iColumn); 
+      TestColumnDefinition cd = listCd.get(iColumn); 
       if (iColumn > 0)
         sbSql.append(",\r\n  ");
       sbSql.append(cd.getName());
@@ -568,7 +572,7 @@ public class TestPostgresDatabase
     insertTable(getQualifiedComplexTable(),_listCdComplex);
   } /* insertTables */
   
-  private void insertTable(QualifiedId qiTable, List<ColumnDefinition> listCd)
+  private void insertTable(QualifiedId qiTable, List<TestColumnDefinition> listCd)
     throws SQLException
   {
     StringBuilder sbSql = new StringBuilder("INSERT INTO ");
@@ -576,7 +580,7 @@ public class TestPostgresDatabase
     sbSql.append("\r\n(\r\n  ");
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
-      ColumnDefinition cd = listCd.get(iColumn); 
+      TestColumnDefinition cd = listCd.get(iColumn); 
       if (cd.getValue() != null)
       {
         if (iColumn > 0)
@@ -588,7 +592,7 @@ public class TestPostgresDatabase
     List<Object> listLobs = new ArrayList<Object>();
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
-      ColumnDefinition cd = listCd.get(iColumn);
+      TestColumnDefinition cd = listCd.get(iColumn);
       if (cd.getValue() != null)
       {
         if (iColumn > 0)

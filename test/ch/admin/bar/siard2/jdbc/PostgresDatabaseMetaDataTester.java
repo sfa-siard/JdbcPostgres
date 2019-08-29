@@ -9,7 +9,6 @@ import org.junit.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
-import ch.enterag.utils.database.SqlTypes;
 import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -22,6 +21,9 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   private static final String _sDB_PASSWORD = _cp.getPassword();
   private static final String _sDBA_USER = _cp.getDbaUser();
   private static final String _sDBA_PASSWORD = _cp.getDbaPassword();
+  private static Set<String> _setTestSchemas = new HashSet<String>(Arrays.asList(new String[] {
+    TestPostgresDatabase._sTEST_SCHEMA.toLowerCase(), // irritating lower case for identifiers ...
+    TestSqlDatabase._sTEST_SCHEMA.toLowerCase()}));
   private static Set<String> _setTestTables = new HashSet<String>(Arrays.asList(new String[] {
     TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase(), // irritating lower case for identifiers ...
     TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase(),
@@ -30,56 +32,6 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   private static Set<String> _setTestViews = new HashSet<String>(Arrays.asList(new String[] {
     TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()}));
 
-  public static void print(ResultSet rs)
-    throws SQLException
-  {
-    if ((rs != null) && (!rs.isClosed()))
-    {
-      ResultSetMetaData rsmd = rs.getMetaData();
-      if (rsmd != null)
-      {
-        int iColumns = rsmd.getColumnCount();
-        List<String> listColumns = new ArrayList<String>();
-        StringBuilder sbLine = new StringBuilder();
-        for (int iColumn = 0; iColumn < iColumns; iColumn++)
-        {
-          if (iColumn > 0)
-            sbLine.append("\t");
-          String sColumnName = rsmd.getColumnLabel(iColumn+1);
-          sbLine.append(sColumnName);
-          listColumns.add(sColumnName);
-        }
-        System.out.println(sbLine.toString());
-        sbLine.setLength(0);
-        while (rs.next())
-        {
-          for (int iColumn = 0; iColumn < iColumns; iColumn++)
-          {
-            if (iColumn > 0)
-              sbLine.append("\t");
-            String sColumnName = listColumns.get(iColumn);
-            String sValue = String.valueOf(rs.getObject(iColumn+1));
-            if (!rs.wasNull())
-            {
-              if (sColumnName.equals("DATA_TYPE"))
-                sValue = sValue + " ("+SqlTypes.getTypeName(Integer.parseInt(sValue))+")";
-            }
-            else
-              sValue = "(null)";
-            sbLine.append(sValue);
-          }
-          System.out.println(sbLine.toString());
-          sbLine.setLength(0);
-        }
-        rs.close();
-      }
-    }
-    else if (rs.isClosed()) 
-      throw new SQLException("Empty meta data result set!");
-    else
-      fail("Invalid meta data result set");
-  } /* print */
-  
   @BeforeClass
   public static void setUpClass()
   {
@@ -188,7 +140,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   }
 
-  /** determine set of user tables or views.
+  /** determine set of user tables or views for tests.
    * @return user tables.
    * @throws SQLException
    */
@@ -198,10 +150,14 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     Set<String>setTables = new HashSet<String>();
     ResultSet rsTable = getDatabaseMetaData().getTables(null,null,"%",new String[] {"TABLE","VIEW"});
     while (rsTable.next())
-      setTables.add(rsTable.getString("TABLE_NAME"));
+    {
+      String sSchema = rsTable.getString("TABLE_SCHEM");
+      if (_setTestSchemas.contains(sSchema))
+        setTables.add(rsTable.getString("TABLE_NAME"));
+    }
     rsTable.close();
     return setTables;
-  } /* getTablesUser */
+  } /* getTablesUserViews */
   
   /** compute size in characters of the int type with the given maximum.
    * N.B.: Postgres uses this value. The correct value would be
@@ -408,23 +364,6 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
    * @param listCd list
    * @return column definition.
    */
-  private TestPostgresDatabase.ColumnDefinition findColumnDefinition(String sColumnName, List<TestPostgresDatabase.ColumnDefinition> listCd)
-  {
-    TestPostgresDatabase.ColumnDefinition cdFound = null;
-    for (Iterator<TestPostgresDatabase.ColumnDefinition> iterCd = listCd.iterator(); (cdFound == null) && iterCd.hasNext(); )
-    {
-      TestPostgresDatabase.ColumnDefinition cd = iterCd.next();
-      if (cd.getName().equalsIgnoreCase(sColumnName))
-        cdFound = cd;
-    }
-    return cdFound;
-  } /* findColumnDefinition */
-  
-  /** find column definition in list with matching column name.
-   * @param sColumnName column name.
-   * @param listCd list
-   * @return column definition.
-   */
   private TestColumnDefinition findTestColumnDefinition(String sColumnName, List<TestColumnDefinition> listCd)
   {
     TestColumnDefinition cdFound = null;
@@ -477,16 +416,16 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           if ((sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
               (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase())))
           {
-            TestPostgresDatabase.ColumnDefinition cd = null;
+            TestColumnDefinition cd = null;
             if (sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
             {
-              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
+              cd = findTestColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
               if (iPosition == TestPostgresDatabase._iPrimarySimple)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
             else if (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase()))
             {
-              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
+              cd = findTestColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
               if (iPosition == TestPostgresDatabase._iPrimaryComplex)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
