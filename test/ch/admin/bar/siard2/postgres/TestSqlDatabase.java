@@ -106,7 +106,7 @@ public class TestSqlDatabase
   }
   public static List<TestColumnDefinition> _listCdArray = getListCdArray();
 
-  private static int _iPrimaryComplex = -1;
+  public static int _iPrimaryComplex = -1;
   private static List<TestColumnDefinition> getListCdComplex()
   {
     List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();

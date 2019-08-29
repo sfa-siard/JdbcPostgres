@@ -273,6 +273,7 @@ public class TestPostgresDatabase
   public static List<ColumnDefinition> _listBaseDomain = getListBaseDomain();
   
   /* complex type : composite */
+  public static int _iPrimaryComplex = -1;
   private static List<ColumnDefinition> getListCompositeType()
   {
     List<ColumnDefinition> listCompositeType = new ArrayList<ColumnDefinition>();

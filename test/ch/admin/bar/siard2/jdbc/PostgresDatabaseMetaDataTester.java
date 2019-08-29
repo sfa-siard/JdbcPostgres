@@ -9,6 +9,7 @@ import org.junit.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
+import ch.enterag.utils.database.SqlTypes;
 import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -29,6 +30,56 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   private static Set<String> _setTestViews = new HashSet<String>(Arrays.asList(new String[] {
     TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()}));
 
+  public static void print(ResultSet rs)
+    throws SQLException
+  {
+    if ((rs != null) && (!rs.isClosed()))
+    {
+      ResultSetMetaData rsmd = rs.getMetaData();
+      if (rsmd != null)
+      {
+        int iColumns = rsmd.getColumnCount();
+        List<String> listColumns = new ArrayList<String>();
+        StringBuilder sbLine = new StringBuilder();
+        for (int iColumn = 0; iColumn < iColumns; iColumn++)
+        {
+          if (iColumn > 0)
+            sbLine.append("\t");
+          String sColumnName = rsmd.getColumnLabel(iColumn+1);
+          sbLine.append(sColumnName);
+          listColumns.add(sColumnName);
+        }
+        System.out.println(sbLine.toString());
+        sbLine.setLength(0);
+        while (rs.next())
+        {
+          for (int iColumn = 0; iColumn < iColumns; iColumn++)
+          {
+            if (iColumn > 0)
+              sbLine.append("\t");
+            String sColumnName = listColumns.get(iColumn);
+            String sValue = String.valueOf(rs.getObject(iColumn+1));
+            if (!rs.wasNull())
+            {
+              if (sColumnName.equals("DATA_TYPE"))
+                sValue = sValue + " ("+SqlTypes.getTypeName(Integer.parseInt(sValue))+")";
+            }
+            else
+              sValue = "(null)";
+            sbLine.append(sValue);
+          }
+          System.out.println(sbLine.toString());
+          sbLine.setLength(0);
+        }
+        rs.close();
+      }
+    }
+    else if (rs.isClosed()) 
+      throw new SQLException("Empty meta data result set!");
+    else
+      fail("Invalid meta data result set");
+  } /* print */
+  
   @BeforeClass
   public static void setUpClass()
   {
@@ -170,136 +221,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
    *   qualifications as second element. 
    */
   
-  /** extract precision from type in column definition.
-   * @param sType type in column definition.
-   * @return precision.
-   */
-  private int parsePrecision(String sType)
-  {
-    int iPrecision = 0;
-    String[] asType = sType.split("\\(",2);
-    PostgresType pgt = PostgresType.getByKeyword(asType[0]);
-    if (pgt != null)
-    {
-      PreType pt = pgt.getPreType();
-      if (asType.length > 1)
-      {
-        String sPrecision = asType[1].substring(0,asType[1].length()-1);
-        int iComma = sPrecision.indexOf(",");
-        if (iComma >= 0)
-          sPrecision = sPrecision.substring(0,iComma);
-        iPrecision = Integer.valueOf(sPrecision);
-        if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
-          iPrecision = (iPrecision + 7)/8;
-      }
-      else
-      {
-        if (pt == PreType.INTEGER)
-          iPrecision = sizeFromMax(Integer.MAX_VALUE);
-        else if (pt == PreType.SMALLINT)
-          iPrecision = sizeFromMax(Short.MAX_VALUE);
-        else if (pt == PreType.BIGINT)
-          iPrecision = sizeFromMax(Long.MAX_VALUE);
-        else if (pt == PreType.DOUBLE)
-          iPrecision = 17;
-        else if (pt == PreType.REAL)
-          iPrecision = 8;
-        else if (pt == PreType.DECIMAL)
-          iPrecision = Integer.MAX_VALUE;
-        else if (pt == PreType.BOOLEAN)
-          iPrecision = 1;
-        else if (pt == PreType.DATE)
-          iPrecision = 13;
-        if (pgt == PostgresType.TIME)
-          iPrecision = 15;
-        else if (pgt == PostgresType.TIMETZ)
-          iPrecision = 21;
-        else if (pgt == PostgresType.TIMESTAMP)
-          iPrecision = 29;
-        else if (pgt == PostgresType.TIMESTAMPTZ)
-          iPrecision = 29;
-        else if (pt == PreType.CLOB)
-          iPrecision = Integer.MAX_VALUE;
-        else if (pt == PreType.XML)
-          iPrecision = Integer.MAX_VALUE;
-        else if (pt == PreType.BLOB)
-          iPrecision = Integer.MAX_VALUE;
-        else if (pgt == PostgresType.UUID)
-          iPrecision = 16;
-        else if (pgt == PostgresType.MACADDR)
-          iPrecision = 6;
-        else if (pgt == PostgresType.MACADDR8)
-          iPrecision = 8;
-        else if ((pgt == PostgresType.POINT) ||
-                 (pgt == PostgresType.LINE) ||
-                 (pgt == PostgresType.LSEG) ||
-                 (pgt == PostgresType.BOX) ||
-                 (pgt == PostgresType.PATH) ||
-                 (pgt == PostgresType.POLYGON) ||
-                 (pgt == PostgresType.CIRCLE))
-          iPrecision = Integer.MAX_VALUE;
-      }
-    }
-    else
-    {
-      asType = sType.split("\\s",2);
-      pgt = PostgresType.getByKeyword(asType[0]);
-      PreType pt = pgt.getPreType();
-      if (pt == PreType.INTERVAL)
-        iPrecision = 49;
-    } 
-    return iPrecision;
-  } /* parsePrecision */
-  
-  private int parseScale(String sType)
-  {
-    int iScale = 0;
-    String[] asType = sType.split("\\(",2);
-    PostgresType pgt = PostgresType.getByKeyword(asType[0]);
-    if (pgt != null)
-    {
-      PreType pt = pgt.getPreType();
-      if (asType.length > 1)
-      {
-        String sPrecision = asType[1].substring(0,asType[1].length()-1);
-        int iComma = sPrecision.indexOf(",");
-        if (iComma >= 0)
-        {
-          String sScale = sPrecision.substring(iComma+1);
-          iScale = Integer.valueOf(sScale);
-        }
-      }
-      else
-      {
-        if (pt == PreType.DOUBLE)
-          iScale = 17;
-        else if (pt == PreType.REAL)
-          iScale = 8;
-        else if (pt == PreType.TIME)
-          iScale = 6;
-        else if (pt == PreType.TIMESTAMP)
-          iScale = 6;
-      }
-    }
-    else
-    {
-      iScale = 0; // default value for interval (??)
-      asType = sType.split("\\s",2);
-      pgt = PostgresType.getByKeyword(asType[0]);
-      if (asType.length > 1)
-      {
-        String[] asPrecision = asType[1].split("\\(");
-        if (asPrecision.length > 1)
-        {
-          String sScale = asPrecision[1].substring(0,asPrecision[1].length()-1);
-          iScale = Integer.valueOf(sScale);
-        }
-      }
-    } 
-    return iScale;
-  } /* parseScale */
-  
-  private PostgresType parseType(String sType)
+  private PostgresType parsePostgresType(String sType)
   {
     String[] asType = sType.split("\\(",2);
     PostgresType pgt = PostgresType.getByKeyword(asType[0]);
@@ -311,6 +233,12 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     return pgt;
   }
   
+  /** split type name from rest and drop "N" (NATIONAL) from character types.
+   * @param sType type with qualifications.
+   * @return array with type name as first element and possibly 
+   *   qualifications as second element. 
+   */
+  
   private PreType parsePreType(String sType)
   {
     String[] asType = sType.split("\\(",2);
@@ -319,9 +247,161 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     {
       asType = sType.split("\\s",2);
       pt = PreType.getByKeyword(asType[0]);
-    } 
+    }
+    if (pt == PreType.NCHAR)
+      pt = PreType.CHAR;
+    else if (pt == PreType.NVARCHAR)
+      pt = PreType.VARCHAR;
+    else if (pt == PreType.NCLOB)
+      pt = PreType.CLOB;
+    else if (pt == PreType.BINARY)
+      pt = PreType.BLOB;
+    else if (pt == PreType.VARBINARY)
+      pt = PreType.BLOB;
+    else if (pt == PreType.DECIMAL)
+      pt = PreType.NUMERIC;
+    else if (pt == PreType.FLOAT)
+      pt = PreType.DOUBLE;
     return pt;
   }
+  
+  /** extract precision from type in column definition.
+   * @param sType type in column definition.
+   * @return precision.
+   */
+  private int parsePrecision(String sType)
+  {
+    int iPrecision = 0;
+    PostgresType pgt = parsePostgresType(sType);
+    PreType pt = null;
+    if (pgt != null)
+      pt = pgt.getPreType();
+    else
+      pt = parsePreType(sType);
+    
+    if (pgt != null)
+    {
+      if (pgt == PostgresType.MONEY)
+        iPrecision = Integer.MAX_VALUE;
+      else if (pgt == PostgresType.TIMETZ)
+        iPrecision = 21;
+      else if (pgt == PostgresType.TIMESTAMPTZ)
+        iPrecision = 29;
+      else if (pgt == PostgresType.UUID)
+        iPrecision = 16;
+      else if (pgt == PostgresType.MACADDR)
+        iPrecision = 6;
+      else if (pgt == PostgresType.MACADDR8)
+        iPrecision = 8;
+      else if ((pgt == PostgresType.POINT) ||
+               (pgt == PostgresType.LINE) ||
+               (pgt == PostgresType.LSEG) ||
+               (pgt == PostgresType.BOX) ||
+               (pgt == PostgresType.PATH) ||
+               (pgt == PostgresType.POLYGON) ||
+               (pgt == PostgresType.CIRCLE))
+        iPrecision = Integer.MAX_VALUE;
+    }
+    if (iPrecision == 0)
+    {
+      if (pt == PreType.INTEGER)
+        iPrecision = sizeFromMax(Integer.MAX_VALUE);
+      else if (pt == PreType.SMALLINT)
+        iPrecision = sizeFromMax(Short.MAX_VALUE);
+      else if (pt == PreType.BIGINT)
+        iPrecision = sizeFromMax(Long.MAX_VALUE);
+      else if (pt == PreType.DOUBLE)
+        iPrecision = 17;
+      else if (pt == PreType.FLOAT)
+        iPrecision = 17;
+      else if (pt == PreType.REAL)
+        iPrecision = 8;
+      else if (pt == PreType.BOOLEAN)
+        iPrecision = 1;
+      else if (pt == PreType.CLOB)
+        iPrecision = Integer.MAX_VALUE;
+      else if (pt == PreType.NCLOB)
+        iPrecision = Integer.MAX_VALUE;
+      else if (pt == PreType.XML)
+        iPrecision = Integer.MAX_VALUE;
+      else if (pt == PreType.BLOB)
+        iPrecision = Integer.MAX_VALUE;
+      else if (pt == PreType.DATE)
+        iPrecision = 13;
+      else if (pt == PreType.TIME)
+        iPrecision = 15;
+      else if (pt == PreType.TIMESTAMP)
+        iPrecision = 29;
+      else if (pt == PreType.INTERVAL)
+        iPrecision = 49;
+    }
+    if (iPrecision == 0)
+    {
+      int iParen = sType.indexOf('(');
+      if (iParen >= 0)
+      {
+        String sPrecision = sType.substring(iParen+1,sType.length()-1);
+        int iComma = sPrecision.indexOf(',');
+        if (iComma >= 0)
+          sPrecision = sPrecision.substring(0,iComma).toUpperCase();
+        int iMult = 1;
+        if (sPrecision.endsWith("K") || sPrecision.endsWith("M") || sPrecision.endsWith("G"))
+        {
+          iMult = 1024;
+          if (!sPrecision.endsWith("K"))
+          {
+            iMult = 1024*iMult;
+            if (!sPrecision.endsWith("M"))
+              iMult = 1024*iMult;
+          }
+          sPrecision = sPrecision.substring(0,sPrecision.length()-1);
+        }
+        iPrecision = iMult*Integer.valueOf(sPrecision);
+        if ((pgt != null) && ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT)))
+          iPrecision = (iPrecision + 7)/8;
+      }
+    }
+    return iPrecision;
+  } /* parsePrecision */
+  
+  private int parseScale(String sType)
+  {
+    int iScale = 0;
+    PostgresType pgt = parsePostgresType(sType);
+    PreType pt = null;
+    if (pgt != null)
+      pt = pgt.getPreType();
+    else
+      pt = parsePreType(sType);
+    
+    if (pt == PreType.DOUBLE)
+      iScale = 17;
+    else if (pt == PreType.REAL)
+      iScale = 8;
+    else if (pt == PreType.TIME)
+      iScale = 6;
+    else if (pt == PreType.TIMESTAMP)
+      iScale = 6;
+
+    if (iScale == 0)
+    {
+      int iRparen = sType.lastIndexOf(")");
+      int iLparen = sType.lastIndexOf("(");
+      if ((iLparen >= 0) && (iRparen == (sType.length()-1)))
+      {
+        String sPrecision = sType.substring(iLparen+1,iRparen);
+        int iComma = sPrecision.indexOf(',');
+        if (iComma >= 0)
+        {
+          String sScale = sPrecision.substring(iComma+1);
+          iScale = Integer.valueOf(sScale);
+        }
+        else if (pt == PreType.INTERVAL)
+          iScale = Integer.valueOf(sPrecision);
+      }
+    }
+    return iScale;
+  } /* parseScale */
   
   /** find column definition in list with matching column name.
    * @param sColumnName column name.
@@ -369,186 +449,166 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       for (Iterator<String> iterTableView = setUserTablesViews.iterator(); iterTableView.hasNext(); )
       {
         String sTableView = iterTableView.next();
-        if ((sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
-            (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase())))
+        System.out.println("\nTable/View: "+sTableView);
+        ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
+        int iPosition = 0;
+        while (rsColumns.next())
         {
-          System.out.println("\nTable/View: "+sTableView);
-          ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
-          int iPosition = 0;
-          while (rsColumns.next())
+          String sColumnName = rsColumns.getString("COLUMN_NAME");
+          int iDataType = rsColumns.getInt("DATA_TYPE");
+          String sTypeName = rsColumns.getString("TYPE_NAME");
+          int iColumnSize = rsColumns.getInt("COLUMN_SIZE");
+          int iDecimalDigits = rsColumns.getInt("DECIMAL_DIGITS");
+          int iNumPrecRadix = rsColumns.getInt("NUM_PREC_RADIX");
+          int iNullable = rsColumns.getInt("NULLABLE");
+          int iCharOctetLength = rsColumns.getInt("CHAR_OCTET_LENGTH");
+          int iOrdinalPosition = rsColumns.getInt("ORDINAL_POSITION");
+          String sIsNullable = rsColumns.getString("IS_NULLABLE");
+          String sIsAutoIncrement = rsColumns.getString("IS_AUTOINCREMENT");
+          
+          String sAutoIncrement = "NO";
+          int iNulls = DatabaseMetaData.columnNullable;
+          String sNullable = "YES";
+          int iPrecision = Integer.MAX_VALUE;
+          int iScale = 0;
+          int iRadix = 10;
+          int iType = Types.NULL;
+          String sType = sTypeName;
+          if ((sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
+              (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase())))
           {
-            String sColumnName = rsColumns.getString("COLUMN_NAME");
-            int iDataType = rsColumns.getInt("DATA_TYPE");
-            String sTypeName = rsColumns.getString("TYPE_NAME");
-            int iColumnSize = rsColumns.getInt("COLUMN_SIZE");
-            int iDecimalDigits = rsColumns.getInt("DECIMAL_DIGITS");
-            int iNumPrecRadix = rsColumns.getInt("NUM_PREC_RADIX");
-            int iNullable = rsColumns.getInt("NULLABLE");
-            int iCharOctetLength = rsColumns.getInt("CHAR_OCTET_LENGTH");
-            int iOrdinalPosition = rsColumns.getInt("ORDINAL_POSITION");
-            String sIsNullable = rsColumns.getString("IS_NULLABLE");
-            String sIsAutoIncrement = rsColumns.getString("IS_AUTOINCREMENT");
-            
-            String sAutoIncrement = "NO";
-            int iNulls = DatabaseMetaData.columnNullable;
-            String sNullable = "YES";
-            int iPrecision = Integer.MAX_VALUE;
-            int iScale = 0;
-            int iRadix = 10;
-            int iType = Types.NULL;
-            String sType = sTypeName;
             TestPostgresDatabase.ColumnDefinition cd = null;
             if (sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
-              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
-            else if (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase()))
-              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
-            if (!(cd.getValue() instanceof List<?>))
             {
-              PostgresType pgt = parseType(cd.getType());
-              iType = pgt.getPreType().getSqlType();
-              sType = pgt.getPreType().getKeyword();
-              if (cd.getType().indexOf("serial") >= 0)
-                sAutoIncrement = "YES";
-              if ((iPosition == TestPostgresDatabase._iPrimarySimple) ||
-                  (sAutoIncrement.equals("YES")))
+              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
+              if (iPosition == TestPostgresDatabase._iPrimarySimple)
                 iNulls = DatabaseMetaData.columnNoNulls;
-              if (iNulls == DatabaseMetaData.columnNoNulls)
-                sNullable = "NO";
-              else if (iNulls == DatabaseMetaData.columnNullableUnknown)
-                sNullable = "";
-              iPrecision = parsePrecision(cd.getType());
-              iScale = parseScale(cd.getType());
-              if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
-                iRadix = 2;
             }
-            else if (sColumnName.equalsIgnoreCase("CINT_DOMAIN"))
+            else if (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase()))
+            {
+              cd = findColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
+              if (iPosition == TestPostgresDatabase._iPrimaryComplex)
+                iNulls = DatabaseMetaData.columnNoNulls;
+            }
+            if (sColumnName.equalsIgnoreCase("CINT_DOMAIN"))
+            {
               iType = Types.DISTINCT;
+              System.out.println("DISTINCT "+sTypeName);
+            }
             else if (sColumnName.equalsIgnoreCase("CCOMPOSITE"))
+            {
               iType = Types.STRUCT;
+              System.out.println("STRUCT "+sTypeName);
+            }
             else if (sColumnName.equalsIgnoreCase("CENUM_SUIT"))
               iType = Types.VARCHAR;
             else if (sColumnName.equalsIgnoreCase("CINT_BUILTIN"))
-              iType = Types.OTHER; // TODO: change to ARRAY or STRUCT!!
+            {
+              iType = Types.OTHER; // TODO: change to ARRAY
+              System.out.println("BUILTIN "+sTypeName);
+              System.out.println("  Size: "+String.valueOf(iColumnSize));
+            }
             else if (sColumnName.equalsIgnoreCase("CSTRING_RANGE"))
-              iType = Types.OTHER; // TODO: change to ARRAY or STRUCT!!
+            {
+              iType = Types.OTHER; // TODO: change to ARRAY
+              System.out.println("RANGE "+sTypeName);
+              System.out.println("  Size: "+String.valueOf(iColumnSize));
+            }
             else if (sColumnName.equalsIgnoreCase("CSTRING_ARRAY"))
             {
               iType = Types.ARRAY;
-              sTypeName = "_text";
+              sTypeName = "CLOB"; // could be parsed from list ...
             }
             else if (sColumnName.equalsIgnoreCase("CDOUBLE_MATRIX"))
             {
               iType = Types.ARRAY;
-              sTypeName = "_float8";
+              sTypeName = "DOUBLE PRECISION"; // could be parsed from list ...
             }
-            
-            assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);
-            assertEquals("Unexpected type name for "+sColumnName,sType,sTypeName);
-            assertEquals("Unexpected column size for "+sColumnName,iPrecision,iColumnSize);
-            assertEquals("Unexpected decimal digits for "+sColumnName,iScale,iDecimalDigits);
-            assertEquals("Unexpected radix for "+sColumnName,iRadix,iNumPrecRadix);
-            assertEquals("Unexpected nullable for "+sColumnName,iNulls,iNullable);
-            assertEquals("Unexpected length for "+sColumnName,iPrecision,iCharOctetLength);        
-            iPosition = iPosition + 1;
-            assertEquals("Unexpected ordinal_position for "+sColumnName,iPosition,iOrdinalPosition);
-            assertEquals("Unexpected is_nullable for "+sColumnName,sNullable,sIsNullable);
-            assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
-          }
-          rsColumns.close();
-          print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
-            
-        }
-        else if ((sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
-          (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase())) ||
-          (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase())))
-        {
-          System.out.println("\nTable/View: "+sTableView);
-          ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
-          int iPosition = 0;
-          while (rsColumns.next())
-          {
-            String sColumnName = rsColumns.getString("COLUMN_NAME");
-            int iDataType = rsColumns.getInt("DATA_TYPE");
-            String sTypeName = rsColumns.getString("TYPE_NAME");
-            int iColumnSize = rsColumns.getInt("COLUMN_SIZE");
-            int iDecimalDigits = rsColumns.getInt("DECIMAL_DIGITS");
-            int iNumPrecRadix = rsColumns.getInt("NUM_PREC_RADIX");
-            int iNullable = rsColumns.getInt("NULLABLE");
-            int iCharOctetLength = rsColumns.getInt("CHAR_OCTET_LENGTH");
-            int iOrdinalPosition = rsColumns.getInt("ORDINAL_POSITION");
-            String sIsNullable = rsColumns.getString("IS_NULLABLE");
-            String sIsAutoIncrement = rsColumns.getString("IS_AUTOINCREMENT");
-            
-            String sAutoIncrement = "NO";
-            int iNulls = DatabaseMetaData.columnNullable;
-            String sNullable = "YES";
-            int iPrecision = Integer.MAX_VALUE;
-            int iScale = 0;
-            int iRadix = 10;
-            int iType = Types.NULL;
-            String sType = sTypeName;
-            TestColumnDefinition tcd = null;
-            if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
-              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
-            else if (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase()))
-              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdComplex);
-            else if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()))
-              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
-            if (!(tcd.getValue() instanceof List<?>))
+            else
             {
-              PreType pt = parsePreType(tcd.getType());
-              iType = pt.getSqlType();
-              sType = pt.getKeyword();
-              if (iPosition == TestSqlDatabase._iPrimarySimple)
+              PostgresType pgt = parsePostgresType(cd.getType());
+              iPrecision = parsePrecision(cd.getType());
+              iScale = parseScale(cd.getType());
+              iType = pgt.getPreType().getSqlType();
+              sType = pgt.getPreType().getKeyword();
+              if (cd.getType().indexOf("serial") >= 0)
+                sAutoIncrement = "YES";
+              if (sAutoIncrement.equals("YES"))
                 iNulls = DatabaseMetaData.columnNoNulls;
               if (iNulls == DatabaseMetaData.columnNoNulls)
                 sNullable = "NO";
               else if (iNulls == DatabaseMetaData.columnNullableUnknown)
                 sNullable = "";
-              iPrecision = parsePrecision(tcd.getType());
-              iScale = parseScale(tcd.getType());
+              if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
+                iRadix = 2;
             }
-            else if (sColumnName.equalsIgnoreCase("CDISTINCT"))
+          }  
+          else if ((sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
+            (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase())) ||
+            (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase())))
+          {
+            TestColumnDefinition tcd = null;
+            if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
+            {
+              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
+              if (iPosition == TestSqlDatabase._iPrimarySimple)
+                iNulls = DatabaseMetaData.columnNoNulls;
+            }
+            else if (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase()))
+            {
+              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdComplex);
+              if (iPosition == TestSqlDatabase._iPrimaryComplex)
+                iNulls = DatabaseMetaData.columnNoNulls;
+            }
+            else if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()))
+              tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
+            if (sColumnName.equalsIgnoreCase("CDISTINCT"))
+            {
               iType = Types.DISTINCT;
+              System.out.println("DISTINCT "+sTypeName);
+            }
             else if (sColumnName.equalsIgnoreCase("CUDT"))
+            {
               iType = Types.STRUCT;
+              System.out.println("STRUCT "+sTypeName);
+            }
             else if (sColumnName.equalsIgnoreCase("CARRAY"))
             {
               iType = Types.ARRAY;
-              sTypeName = "VARCHAR(255)";
+              sTypeName = "VARCHAR"; // could be parsed from list ...
             }
-            
-            assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);
-            assertEquals("Unexpected type name for "+sColumnName,sType,sTypeName);
-            assertEquals("Unexpected column size for "+sColumnName,iPrecision,iColumnSize);
-            assertEquals("Unexpected decimal digits for "+sColumnName,iScale,iDecimalDigits);
-            assertEquals("Unexpected radix for "+sColumnName,iRadix,iNumPrecRadix);
-            assertEquals("Unexpected nullable for "+sColumnName,iNulls,iNullable);
-            assertEquals("Unexpected length for "+sColumnName,iPrecision,iCharOctetLength);        
-            iPosition = iPosition + 1;
-            assertEquals("Unexpected ordinal_position for "+sColumnName,iPosition,iOrdinalPosition);
-            assertEquals("Unexpected is_nullable for "+sColumnName,sNullable,sIsNullable);
-            assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
+            else
+            {
+              iPrecision = parsePrecision(tcd.getType());
+              iScale = parseScale(tcd.getType());
+              PreType pt = parsePreType(tcd.getType());
+              iType = pt.getSqlType();
+              sType = pt.getKeyword();
+              if (iNulls == DatabaseMetaData.columnNoNulls)
+                sNullable = "NO";
+              else if (iNulls == DatabaseMetaData.columnNullableUnknown)
+                sNullable = "";
+            }
           }
-          rsColumns.close();
-          print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
-            
+          assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);
+          assertEquals("Unexpected type name for "+sColumnName,sType,sTypeName);
+          assertEquals("Unexpected column size for "+sColumnName,iPrecision,iColumnSize);
+          assertEquals("Unexpected decimal digits for "+sColumnName,iScale,iDecimalDigits);
+          assertEquals("Unexpected radix for "+sColumnName,iRadix,iNumPrecRadix);
+          assertEquals("Unexpected nullable for "+sColumnName,iNulls,iNullable);
+          assertEquals("Unexpected length for "+sColumnName,iPrecision,iCharOctetLength);        
+          iPosition = iPosition + 1;
+          assertEquals("Unexpected ordinal_position for "+sColumnName,iPosition,iOrdinalPosition);
+          assertEquals("Unexpected is_nullable for "+sColumnName,sNullable,sIsNullable);
+          assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
         }
-         
+        rsColumns.close();
+        // print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
       }
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetUserColumns */
     
-  @Override
-  @Test
-  public void testGetUDTs()
-  {
-    enter();
-    try { print(getDatabaseMetaData().getUDTs(null, "%", "%", null)); }
-    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  }
-
   /** determine set of schemas holding user tables.
    * @return schemas, holding user tables.
    * @throws SQLException
@@ -564,6 +624,57 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     return setSchemas;
   } /* getUserSchemas */
   
+  @Test
+  public void testGetUserUDTsDistinct()
+  {
+    enter();
+    try 
+    { 
+      Set<String>setSchemas = getUserSchemas();
+      for (Iterator<String>iterSchema = setSchemas.iterator(); iterSchema.hasNext(); )
+      {
+        String sSchema = iterSchema.next();
+        System.out.println("Schema "+sSchema);
+        print(getDatabaseMetaData().getUDTs(null,sSchema,"%", new int[] {Types.DISTINCT} ));
+      }
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
+  @Test
+  public void testGetUserUDTsStruct()
+  {
+    enter();
+    try 
+    { 
+      Set<String>setSchemas = getUserSchemas();
+      for (Iterator<String>iterSchema = setSchemas.iterator(); iterSchema.hasNext(); )
+      {
+        String sSchema = iterSchema.next();
+        System.out.println("Schema "+sSchema);
+        print(getDatabaseMetaData().getUDTs(null,sSchema,"%", new int[] {Types.STRUCT} ));
+      }
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
+  @Test
+  public void testGetUserAttributes()
+  {
+    enter();
+    try 
+    { 
+      Set<String>setSchemas = getUserSchemas();
+      for (Iterator<String>iterSchema = setSchemas.iterator(); iterSchema.hasNext(); )
+      {
+        String sSchema = iterSchema.next();
+        System.out.println("Schema "+sSchema);
+        print(getDatabaseMetaData().getAttributes(null,sSchema,"%", null));
+      }
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
   /** get procedures of schemas holding user tables
    */
   @Test
@@ -579,10 +690,31 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
         System.out.println("Schema "+sSchema);
         print(getDatabaseMetaData().getProcedures(null,sSchema,"%"));
       }
+      print(getDatabaseMetaData().getProcedures(null,null,"int4range"));
     } 
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  }
-
+  } /* testGetUserProcedures */
+  
+  /** get parameters of procedures of schemas holding user tables
+   */
+  @Test
+  public void testGetUserProcedureColumns()
+  {
+    enter();
+    try 
+    { 
+      Set<String>setSchemas = getUserSchemas();
+      for (Iterator<String>iterSchema = setSchemas.iterator(); iterSchema.hasNext(); )
+      {
+        String sSchema = iterSchema.next();
+        System.out.println("Schema "+sSchema);
+        print(getDatabaseMetaData().getProcedureColumns(null,sSchema,"%","%"));
+      }
+      print(getDatabaseMetaData().getProcedureColumns(null,null,"int4range","%"));
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  } /* testGetUserProcedureColumns */
+  
   /** get functions of schemas holding user tables
    */
   @Test

@@ -38,6 +38,9 @@ public class PostgresMetaColumns
     String sCatalogName, String sSchemaName)
     throws SQLException
   {
+    // internal names starting with _ are used for array elements
+    if (sTypeName.startsWith("_"))
+      sTypeName = sTypeName.substring(1);
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
     if (pgt != null)
     {
@@ -200,30 +203,34 @@ public class PostgresMetaColumns
     Object oResult = super.getObject(columnIndex);
     if (columnIndex == _iDataType)
     {
+      int iResult = super.getInt(columnIndex); // maps null to 0
       oResult = getDataType(
-        ((Integer)oResult).intValue(), 
+        iResult, 
         super.getString(_iTypeName),
         super.getString(_iCatalog), 
         super.getString(_iSchema));
     }
     else if (columnIndex == _iPrecision)
     {
+      int iResult = super.getInt(columnIndex); // maps null to 0
       oResult = getPrecision(
-        ((Integer)oResult).intValue(),
+        iResult,
         super.getInt(_iDataType),
         super.getString(_iTypeName));
     }
     else if (columnIndex == _iScale)
     {
+      int iResult = super.getInt(columnIndex); // maps null to 0
       oResult = getScale(
-        ((Integer)oResult).intValue(),
+        iResult,
         super.getInt(_iDataType),
         super.getString(_iTypeName));
     }
     else if (columnIndex == _iLength)
     {
+      int iResult = super.getInt(columnIndex); // maps null to 0
       oResult = getPrecision(
-        Integer.valueOf((String)oResult).intValue(),
+        iResult,
         super.getInt(_iDataType),
         super.getString(_iTypeName));
     }

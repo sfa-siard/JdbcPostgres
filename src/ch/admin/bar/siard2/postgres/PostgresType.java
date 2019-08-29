@@ -21,49 +21,49 @@ import ch.enterag.sqlparser.datatype.enums.*;
  */
 public enum PostgresType
 {
-  INTEGER("integer", new HashSet<String>(Arrays.asList(new String[]{"int","int4"})), PreType.INTEGER),
-  SMALLINT("smallint", new HashSet<String>(Arrays.asList(new String[]{"int2"})), PreType.SMALLINT),
-  BIGINT("bigint", new HashSet<String>(Arrays.asList(new String[]{"int8"})), PreType.BIGINT),
-  OID("oid", new HashSet<String>(), PreType.INTEGER),
-  SERIAL("serial", new HashSet<String>(Arrays.asList(new String[]{"serial4"})), PreType.INTEGER),
-  SMALLSERIAL("smallserial", new HashSet<String>(Arrays.asList(new String[]{"serial2"})), PreType.SMALLINT),
-  BIGSERIAL("bigserial", new HashSet<String>(Arrays.asList(new String[]{"serial8"})), PreType.BIGINT),
-  MONEY("money", new HashSet<String>(), PreType.DECIMAL),
-  NUMERIC("numeric", new HashSet<String>(Arrays.asList(new String[]{"decimal"})), PreType.NUMERIC),
-  DOUBLE("double precision", new HashSet<String>(Arrays.asList(new String[]{"float8"})), PreType.DOUBLE),
-  REAL("real", new HashSet<String>(Arrays.asList(new String[]{"float4"})), PreType.REAL),
-  BOOLEAN("boolean", new HashSet<String>(Arrays.asList(new String[]{"bool"})), PreType.BOOLEAN),
-  DATE("date", new HashSet<String>(), PreType.DATE),
-  TIME("time", new HashSet<String>(), PreType.TIME),
-  TIMETZ("time with time zone", new HashSet<String>(Arrays.asList(new String[]{"timetz"})), PreType.TIME),
-  TIMESTAMP("timestamp", new HashSet<String>(), PreType.TIMESTAMP),
-  TIMESTAMPTZ("timestamp with time zone", new HashSet<String>(Arrays.asList(new String[]{"timestamptz"})), PreType.TIMESTAMP),
-  INTERVAL("interval", new HashSet<String>(), PreType.INTERVAL),
-  CHAR("character", new HashSet<String>(Arrays.asList(new String[]{"char","bpchar"})), PreType.CHAR),
-  VARCHAR("character varying", new HashSet<String>(Arrays.asList(new String[]{"varchar"})), PreType.VARCHAR),
-  TEXT("text", new HashSet<String>(), PreType.CLOB),
-  JSON("json", new HashSet<String>(), PreType.CLOB),
-  JSONB("jsonb", new HashSet<String>(), PreType.CLOB),
-  XML("xml", new HashSet<String>(), PreType.XML),
-  TSVECTOR("tsvector", new HashSet<String>(), PreType.CLOB), // // https://www.postgresql.org/docs/11/datatype-textsearch.html
-  TSQUERY("tsquery", new HashSet<String>(), PreType.CLOB), // https://www.postgresql.org/docs/11/datatype-textsearch.html
-  BIT("bit", new HashSet<String>(), PreType.BINARY),
-  VARBIT("bit varying", new HashSet<String>(Arrays.asList(new String[]{"varbit"})), PreType.VARBINARY),
-  BYTEA("bytea", new HashSet<String>(), PreType.BLOB),
-  UUID("uuid", new HashSet<String>(), PreType.BINARY), // length 16
-  MACADDR("macaddr", new HashSet<String>(), PreType.BINARY), // length 6
-  MACADDR8("macaddr8", new HashSet<String>(), PreType.BINARY), // length 8
-  POINT("point", new HashSet<String>(), PreType.VARCHAR),
-  LINE("line", new HashSet<String>(), PreType.VARCHAR),
-  LSEG("lseg", new HashSet<String>(), PreType.VARCHAR),
-  BOX("box", new HashSet<String>(), PreType.VARCHAR),
-  PATH("path", new HashSet<String>(), PreType.VARCHAR),
-  POLYGON("polygon", new HashSet<String>(), PreType.VARCHAR),
-  CIRCLE("circle", new HashSet<String>(), PreType.VARCHAR),
-  CIDR("cidr", new HashSet<String>(), PreType.VARCHAR), // https://www.postgresql.org/docs/11/datatype-net-types.html#DATATYPE-CIDR
-  INET("inet", new HashSet<String>(), PreType.VARBINARY), // length 4 (IPv4) or 16 (IPv6)
-  NAME("name", new HashSet<String>(), PreType.VARCHAR), // length 63
-  TXID("txid_snapshot", new HashSet<String>(), PreType.VARCHAR); // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
+  INTEGER(PreType.INTEGER,"integer", "int","int4"),
+  SMALLINT(PreType.SMALLINT, "smallint", "int2"),
+  BIGINT(PreType.BIGINT, "bigint", "int8"),
+  OID(PreType.INTEGER, "oid"),
+  SERIAL(PreType.INTEGER, "serial", "serial4"),
+  SMALLSERIAL(PreType.SMALLINT, "smallserial", "serial2"),
+  BIGSERIAL(PreType.BIGINT, "bigserial", "serial8"),
+  MONEY(PreType.DECIMAL, "money"),
+  NUMERIC(PreType.NUMERIC, "numeric", "decimal"),
+  DOUBLE(PreType.DOUBLE, "double precision", "float8"),
+  REAL(PreType.REAL, "real", "float4"),
+  BOOLEAN(PreType.BOOLEAN, "boolean", "bool"),
+  DATE(PreType.DATE, "date"),
+  TIME(PreType.TIME, "time"),
+  TIMETZ(PreType.TIME, "time with time zone", "timetz"),
+  TIMESTAMP(PreType.TIMESTAMP, "timestamp"),
+  TIMESTAMPTZ(PreType.TIMESTAMP, "timestamp with time zone", "timestamptz"),
+  INTERVAL(PreType.INTERVAL, "interval"),
+  CHAR(PreType.CHAR, "character", "char","bpchar"),
+  VARCHAR(PreType.VARCHAR, "character varying", "varchar"),
+  TEXT(PreType.CLOB, "text"),
+  JSON(PreType.CLOB, "json"),
+  JSONB(PreType.CLOB, "jsonb"),
+  XML(PreType.XML, "xml"),
+  TSVECTOR(PreType.CLOB, "tsvector"), // // https://www.postgresql.org/docs/11/datatype-textsearch.html
+  TSQUERY(PreType.CLOB, "tsquery"), // https://www.postgresql.org/docs/11/datatype-textsearch.html
+  BIT(PreType.BINARY, "bit"),
+  VARBIT(PreType.VARBINARY, "bit varying", "varbit"),
+  BYTEA(PreType.BLOB, "bytea"),
+  UUID(PreType.BINARY, "uuid"), // length 16
+  MACADDR(PreType.BINARY, "macaddr"), // length 6
+  MACADDR8(PreType.BINARY, "macaddr8"), // length 8
+  POINT(PreType.VARCHAR, "point"),
+  LINE(PreType.VARCHAR, "line"),
+  LSEG(PreType.VARCHAR, "lseg"),
+  BOX(PreType.VARCHAR, "box"),
+  PATH(PreType.VARCHAR, "path"),
+  POLYGON(PreType.VARCHAR, "polygon"),
+  CIRCLE(PreType.VARCHAR, "circle"),
+  CIDR(PreType.VARCHAR, "cidr"), // https://www.postgresql.org/docs/11/datatype-net-types.html#DATATYPE-CIDR
+  INET(PreType.VARBINARY, "inet"), // length 4 (IPv4) or 16 (IPv6)
+  NAME(PreType.VARCHAR, "name"), // length 63
+  TXID(PreType.VARCHAR, "txid_snapshot"); // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
   
   private String _sKeyword = null;
   public String getKeyword() { return _sKeyword; }
@@ -71,10 +71,10 @@ public enum PostgresType
   public Set<String> getAliases() { return _setAliases; }
   private PreType _pt = null;
   public PreType getPreType() { return _pt; }
-  private PostgresType(String sKeyword, Set<String> setAliases, PreType pt)
+  private PostgresType(PreType pt, String sKeyword, String... asAliases)
   {
     _sKeyword = sKeyword;
-    _setAliases = setAliases;
+    _setAliases = new HashSet<String>(Arrays.asList(asAliases));
     _pt = pt;
   } /* constructor */
   public static PostgresType getByKeyword(String sKeyword)
