@@ -1,5 +1,6 @@
 package ch.admin.bar.siard2.jdbc;
 
+import java.io.*;
 import java.sql.*;
 import java.util.*;
 
@@ -50,6 +51,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       connPostgres.close();
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
   } /* setUpClass */
   
   @Before

@@ -8,6 +8,9 @@ import java.sql.*;
 import java.sql.Date;
 import java.util.*;
 
+import org.postgresql.*;
+import org.postgresql.largeobject.*;
+
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
 import ch.enterag.sqlparser.*;
@@ -35,6 +38,7 @@ public class TestPostgresDatabase
   public static QualifiedId getQualifiedArrayType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_STRING_ARRAY); }
   private static final String _sTEST_DOUBLE_MATRIX = "TPGMATRIX";
   public static QualifiedId getQualifiedMatrixType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_DOUBLE_MATRIX); }
+  private static int iBUFSIZ = 8192;
 
   public static void grantSchemaUser(Connection conn, String sSchema, 
     String sDbUser) throws SQLException 
@@ -71,7 +75,9 @@ public class TestPostgresDatabase
       String sValueLiteral = "NULL";
       if (_oValue != null)
       {
-        if (getName().equals("CINT_BUILTIN") || getName().equals("CSTRING_RANGE"))
+        if (getName().equals("CBYTEA"))
+          sValueLiteral = PostgresLiterals.formatBytesLiteral((byte[])getValue());
+        else if (getName().equals("CINT_BUILTIN") || getName().equals("CSTRING_RANGE"))
         {
           StringBuilder sb = new StringBuilder();
           @SuppressWarnings("unchecked")
@@ -181,7 +187,7 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CINTEGER",PostgresType.INTEGER.getKeyword(),Integer.valueOf(-1000000)));
     listCdSimple.add(new ColumnDefinition("CSMALLINT",PostgresType.SMALLINT.getKeyword(),Short.valueOf((short)-32767)));
     listCdSimple.add(new ColumnDefinition("CBIGINT",PostgresType.BIGINT.getKeyword(),Long.valueOf(-2147483648L)));
-    listCdSimple.add(new ColumnDefinition("COID",PostgresType.OID.getKeyword(),Integer.valueOf(19)));
+    listCdSimple.add(new ColumnDefinition("COID",PostgresType.OID.getKeyword(),TestUtils.getBytes(1000000)));
     _iCandidateSimple = listCdSimple.size(); // next column will be candidate key column 
     listCdSimple.add(new ColumnDefinition("CSERIAL",PostgresType.SERIAL.getKeyword(),Integer.valueOf(1000000)));
     listCdSimple.add(new ColumnDefinition("CSMALLSERIAL",PostgresType.SMALLSERIAL.getKeyword(),Short.valueOf((short)32767)));
@@ -364,7 +370,7 @@ public class TestPostgresDatabase
   private String _sDbUser = null;
   
   public TestPostgresDatabase(PostgresConnection connPostgres, String sDbUser)
-    throws SQLException
+    throws SQLException, IOException
   {
     _conn = connPostgres.unwrap(Connection.class);
     _sDbUser = sDbUser;
@@ -401,6 +407,25 @@ public class TestPostgresDatabase
 
   private void deleteTables()
   {
+    // SELECT lo_unlink(l.oid) FROM pg_largeobject_metadata l;
+    try
+    {
+      LargeObjectManager lobj = ((PGConnection)_conn).getLargeObjectAPI();
+      Statement stmt = _conn.createStatement();
+      ResultSet rs = stmt.executeQuery("SELECT COID FROM "+getQualifiedSimpleTable().format());
+      while (rs.next())
+      {
+        long loid = rs.getLong("COID");
+        lobj.unlink(loid);
+      }
+    }
+    catch(SQLException se) 
+    { 
+      System.out.println(EU.getExceptionMessage(se));
+      /* terminate transaction */
+      try { _conn.rollback(); }
+      catch(SQLException seRollback) { System.out.println("Rollback failed with "+EU.getExceptionMessage(seRollback)); }
+    }
     deleteTable(getQualifiedSimpleTable());
     deleteTable(getQualifiedComplexTable());
   } /* deleteTables */
@@ -443,7 +468,7 @@ public class TestPostgresDatabase
   } /* dropSchema */
 
   private void create()
-    throws SQLException
+    throws SQLException, IOException
   {
     createSchema();
     createTypes();
@@ -566,14 +591,14 @@ public class TestPostgresDatabase
   } /* createTable */
   
   private void insertTables()
-    throws SQLException
+    throws SQLException, IOException
   {
     insertTable(getQualifiedSimpleTable(),_listCdSimple);
     insertTable(getQualifiedComplexTable(),_listCdComplex);
   } /* insertTables */
   
   private void insertTable(QualifiedId qiTable, List<TestColumnDefinition> listCd)
-    throws SQLException
+    throws SQLException, IOException
   {
     StringBuilder sbSql = new StringBuilder("INSERT INTO ");
     sbSql.append(qiTable.format());
@@ -598,7 +623,7 @@ public class TestPostgresDatabase
         if (iColumn > 0)
           sbSql.append(",\r\n  ");
         String sLiteral = cd.getValueLiteral();
-        if (sLiteral.length() < 1000)
+        if (sLiteral.length() < 100000)
           sbSql.append(sLiteral);
         else
         {
@@ -620,8 +645,15 @@ public class TestPostgresDatabase
       }
       else if (o instanceof byte[])
       {
+        LargeObjectManager lobj = ((PGConnection)_conn).getLargeObjectAPI();
+        long oid = lobj.createLO();
+        LargeObject lo = lobj.open(oid, LargeObjectManager.WRITE);
         InputStream isBlob = new ByteArrayInputStream((byte[])o);
-        pstmt.setBinaryStream(iLob+1, isBlob);
+        byte[] bufBlob = new byte[iBUFSIZ];
+        for (int iRead = isBlob.read(bufBlob,0,bufBlob.length); iRead != -1; iRead = isBlob.read(bufBlob,0,bufBlob.length))
+          lo.write(bufBlob, 0, iRead);
+        lo.close();
+        pstmt.setLong(iLob+1, oid);
       }
       else
         throw new SQLException("Invalid LOB type "+o.getClass().getName()+"!");

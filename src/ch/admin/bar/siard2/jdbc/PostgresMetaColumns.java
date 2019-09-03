@@ -22,6 +22,7 @@ import ch.admin.bar.siard2.postgres.*;
 public class PostgresMetaColumns
   extends PostgresResultSet
 {
+  private static final String sPOSTGRES_SCHEMA_PUBLIC = "public";
   private int _iCatalog = -1;
   private int _iSchema = -1;
   private int _iDataType = -1;
@@ -66,7 +67,8 @@ public class PostgresMetaColumns
   } /* getDataType */
   
   /*------------------------------------------------------------------*/
-  private int getPrecision(int iPrecision, int iType, String sTypeName)
+  private int getPrecision(int iPrecision, int iType, String sTypeName,
+    String sCatalogName, String sSchemaName)
   {
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
     if (pgt != null)
@@ -79,6 +81,12 @@ public class PostgresMetaColumns
         iPrecision = 6;
       else if (pgt == PostgresType.MACADDR8)
         iPrecision = 8;
+    }
+    else if (sPOSTGRES_SCHEMA_PUBLIC.equals(sSchemaName))
+    {
+      /* These types are created by PostgresConnection */
+      iPrecision = Integer.MAX_VALUE; 
+      /* theoretically it should be 4G but JDBC only specifies int ... */
     }
     else if ((iType == Types.ARRAY) || (iType == Types.STRUCT) || (iType == Types.DISTINCT))
       iPrecision = Integer.MAX_VALUE;
@@ -173,7 +181,9 @@ public class PostgresMetaColumns
       iResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName));
+        super.getString(_iTypeName),
+        super.getString(_iCatalog), 
+        super.getString(_iSchema));
     }
     else if (columnIndex == _iScale)
     {
@@ -187,7 +197,9 @@ public class PostgresMetaColumns
       iResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName));
+        super.getString(_iTypeName),
+        super.getString(_iCatalog), 
+        super.getString(_iSchema));
     }
     return iResult;
   } /* getInt */
@@ -216,7 +228,9 @@ public class PostgresMetaColumns
       oResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName));
+        super.getString(_iTypeName),
+        super.getString(_iCatalog), 
+        super.getString(_iSchema));
     }
     else if (columnIndex == _iScale)
     {
@@ -232,7 +246,9 @@ public class PostgresMetaColumns
       oResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName));
+        super.getString(_iTypeName),
+        super.getString(_iCatalog), 
+        super.getString(_iSchema));
     }
     else if (columnIndex == _iTypeName)
     {

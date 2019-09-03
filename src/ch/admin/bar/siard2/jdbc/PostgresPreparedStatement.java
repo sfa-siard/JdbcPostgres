@@ -13,8 +13,16 @@ package ch.admin.bar.siard2.jdbc;
 import java.io.*;
 import java.math.*;
 import java.net.*;
+import java.nio.*;
+import java.nio.charset.*;
 import java.sql.*;
 import java.util.Calendar;
+
+import org.postgresql.*;
+import org.postgresql.largeobject.*;
+
+import ch.enterag.utils.*;
+import ch.admin.bar.siard2.postgres.*;
 
 /*====================================================================*/
 /** PostgresPreparedStatement implements a wrapped Postgres PreparedStatement.
@@ -24,6 +32,7 @@ public class PostgresPreparedStatement
   extends PostgresStatement
   implements PreparedStatement
 {
+  private static final int iBUFSIZ = 65536;
   /** wrapped prepared statement */
   private PreparedStatement _pstmtWrapped = null;
   
@@ -247,7 +256,7 @@ public class PostgresPreparedStatement
   public void setNString(int parameterIndex, String value)
     throws SQLException
   {
-    _pstmtWrapped.setNString(parameterIndex, value);
+    _pstmtWrapped.setString(parameterIndex, value);
   }
 
   /*------------------------------------------------------------------*/
@@ -255,7 +264,8 @@ public class PostgresPreparedStatement
   @Override
   public void setClob(int parameterIndex, Clob x) throws SQLException
   {
-    _pstmtWrapped.setClob(parameterIndex, x);
+    PostgresClob px = (PostgresClob)x;
+    _pstmtWrapped.setClob(parameterIndex, px.unwrap(Clob.class));
   }
 
   /*------------------------------------------------------------------*/
@@ -282,7 +292,7 @@ public class PostgresPreparedStatement
   public void setNClob(int parameterIndex, NClob value)
     throws SQLException
   {
-    _pstmtWrapped.setNClob(parameterIndex, value);
+    setClob(parameterIndex, value);
   }
 
   /*------------------------------------------------------------------*/
@@ -291,7 +301,7 @@ public class PostgresPreparedStatement
   public void setNClob(int parameterIndex, Reader reader)
     throws SQLException
   {
-    _pstmtWrapped.setNClob(parameterIndex, reader);
+    setClob(parameterIndex, reader);
   }
 
   /*------------------------------------------------------------------*/
@@ -300,7 +310,7 @@ public class PostgresPreparedStatement
   public void setNClob(int parameterIndex, Reader reader, long length)
     throws SQLException
   {
-    _pstmtWrapped.setNClob(parameterIndex, reader, length);
+    setClob(parameterIndex, reader, length);
   }
 
   /*------------------------------------------------------------------*/
@@ -309,7 +319,8 @@ public class PostgresPreparedStatement
   public void setAsciiStream(int parameterIndex, InputStream x)
     throws SQLException
   {
-    _pstmtWrapped.setAsciiStream(parameterIndex, x);
+    try { setCharacterStream(parameterIndex,new InputStreamReader(x,"ASCII")); }
+    catch(UnsupportedEncodingException uee) {}
   }
 
   /*------------------------------------------------------------------*/
@@ -318,7 +329,8 @@ public class PostgresPreparedStatement
   public void setAsciiStream(int parameterIndex, InputStream x,
     int length) throws SQLException
   {
-    _pstmtWrapped.setAsciiStream(parameterIndex, x, length);
+    try { setCharacterStream(parameterIndex,new InputStreamReader(x,"ASCII"),length); }
+    catch(UnsupportedEncodingException uee) {}
   }
 
   /*------------------------------------------------------------------*/
@@ -327,27 +339,57 @@ public class PostgresPreparedStatement
   public void setAsciiStream(int parameterIndex, InputStream x,
     long length) throws SQLException
   {
-    _pstmtWrapped.setAsciiStream(parameterIndex, x, length);
+    try { setCharacterStream(parameterIndex,new InputStreamReader(x,"ASCII"),length); }
+    catch(UnsupportedEncodingException uee) {}
   }
 
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
-  @SuppressWarnings("deprecation")
   @Override
   public void setUnicodeStream(int parameterIndex, InputStream x,
     int length) throws SQLException
   {
-    _pstmtWrapped.setUnicodeStream(parameterIndex, x, length);
+    try { setCharacterStream(parameterIndex,new InputStreamReader(x,"UTF-8"),length); }
+    catch(UnsupportedEncodingException uee) {}
   }
 
+  private long createClob(int parameterIndex, Reader reader)
+    throws SQLException
+  {
+    long lLength = -1;
+    try
+    {
+      Charset csUtf8 = Charset.forName("UTF-8"); 
+      LargeObjectManager lobj = ((PGConnection)_conn.unwrap(Connection.class)).getLargeObjectAPI();
+      long loid = lobj.createLO();
+      LargeObject lo = lobj.open(loid);
+      char[] cbuf = new char[iBUFSIZ];
+      lLength = 0;
+      for (int iRead = reader.read(cbuf); iRead != -1; iRead = reader.read(cbuf))
+      {
+        ByteBuffer bb = csUtf8.encode(CharBuffer.wrap(cbuf,0,iRead));
+        lo.write(bb.array());
+        lLength = lLength + iRead;
+      }
+      lo.close();
+      _pstmtWrapped.setLong(parameterIndex, loid);
+    }
+    catch(IOException ie) { throw new SQLException("Reading CharacterStream failed"+EU.getExceptionMessage(ie)+"!"); }
+    return lLength;
+  }
+  
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader)
     throws SQLException
   {
-    _pstmtWrapped.setCharacterStream(parameterIndex, reader);
-  }
+    ParameterMetaData pmd = _pstmtWrapped.getParameterMetaData();
+    if (!PostgresType.CLOB.getKeyword().equals(pmd.getParameterTypeName(parameterIndex)))
+      _pstmtWrapped.setCharacterStream(parameterIndex, reader);
+    else
+      createClob(parameterIndex, reader);
+  } /* setCharacterStream */
 
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
@@ -355,7 +397,7 @@ public class PostgresPreparedStatement
   public void setCharacterStream(int parameterIndex, Reader reader,
     int length) throws SQLException
   {
-    _pstmtWrapped.setCharacterStream(parameterIndex, reader, length);
+    setCharacterStream(parameterIndex, reader, (long)length);
   }
 
   /*------------------------------------------------------------------*/
@@ -364,7 +406,15 @@ public class PostgresPreparedStatement
   public void setCharacterStream(int parameterIndex, Reader reader,
     long length) throws SQLException
   {
-    _pstmtWrapped.setCharacterStream(parameterIndex, reader, length);
+    ParameterMetaData pmd = _pstmtWrapped.getParameterMetaData();
+    if (!PostgresType.CLOB.getKeyword().equals(pmd.getParameterTypeName(parameterIndex)))
+      _pstmtWrapped.setCharacterStream(parameterIndex, reader);
+    else
+    {
+      long lLength = createClob(parameterIndex, reader);
+      if (length != lLength)
+        throw new SQLException("Invalid length in setCharacterStream of PreparedStatement!");
+    }
   }
 
   /*------------------------------------------------------------------*/
@@ -373,7 +423,7 @@ public class PostgresPreparedStatement
   public void setNCharacterStream(int parameterIndex, Reader value)
     throws SQLException
   {
-    _pstmtWrapped.setNCharacterStream(parameterIndex, value);
+    setCharacterStream(parameterIndex, value);
   }
 
   /*------------------------------------------------------------------*/
@@ -382,7 +432,7 @@ public class PostgresPreparedStatement
   public void setNCharacterStream(int parameterIndex, Reader value,
     long length) throws SQLException
   {
-    _pstmtWrapped.setNCharacterStream(parameterIndex, value, length);
+    setCharacterStream(parameterIndex, value, length);
   }
 
   /*------------------------------------------------------------------*/
@@ -431,7 +481,8 @@ public class PostgresPreparedStatement
   @Override
   public void setBlob(int parameterIndex, Blob x) throws SQLException
   {
-    _pstmtWrapped.setBlob(parameterIndex, x);
+    PostgresBlob px = (PostgresBlob)x;
+    _pstmtWrapped.setBlob(parameterIndex, px.unwrap(Blob.class));
   }
 
   /*------------------------------------------------------------------*/
@@ -452,13 +503,40 @@ public class PostgresPreparedStatement
     _pstmtWrapped.setBlob(parameterIndex, inputStream, length);
   }
 
+  private long createBlob(int parameterIndex, InputStream x)
+    throws SQLException
+  {
+    long lLength = -1;
+    try
+    {
+      LargeObjectManager lobj = ((PGConnection)_conn.unwrap(Connection.class)).getLargeObjectAPI();
+      long loid = lobj.createLO();
+      LargeObject lo = lobj.open(loid);
+      byte[] buf = new byte[iBUFSIZ];
+      lLength = 0;
+      for (int iRead = x.read(buf); iRead != -1; iRead = x.read(buf))
+      {
+        lo.write(buf,0,iRead);
+        lLength = lLength + iRead;
+      }
+      lo.close();
+      _pstmtWrapped.setLong(parameterIndex, loid);
+    }
+    catch(IOException ie) { throw new SQLException("Reading BinaryStream failed"+EU.getExceptionMessage(ie)+"!"); }
+    return lLength;
+  } /* createBlob */
+  
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x)
     throws SQLException
   {
-    _pstmtWrapped.setBinaryStream(parameterIndex, x);
+    ParameterMetaData pmd = _pstmtWrapped.getParameterMetaData();
+    if (!PostgresType.BLOB.getKeyword().equals(pmd.getParameterTypeName(parameterIndex)))
+      _pstmtWrapped.setBinaryStream(parameterIndex, x);
+    else
+      createBlob(parameterIndex,x);
   }
 
   /*------------------------------------------------------------------*/
@@ -467,7 +545,7 @@ public class PostgresPreparedStatement
   public void setBinaryStream(int parameterIndex, InputStream x,
     int length) throws SQLException
   {
-    _pstmtWrapped.setBinaryStream(parameterIndex, x, length);
+    setBinaryStream(parameterIndex,x,(long)length);
   }
 
   /*------------------------------------------------------------------*/
@@ -476,16 +554,15 @@ public class PostgresPreparedStatement
   public void setBinaryStream(int parameterIndex, InputStream x,
     long length) throws SQLException
   {
-    _pstmtWrapped.setBinaryStream(parameterIndex, x, length);
-  }
-
-  /*------------------------------------------------------------------*/
-  /** {@inheritDoc} */
-  @Override
-  public void setObject(int parameterIndex, Object x)
-    throws SQLException
-  {
-    _pstmtWrapped.setObject(parameterIndex, x);
+    ParameterMetaData pmd = _pstmtWrapped.getParameterMetaData();
+    if (!PostgresType.BLOB.getKeyword().equals(pmd.getParameterTypeName(parameterIndex)))
+      _pstmtWrapped.setBinaryStream(parameterIndex, x);
+    else
+    {
+      long lLength = createBlob(parameterIndex,x);
+      if (length != lLength)
+        throw new SQLException("Invalid length in setBinaryStream of PreparedStatement!");
+    }
   }
 
   /*------------------------------------------------------------------*/
@@ -499,9 +576,20 @@ public class PostgresPreparedStatement
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
+  public void setObject(int parameterIndex, Object x)
+    throws SQLException
+  {
+    /* TODO: ... if BLOB/CLOB */
+    _pstmtWrapped.setObject(parameterIndex, x);
+  }
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
   public void setObject(int parameterIndex, Object x, int targetSqlType)
     throws SQLException
   {
+    /* TODO: ... if BLOB/CLOB */
     _pstmtWrapped.setObject(parameterIndex, x, targetSqlType);
   }
 
@@ -511,6 +599,7 @@ public class PostgresPreparedStatement
   public void setObject(int parameterIndex, Object x, int targetSqlType,
     int scaleOrLength) throws SQLException
   {
+    /* TODO: ... if BLOB/CLOB */
     _pstmtWrapped.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
   }
 

@@ -24,7 +24,7 @@ public enum PostgresType
   INTEGER(PreType.INTEGER,"integer", "int","int4"),
   SMALLINT(PreType.SMALLINT, "smallint", "int2"),
   BIGINT(PreType.BIGINT, "bigint", "int8"),
-  OID(PreType.INTEGER, "oid"),
+  OID(PreType.BIGINT, "oid"), // Could represent a BLOB
   SERIAL(PreType.INTEGER, "serial", "serial4"),
   SMALLSERIAL(PreType.SMALLINT, "smallserial", "serial2"),
   BIGSERIAL(PreType.BIGINT, "bigserial", "serial8"),
@@ -41,15 +41,15 @@ public enum PostgresType
   INTERVAL(PreType.INTERVAL, "interval"),
   CHAR(PreType.CHAR, "character", "char","bpchar"),
   VARCHAR(PreType.VARCHAR, "character varying", "varchar"),
-  TEXT(PreType.CLOB, "text"),
-  JSON(PreType.CLOB, "json"),
-  JSONB(PreType.CLOB, "jsonb"),
+  TEXT(PreType.VARCHAR, "text"),
+  JSON(PreType.VARCHAR, "json"),
+  JSONB(PreType.VARCHAR, "jsonb"),
   XML(PreType.XML, "xml"),
-  TSVECTOR(PreType.CLOB, "tsvector"), // // https://www.postgresql.org/docs/11/datatype-textsearch.html
-  TSQUERY(PreType.CLOB, "tsquery"), // https://www.postgresql.org/docs/11/datatype-textsearch.html
+  TSVECTOR(PreType.VARCHAR, "tsvector"), // // https://www.postgresql.org/docs/11/datatype-textsearch.html
+  TSQUERY(PreType.VARCHAR, "tsquery"), // https://www.postgresql.org/docs/11/datatype-textsearch.html
   BIT(PreType.BINARY, "bit"),
   VARBIT(PreType.VARBINARY, "bit varying", "varbit"),
-  BYTEA(PreType.BLOB, "bytea"),
+  BYTEA(PreType.VARBINARY, "bytea"),
   UUID(PreType.BINARY, "uuid"), // length 16
   MACADDR(PreType.BINARY, "macaddr"), // length 6
   MACADDR8(PreType.BINARY, "macaddr8"), // length 8
@@ -63,7 +63,10 @@ public enum PostgresType
   CIDR(PreType.VARCHAR, "cidr"), // https://www.postgresql.org/docs/11/datatype-net-types.html#DATATYPE-CIDR
   INET(PreType.VARBINARY, "inet"), // length 4 (IPv4) or 16 (IPv6)
   NAME(PreType.VARCHAR, "name"), // length 63
-  TXID(PreType.VARCHAR, "txid_snapshot"); // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
+  TXID(PreType.VARCHAR, "txid_snapshot"), // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
+  BLOB(PreType.BLOB, "blob"), // domain in schema public based on oid created by PostgresConnection
+  CLOB(PreType.CLOB, "clob"); // domain in schema public based on oid created by PostgresConnection
+  
   
   private String _sKeyword = null;
   public String getKeyword() { return _sKeyword; }
@@ -95,14 +98,14 @@ public enum PostgresType
     {
       case CHAR: pgt = CHAR; break;
       case VARCHAR: pgt = VARCHAR; break;
-      case CLOB: pgt = TEXT; break;
+      case CLOB: pgt = CLOB; break;
       case NCHAR: pgt = CHAR; break;
       case NVARCHAR: pgt = VARCHAR; break;
-      case NCLOB: pgt = TEXT; break;
+      case NCLOB: pgt = CLOB; break;
       case XML: pgt = XML; break;
       case BINARY: pgt = BYTEA; break;
       case VARBINARY: pgt = BYTEA; break;
-      case BLOB: pgt = BYTEA; break;
+      case BLOB: pgt = BLOB; break;
       case NUMERIC: pgt = NUMERIC; break;
       case DECIMAL: pgt = NUMERIC; break;
       case SMALLINT: pgt = SMALLINT; break;

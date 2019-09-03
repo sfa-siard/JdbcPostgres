@@ -590,7 +590,7 @@ public class TestSqlDatabase
     if (o instanceof String)
     {
       String s = (String)o;
-      if (s.length() < 256)
+      if (s.length() < 1000)
         cve.getValueExpressionPrimary().getUnsignedLit().
           initCharacterString(s);
       else
@@ -602,7 +602,7 @@ public class TestSqlDatabase
     else if (o instanceof byte[])
     {
       byte[] buf = (byte[])o;
-      if (buf.length < 256)
+      if (buf.length < 1000)
         cve.getValueExpressionPrimary().getUnsignedLit().
           initBytes(buf);
       else

@@ -97,7 +97,8 @@ public class PostgresResultSetTester
       TestPostgresDatabase.grantSchemaUser(connPostgres, TestPostgresDatabase._sTEST_SCHEMA, _sDB_USER);
       connPostgres.close();
     }
-    catch (SQLException se) { fail(se.getClass().getName() + ": " + se.getMessage()); }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
   }
 
   private Connection _conn = null;

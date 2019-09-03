@@ -13,8 +13,11 @@ package ch.admin.bar.siard2.jdbc;
 import java.sql.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.enterag.sqlparser.*;
+import ch.enterag.sqlparser.datatype.enums.*;
+import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 import ch.enterag.utils.logging.*;
+import org.postgresql.jdbc.*;
 
 /*====================================================================*/
 /** PostgresConnection implements a wrapped PostgreSQL Connection.
@@ -29,6 +32,30 @@ implements Connection
   /*** meta data */
   private DatabaseMetaData _dmd = null;
   
+  private void createDomain(String sDomain)
+    throws SQLException
+  {
+    /* if it exists already, do not do anything */
+    try
+    {
+      String sSql = "CREATE DOMAIN public."+sDomain+" AS "+PostgresType.OID;
+      Statement stmt = super.createStatement();
+      stmt.executeUpdate(sSql);
+      stmt.close();
+      super.commit();
+      stmt = super.createStatement();
+      sSql = "GRANT ALL ON public."+sDomain+" TO public";
+      stmt.executeUpdate(sSql);
+      super.commit();
+    }
+    catch(SQLException se)
+    {
+      /* terminate transaction */
+      try { super.rollback(); }
+      catch(SQLException seRollback) { throw new SQLException("Rollback failed with "+EU.getExceptionMessage(seRollback)); }
+    }
+  } /* executeCreate */
+
   /*------------------------------------------------------------------*/
   /** constructor
    * @param connWrapped connection to be wrapped.
@@ -37,6 +64,11 @@ implements Connection
     throws SQLException
   {
     super(connWrapped);
+    boolean bAutoCommit = super.getAutoCommit();
+    super.setAutoCommit(false);
+    /* create standard domains BLOB, CLOB and NCLOB for oid */
+    createDomain(PreType.BLOB.getKeyword());
+    createDomain(PreType.CLOB.getKeyword());
     DatabaseMetaData dmd = super.getMetaData();
     if (dmd != null)
     {
@@ -44,7 +76,8 @@ implements Connection
         throw new SQLException("PostgresConnection() returned a wrapped meta data instance!");
       dmd = new PostgresDatabaseMetaData(dmd,this);
     }
-    _dmd = dmd;    
+    _dmd = dmd;
+    super.setAutoCommit(bAutoCommit);
   } /* constructor */
   
   /*------------------------------------------------------------------*/
@@ -196,5 +229,23 @@ implements Connection
     CallableStatement cs = super.prepareCall(sNative, resultSetType, resultSetConcurrency, resultSetHoldability);
     return cs;
   } /* prepareCall */
+  
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public Clob createClob()
+    throws SQLException
+  {
+    return new PostgresClob((PgClob)super.createClob());
+  }
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public Blob createBlob()
+    throws SQLException
+  {
+    return new PostgresBlob((PgBlob)super.createBlob());
+  }
 
 } /* class PostgresConnection */

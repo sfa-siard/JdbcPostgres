@@ -1,5 +1,6 @@
 package ch.admin.bar.siard2.jdbc;
 
+import java.io.IOException;
 import java.sql.*;
 
 import org.junit.*;
@@ -38,6 +39,7 @@ public class PostgresStatementTester extends BaseStatementTester
       connPostgres.close();
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
   } /* setUpClass */
   
   @Before
