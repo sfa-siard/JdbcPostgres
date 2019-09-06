@@ -46,12 +46,13 @@ public class TestSqlDatabase
     listCdSimple.add(new TestColumnDefinition("CNVARCHAR_127","NCHAR VARYING(127)",TestUtils.getNString(100)));
     listCdSimple.add(new TestColumnDefinition("CNCLOB_1M","NCLOB(1M)",TestUtils.getNString(1000000)));
     listCdSimple.add(new TestColumnDefinition("CXML","XML","<a>foöäpwkfèégopàèwerkgvoperkv &lt; and &amp; ifjeifj</a>"));
-    listCdSimple.add(new TestColumnDefinition("CBINARY_5","BINARY(5)",new byte[] {1,-2,3,-4} ));
+    listCdSimple.add(new TestColumnDefinition("CBINARY_5","BINARY(5)",new byte[] {1,-2,3,-4, 0} ));
     listCdSimple.add(new TestColumnDefinition("CVARBINARY_255","VARBINARY(255)",TestUtils.getBytes(196) ));
     listCdSimple.add(new TestColumnDefinition("CBLOB","BLOB",TestUtils.getBytes(1000000)));
     listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",BigInteger.valueOf(1234567890123456789l)));
     listCdSimple.add(new TestColumnDefinition("CDECIMAL_15_5","DECIMAL(15,5)",new BigDecimal(BigInteger.valueOf(3141592653210l),5)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",new Short((short)-32000)));
+    listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",new Short((short)-128)));
     _iPrimarySimple = listCdSimple.size(); // next column will be primary key column 
     listCdSimple.add(new TestColumnDefinition("CINTEGER","INTEGER",new Integer(1234567890)));
     listCdSimple.add(new TestColumnDefinition("CBIGINT","BIGINT",new Long(-123456789012345678l)));

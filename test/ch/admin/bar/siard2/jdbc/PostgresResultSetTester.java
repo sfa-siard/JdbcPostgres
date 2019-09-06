@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 
 import java.io.*;
 import java.math.*;
+import java.nio.charset.Charset;
 import java.sql.*;
 import java.sql.Date;
 import java.util.*;
@@ -65,6 +66,7 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",BigInteger.valueOf(987654321098765432l)));
     listCdSimple.add(new TestColumnDefinition("CDECIMAL_15_5","DECIMAL(15,5)",new BigDecimal(BigInteger.valueOf(9876543210987l),5)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",Short.valueOf((short)23000)));
+    listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",Short.valueOf((short)23)));
     listCdSimple.add(new TestColumnDefinition("CINTEGER","INTEGER",Integer.valueOf(987654321)));
     listCdSimple.add(new TestColumnDefinition("CBIGINT","BIGINT",Long.valueOf(-987654321098765432l)));
     listCdSimple.add(new TestColumnDefinition("CFLOAT_10","FLOAT(10)",Float.valueOf((float)Math.PI)));
@@ -79,6 +81,8 @@ public class PostgresResultSetTester
     return listCdSimple;
   }
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();
+  
+  private static final int iBUFSIZ = 8192;
   
   @BeforeClass
   public static void setUpClass() 
@@ -307,8 +311,10 @@ public class PostgresResultSetTester
     try 
     {
       TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CCHAR_5");
-      String s = getResultSet().getString(tcd.getName()); 
-      assertEquals("Invalid string!",(String)tcd.getValue(),s);
+      String s = getResultSet().getString(tcd.getName());
+      String sEx = (String)tcd.getValue();
+      sEx = sEx + SU.repeat(s.length()-sEx.length(), ' ');
+      assertEquals("Invalid string!",sEx,s);
     }
     catch(SQLFeatureNotSupportedException sfnse) { printExceptionMessage(sfnse); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
@@ -392,9 +398,9 @@ public class PostgresResultSetTester
     enter();
     try 
     { 
-      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CBOOLEAN");
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CSMALLINT_BYTE");
       byte by = getResultSet().getByte(tcd.getName());
-      assertEquals("Invalid boolean!",((Boolean)tcd.getValue()).booleanValue(),(boolean)(by != 0));
+      assertEquals("Invalid bytes!",((Short)tcd.getValue()).byteValue(),by);
     }
     catch(SQLFeatureNotSupportedException sfnse) { printExceptionMessage(sfnse); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
@@ -407,8 +413,8 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      TestColumnDefinition tcd = findColumnDefinition(_listCdSimple,"CBOOLEAN");
-      getResultSet().updateByte(tcd.getName(),((Boolean)tcd.getValue()).booleanValue()?(byte)1:(byte)0);
+      TestColumnDefinition tcd = findColumnDefinition(_listCdSimple,"CSMALLINT_BYTE");
+      getResultSet().updateByte(tcd.getName(),((Short)tcd.getValue()).byteValue());
     }
     catch(SQLFeatureNotSupportedException sfnse) { printExceptionMessage(sfnse); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
@@ -598,7 +604,7 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CBINARY_5");
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CVARBINARY_255");
       byte[] buf = getResultSet().getBytes(tcd.getName());
       assertTrue("Invalid byte array!",Arrays.equals((byte[])tcd.getValue(),buf));
     }
@@ -612,7 +618,7 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      TestColumnDefinition tcd = findColumnDefinition(_listCdSimple,"CVARBINARY_255");
+      TestColumnDefinition tcd = findColumnDefinition(_listCdSimple,"CBINARY_5");
       getResultSet().updateBytes(tcd.getName(),(byte[])tcd.getValue());
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
@@ -703,6 +709,13 @@ public class PostgresResultSetTester
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetTime_Calendar */
   
+  private Timestamp truncateToMicros(Timestamp ts)
+  {
+    int iNanos = ts.getNanos();
+    ts.setNanos(1000*((iNanos+999)/1000));
+    return ts;
+  } /* truncateToMicros */
+  
   @Test
   @Override
   public void testGetTimestamp()
@@ -712,7 +725,8 @@ public class PostgresResultSetTester
     {
       TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CTIMESTAMP");
       Timestamp ts = getResultSet().getTimestamp(tcd.getName());
-      assertEquals("Invalid Timestamp!",(Timestamp)tcd.getValue(),ts);
+      Timestamp tsEx = (Timestamp)tcd.getValue();
+      assertEquals("Invalid Timestamp!",truncateToMicros(tsEx),ts);
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetTimestamp */
@@ -946,7 +960,7 @@ public class PostgresResultSetTester
       String s = new String(cbuf);
       assertEquals("Invalid String!",(String)tcd.getValue(),s);
     }
-    catch(SQLFeatureNotSupportedException sfnse) { fail(EU.getExceptionMessage(sfnse)); }
+    catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
     catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
   } /* testGetNCharacterStream */
@@ -1154,10 +1168,11 @@ public class PostgresResultSetTester
     {
       TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CBLOB");
       Blob blob = getResultSet().getBlob(tcd.getName());
-      byte[] buf = blob.getBytes(1l,(int)blob.length());
-      assertTrue("Invalid Blob!",Arrays.equals((byte[])tcd.getValue(),buf));
+      byte[] buffer = blob.getBytes(1l, (int)blob.length());
+      assertTrue("Invalid Blob!",Arrays.equals((byte[])tcd.getValue(),buffer));
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    // catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
   } /* testGetBlob */
   
   @Test
@@ -1202,7 +1217,7 @@ public class PostgresResultSetTester
       InputStream is = new ByteArrayInputStream((byte[])tcd.getValue());
       getResultSet().updateBlob(tcd.getName(),is,((byte[])tcd.getValue()).length);
     }
-    catch(SQLFeatureNotSupportedException sfnse) { fail(EU.getExceptionMessage(sfnse)); }
+    catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateBlob_String_InputStream_Long */
   
@@ -1215,10 +1230,19 @@ public class PostgresResultSetTester
     {
       TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CCLOB_2M");
       Clob clob = getResultSet().getClob(tcd.getName());
-      String s = clob.getSubString(1l,(int)clob.length());
-      assertEquals("Invalid Clob!",(String)tcd.getValue(),s);
+      StringWriter sw = new StringWriter();
+      Reader rdr = clob.getCharacterStream();
+      char[] cbuf = new char[iBUFSIZ];
+      for (int iRead = rdr.read(cbuf); iRead != -1; iRead = rdr.read(cbuf))
+        sw.write(cbuf,0,iRead);
+      rdr.close();
+      sw.close();
+      String s = sw.toString();
+      String sEx = (String)tcd.getValue();
+      assertEquals("Invalid Clob!",sEx,s);
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
   } /* testGetClob */
   
   @Test

@@ -212,10 +212,6 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       pt = PreType.VARCHAR;
     else if (pt == PreType.NCLOB)
       pt = PreType.CLOB;
-    else if (pt == PreType.BINARY)
-      pt = PreType.BLOB;
-    else if (pt == PreType.VARBINARY)
-      pt = PreType.BLOB;
     else if (pt == PreType.DECIMAL)
       pt = PreType.NUMERIC;
     else if (pt == PreType.FLOAT)
@@ -241,6 +237,9 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     {
       if (pgt == PostgresType.MONEY)
         iPrecision = Integer.MAX_VALUE;
+      // we have mapped oid to bigint but currently it is just an int 
+      else if (pgt == PostgresType.OID)
+        iPrecision = sizeFromMax(Integer.MAX_VALUE);
       else if (pgt == PostgresType.TIMETZ)
         iPrecision = 21;
       else if (pgt == PostgresType.TIMESTAMPTZ)
@@ -319,6 +318,14 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           iPrecision = (iPrecision + 7)/8;
       }
     }
+    if (iPrecision == 0)
+    {
+      if (pt == PreType.VARCHAR)
+        iPrecision = Integer.MAX_VALUE;
+      else if (pt == PreType.VARBINARY)
+        iPrecision = Integer.MAX_VALUE;
+    }
+    
     return iPrecision;
   } /* parsePrecision */
   
@@ -458,7 +465,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             else if (sColumnName.equalsIgnoreCase("CSTRING_ARRAY"))
             {
               iType = Types.ARRAY;
-              sTypeName = "CLOB"; // could be parsed from list ...
+              sTypeName = "VARCHAR"; // could be parsed from list ...
             }
             else if (sColumnName.equalsIgnoreCase("CDOUBLE_MATRIX"))
             {
@@ -529,6 +536,8 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
                 sNullable = "NO";
               else if (iNulls == DatabaseMetaData.columnNullableUnknown)
                 sNullable = "";
+              if ((pt == PreType.BINARY) || (pt == PreType.VARBINARY))
+                iRadix = 2;
             }
           }
           assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);

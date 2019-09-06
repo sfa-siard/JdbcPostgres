@@ -30,6 +30,7 @@ public class PostgresMetaColumns
   private int _iPrecision = -1;
   private int _iLength = -1;
   private int _iScale = -1;
+  private int _iNumPrecRadix = -1;
 
   @SuppressWarnings("unused")
   private Connection _conn;
@@ -105,7 +106,14 @@ public class PostgresMetaColumns
     else if ((iType == Types.ARRAY) || (iType == Types.STRUCT) || (iType == Types.DISTINCT))
       iScale = 0;
     return iScale;
-  } /* getPrecision */
+  } /* getScale */
+  
+  /*------------------------------------------------------------------*/
+  private int getNumPrecRadix(int iNumPrecRadix, int iType, String sTypeName)
+  {
+    return iNumPrecRadix;
+  } /* getNumPrecRadix */
+  
   
   /*------------------------------------------------------------------*/
   /** constructor
@@ -118,10 +126,11 @@ public class PostgresMetaColumns
    * @param iPrecision precision column in wrapped result set.
    * @param iLength length column in wrapped result set.
    * @param iScale scale column in wrapped result set.
+   * @param iNumPrecRadix radix for precision (2 or 10)
    */
   public PostgresMetaColumns(ResultSet rsWrapped,Connection conn,
     int iCatalog, int iSchema, int iDataType, int iTypeName,
-    int iPrecision, int iLength, int iScale)
+    int iPrecision, int iLength, int iScale, int iNumPrecRadix)
     throws SQLException
   {
     super(rsWrapped, rsWrapped.getStatement());
@@ -133,6 +142,7 @@ public class PostgresMetaColumns
     _iPrecision = iPrecision;
     _iLength = iLength;
     _iScale = iScale;
+    _iNumPrecRadix = iNumPrecRadix;
   } /* constructor */
 
   /*------------------------------------------------------------------*/
@@ -201,6 +211,13 @@ public class PostgresMetaColumns
         super.getString(_iCatalog), 
         super.getString(_iSchema));
     }
+    else if (columnIndex == _iNumPrecRadix)
+    {
+      iResult = getNumPrecRadix(
+        iResult, 
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
+    }
     return iResult;
   } /* getInt */
 
@@ -249,6 +266,14 @@ public class PostgresMetaColumns
         super.getString(_iTypeName),
         super.getString(_iCatalog), 
         super.getString(_iSchema));
+    }
+    else if (columnIndex == _iNumPrecRadix)
+    {
+      int iResult = super.getInt(columnIndex);
+      oResult = getNumPrecRadix(
+        iResult, 
+        super.getInt(_iDataType),
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iTypeName)
     {

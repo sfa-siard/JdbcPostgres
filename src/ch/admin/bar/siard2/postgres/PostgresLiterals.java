@@ -195,6 +195,35 @@ public abstract class PostgresLiterals extends SqlLiterals
   } /* formatBitString */
   
   /*------------------------------------------------------------------*/
+  /** parse a bit string
+   * @param sBitString bit string of 0s and 1s.
+   * @param bFiller filler byte at the end.
+   * @return bytes for bit string.
+   */
+  public static byte[] parseBitString(String sBitString)
+  {
+    int iBytes = (sBitString.length()+7)/8;
+    byte[] buf = new byte[iBytes];
+    int iBits = 0;
+    for (int iByteIndex = 0; iByteIndex < iBytes; iByteIndex++)
+    {
+      int iByte = 0;
+      int iMask = 0x00000080;
+      for (int iBitIndex = 0; (iBits < sBitString.length()) && (iBitIndex < 8); iBitIndex++)
+      {
+        if (sBitString.charAt(iBits) == '1')
+          iByte = iByte | iMask;
+        iMask = iMask >> 1;
+        iBits++;
+      }
+      if (iByte > 0x0000007F)
+        iByte = iByte - 256;
+      buf[iByteIndex] = (byte)iByte;
+    }
+    return buf;
+  }
+  
+  /*------------------------------------------------------------------*/
   /** format a binary MAC address as a string.
    * @param buffer binary MAC address.
    * @return string representation.

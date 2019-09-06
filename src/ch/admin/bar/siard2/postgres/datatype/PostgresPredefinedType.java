@@ -43,6 +43,18 @@ public class PostgresPredefinedType
   } /* formatSecondsDecimals */
   
   /*------------------------------------------------------------------*/
+  /** length field in parentheses.
+   * @return length in parentheses.
+   */
+  protected String formatBitLength()
+  {
+    String sLength = "";
+    if (getLength() != iUNDEFINED)
+      sLength = sLEFT_PAREN + String.valueOf(8*getLength()) + sRIGHT_PAREN;
+    return sLength;
+  } /* formatLength */
+  
+  /*------------------------------------------------------------------*/
   /** format the predefined data type.
    * @return the SQL string corresponding to the fields of the data type.
    */
@@ -52,12 +64,16 @@ public class PostgresPredefinedType
     String sType = null;
     if (getType() != null)
     {
-      sType = PostgresType.getByPreType(getType()).getKeyword();
+      PostgresType pgt = PostgresType.getByPreType(getType());
+      sType = pgt.getKeyword();
       if ((getType() == PreType.CHAR) ||
           (getType() == PreType.VARCHAR) ||
           (getType() == PreType.NCHAR) ||
           (getType() == PreType.NVARCHAR))
         sType = sType + formatLength();
+      else if ((getType() == PreType.BINARY) ||
+               (getType() == PreType.VARBINARY))
+        sType = sType + formatBitLength();
       else if ((getType() == PreType.NUMERIC) ||
           (getType() == PreType.DECIMAL))
         sType = sType + formatPrecisionScale();

@@ -11,13 +11,14 @@ Created    : 22.07.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
-import ch.admin.bar.siard2.postgres.*;
+import org.postgresql.jdbc.*;
+import org.postgresql.largeobject.*;
 import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 import ch.enterag.utils.logging.*;
-import org.postgresql.jdbc.*;
+import ch.admin.bar.siard2.postgres.*;
 
 /*====================================================================*/
 /** PostgresConnection implements a wrapped PostgreSQL Connection.
@@ -236,7 +237,15 @@ implements Connection
   public Clob createClob()
     throws SQLException
   {
-    return new PostgresClob((PgClob)super.createClob());
+    PgConnection pgconn = (PgConnection)unwrap(Connection.class);
+    LargeObjectManager lobj = pgconn.getLargeObjectAPI();
+    long loid = lobj.createLO();
+    String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
+    Statement stmt = pgconn.createStatement();
+    stmt.executeUpdate(sSql);
+    stmt.close();
+    PgClob pgclob = new PgClob(pgconn,loid);
+    return pgclob;
   }
 
   /*------------------------------------------------------------------*/
@@ -245,7 +254,15 @@ implements Connection
   public Blob createBlob()
     throws SQLException
   {
-    return new PostgresBlob((PgBlob)super.createBlob());
+    PgConnection pgconn = (PgConnection)unwrap(Connection.class);
+    LargeObjectManager lobj = pgconn.getLargeObjectAPI();
+    long loid = lobj.createLO();
+    String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
+    Statement stmt = pgconn.createStatement();
+    stmt.executeUpdate(sSql);
+    stmt.close();
+    PgBlob pgblob = new PgBlob(pgconn,loid);
+    return pgblob;
   }
 
 } /* class PostgresConnection */

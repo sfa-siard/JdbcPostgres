@@ -13,8 +13,6 @@ package ch.admin.bar.siard2.jdbc;
 import java.io.*;
 import java.math.*;
 import java.net.*;
-import java.nio.*;
-import java.nio.charset.*;
 import java.sql.*;
 import java.util.Calendar;
 
@@ -359,19 +357,25 @@ public class PostgresPreparedStatement
     long lLength = -1;
     try
     {
-      Charset csUtf8 = Charset.forName("UTF-8"); 
       LargeObjectManager lobj = ((PGConnection)_conn.unwrap(Connection.class)).getLargeObjectAPI();
       long loid = lobj.createLO();
       LargeObject lo = lobj.open(loid);
       char[] cbuf = new char[iBUFSIZ];
       lLength = 0;
+      long lWritten = 0;
       for (int iRead = reader.read(cbuf); iRead != -1; iRead = reader.read(cbuf))
       {
-        ByteBuffer bb = csUtf8.encode(CharBuffer.wrap(cbuf,0,iRead));
-        lo.write(bb.array());
+        byte[] buf = SU.putUtf8CharArray(cbuf,0,iRead);
+        lo.write(buf,0,buf.length);
+        lWritten = lWritten + buf.length;
         lLength = lLength + iRead;
       }
       lo.close();
+      reader.close();
+      String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
+      Statement stmt = (_conn.unwrap(Connection.class)).createStatement();
+      stmt.executeUpdate(sSql);
+      stmt.close();
       _pstmtWrapped.setLong(parameterIndex, loid);
     }
     catch(IOException ie) { throw new SQLException("Reading CharacterStream failed"+EU.getExceptionMessage(ie)+"!"); }
@@ -520,6 +524,10 @@ public class PostgresPreparedStatement
         lLength = lLength + iRead;
       }
       lo.close();
+      String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
+      Statement stmt = (_conn.unwrap(Connection.class)).createStatement();
+      stmt.executeUpdate(sSql);
+      stmt.close();
       _pstmtWrapped.setLong(parameterIndex, loid);
     }
     catch(IOException ie) { throw new SQLException("Reading BinaryStream failed"+EU.getExceptionMessage(ie)+"!"); }

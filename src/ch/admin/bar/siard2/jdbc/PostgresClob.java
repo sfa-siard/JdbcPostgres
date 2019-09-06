@@ -6,6 +6,10 @@ import org.postgresql.jdbc.*;
 public class PostgresClob
   extends BaseClob
 {
+  /*------------------------------------------------------------------*/
+  /** constructor
+   * @param pgClob
+   */
   PostgresClob(PgClob pgClob)
   {
     super(pgClob);

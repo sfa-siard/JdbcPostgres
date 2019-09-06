@@ -59,7 +59,7 @@ public class PostgresDatabaseMetaData
   {
     DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
     ResultSet rs = dmd.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
-    return new PostgresMetaColumns(rs,_conn,1,2,5,6,7,16,9);
+    return new PostgresMetaColumns(rs,_conn,1,2,5,6,7,16,9,10);
   } /* getColumns */
 
   private String getTypeNameCase(String sDataType)
@@ -197,7 +197,7 @@ public class PostgresDatabaseMetaData
     String columnNamePattern) throws SQLException
   {
     return new PostgresMetaColumns(super.getProcedureColumns(catalog, schemaPattern,
-      procedureNamePattern, columnNamePattern),_conn,1,2,6,7,8,9,10);
+      procedureNamePattern, columnNamePattern),_conn,1,2,6,7,8,9,10,-1);
   } /* getProcedureColumns */
 
   /*------------------------------------------------------------------*/
@@ -208,7 +208,7 @@ public class PostgresDatabaseMetaData
     String columnNamePattern) throws SQLException
   {
     return new PostgresMetaColumns(super.getFunctionColumns(catalog, schemaPattern,
-      functionNamePattern, columnNamePattern),_conn,1,2,6,7,8,9,10);
+      functionNamePattern, columnNamePattern),_conn,1,2,6,7,8,9,10,-1);
   } /* getFunctionColumns */
 
 } /* class PostgresDatabaseMetaData */
