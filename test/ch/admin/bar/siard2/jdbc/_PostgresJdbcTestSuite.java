@@ -9,10 +9,8 @@ import org.junit.runners.Suite.SuiteClasses;
 	PostgresDriverTester.class,
 	PostgresConnectionTester.class,
 	PostgresDatabaseMetaDataTester.class,
-	/***
 	PostgresResultSetMetaDataTester.class,
 	PostgresResultSetTester.class,
-	***/
   PostgresStatementTester.class
 })
 public class _PostgresJdbcTestSuite {
