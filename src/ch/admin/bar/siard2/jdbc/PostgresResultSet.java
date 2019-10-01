@@ -11,8 +11,10 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.io.*;
+import java.math.*;
 import java.sql.*;
-import java.util.Map;
+import java.text.*;
+import java.util.*;
 import javax.xml.datatype.*;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
@@ -268,9 +270,36 @@ implements ResultSet
   @Override
   public Object getObject(int columnIndex) throws SQLException
   {
-    Object o = super.getObject(columnIndex);
-    if (o instanceof PGInterval)
-      o = getDuration((PGInterval)o);
+    Object o = null;
+    int iType = getMetaData().getColumnType(columnIndex);
+    if (iType == Types.CLOB)
+      o = getClob(columnIndex);
+    else if (iType == Types.BLOB)
+      o = getBlob(columnIndex);
+    else if (iType == Types.OTHER)
+    {
+      o = super.getObject(columnIndex);
+      if (o instanceof PGInterval)
+        o = getDuration((PGInterval)o);
+      else
+        o = getBytes(columnIndex);
+    }
+    else if (iType == Types.BIT)
+      o = getBytes(columnIndex);
+    else if (iType == Types.SMALLINT)
+      o = getShort(columnIndex);
+    else if (iType == Types.DOUBLE)
+    {
+      try { o = super.getObject(columnIndex); }
+      catch(SQLException se) // maybe MONEY
+      {
+        String s = super.getString(columnIndex);
+        try { o = (BigDecimal)NumberFormat.getCurrencyInstance().parse(s); }
+        catch(ParseException pe) {throw new SQLException("Number "+s+" cannot be parsed ("+EU.getExceptionMessage(pe)+")!"); }
+      }
+    }
+    else 
+      o = super.getObject(columnIndex);
     return o;
   } /* getObject */
 
@@ -280,9 +309,7 @@ implements ResultSet
   public Object getObject(int columnIndex, Map<String, Class<?>> map)
     throws SQLException
   {
-    Object o = super.getObject(columnIndex, map);
-    if (o instanceof PGInterval)
-      o = getDuration((PGInterval)o);
+    Object o = getObject(columnIndex);
     return o;
   } /* getObject */
 
@@ -293,9 +320,7 @@ implements ResultSet
   public <T> T getObject(int columnIndex, Class<T> type)
     throws SQLException
   {
-    T o = super.getObject(columnIndex, type);
-    if (o instanceof PGInterval)
-      o = (T)getDuration((PGInterval)o);
+    T o = (T)getObject(columnIndex);
     return o;
   } /* getObject */
 

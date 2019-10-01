@@ -654,6 +654,11 @@ public class TestPostgresDatabase
           lo.write(bufBlob, 0, iRead);
         lo.close();
         pstmt.setLong(iLob+1, oid);
+        Statement stmt = _conn.createStatement();
+        String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(oid)+" TO PUBLIC";
+        stmt.executeUpdate(sSql);
+        stmt.close();
+
       }
       else
         throw new SQLException("Invalid LOB type "+o.getClass().getName()+"!");

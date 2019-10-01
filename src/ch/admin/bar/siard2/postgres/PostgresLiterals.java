@@ -9,6 +9,9 @@ Created    : 30.10.2016, Simon Jutz
 ======================================================================*/
 package ch.admin.bar.siard2.postgres;
 
+import java.nio.ByteBuffer;
+import java.util.UUID;
+
 import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.enums.IntervalField;
 import ch.enterag.utils.*;
@@ -221,6 +224,46 @@ public abstract class PostgresLiterals extends SqlLiterals
       buf[iByteIndex] = (byte)iByte;
     }
     return buf;
+  }
+  
+  /*------------------------------------------------------------------*/
+  /** convert UUID to big-endian byte buffer.
+   * @param uuid UUID
+   * @return byte buffer.
+   */
+  public static byte[] convertUuidToByteArray(UUID uuid)
+  {
+    ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+    bb.putLong(uuid.getMostSignificantBits());
+    bb.putLong(uuid.getLeastSignificantBits());
+    byte[] buf = bb.array();
+    // System.out.println(BU.toHex(buf));
+    return buf;
+  }
+  
+  /*------------------------------------------------------------------*/
+  /** convert a big-endian byte buffer into a UUID.
+   * taking the first 4 bytes as a little-endian integer,
+   * the next 2 bytes as a little-endian word,
+   * the next 2 bytes as a little-endian word,
+   * and the final 8 bytes into a straight (big endian) byte buffer. 
+   * @param buf big-endian byte buffer
+   * @return UUID
+   */
+  public static UUID convertByteArrayToUuid(byte[] buf)
+  {
+    byte[] b = new byte[16];
+    for (int i = 0; i < 4; i++)
+      b[i] = buf[3-i];
+    for (int i = 0; i < 2; i++)
+      b[4+i] = buf[5-i];
+    for (int i = 0; i < 2; i++)
+      b[6+i] = buf[7-i];
+    for (int i = 0; i < 8; i++)
+      b[8+i] = buf[8+i];
+    ByteBuffer bb = ByteBuffer.wrap(b);
+    UUID uuid = new UUID(bb.getLong(),bb.getLong());
+    return uuid;
   }
   
   /*------------------------------------------------------------------*/
