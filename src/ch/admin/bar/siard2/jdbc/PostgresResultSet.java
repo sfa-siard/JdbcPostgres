@@ -11,7 +11,6 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.io.*;
-import java.math.*;
 import java.sql.*;
 import java.text.*;
 import java.util.*;
@@ -290,14 +289,31 @@ implements ResultSet
       o = getShort(columnIndex);
     else if (iType == Types.DOUBLE)
     {
-      try { o = super.getObject(columnIndex); }
-      catch(SQLException se) // maybe MONEY
+      try { o = super.getObject(columnIndex,Double.class); }
+      catch(SQLException se) // bad JDBC implementation of MONEY data type
       {
+        // most likely Postgres JDBC uses the client locale for formatting the string ...
         String s = super.getString(columnIndex);
-        try { o = (BigDecimal)NumberFormat.getCurrencyInstance().parse(s); }
-        catch(ParseException pe) {throw new SQLException("Number "+s+" cannot be parsed ("+EU.getExceptionMessage(pe)+")!"); }
+        // in JAVA 8 the Locale de_CH uses apostrophes rather than right single quotes!
+        Locale locDefault = Locale.getDefault();
+        DecimalFormatSymbols dfs = new DecimalFormatSymbols(locDefault);
+        DecimalFormat df = new DecimalFormat("#,##0.0#",dfs);
+        df.setParseBigDecimal(true);
+        s = s.substring(df.getCurrency().getCurrencyCode().length()).trim();
+        s = s.replace('\u2019', '\'');
+        try { o = df.parse(s); }
+        catch(ParseException pe) { throw new SQLException("Error parsing string ("+EU.getExceptionMessage(pe)+")!"); }
       }
     }
+    else if (iType == Types.TIME)
+    {
+      String s = super.getString(columnIndex);
+      if (s.length() > 8)
+        s = s.substring(0,8); // ignore offset, return local time
+      o = Time.valueOf(s);
+    }
+    else if (iType == Types.VARCHAR)
+      o = super.getString(columnIndex);
     else 
       o = super.getObject(columnIndex);
     return o;

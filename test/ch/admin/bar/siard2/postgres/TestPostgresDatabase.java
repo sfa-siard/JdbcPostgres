@@ -163,6 +163,11 @@ public class TestPostgresDatabase
           sb.append("}");
           sValueLiteral = PostgresLiterals.formatStringLiteral(sb.toString());
         }
+        else if (getName().startsWith("CINTERVAL"))
+        {
+          Interval iv = (Interval)getValue();
+          sValueLiteral = PostgresLiterals.formatIntervalLiteral(iv);
+        }
         else
           sValueLiteral = super.getValueLiteral();
       }
@@ -215,8 +220,8 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CCHAR_4",PostgresType.CHAR.getKeyword()+"(4)",TestUtils.getString(3)));
     listCdSimple.add(new ColumnDefinition("CVARCHAR_500",PostgresType.VARCHAR.getKeyword()+"(500)",TestUtils.getString(255)));
     listCdSimple.add(new ColumnDefinition("CTEXT",PostgresType.TEXT.getKeyword(),TestUtils.getString(5000)));
-    listCdSimple.add(new ColumnDefinition("CJSON",PostgresType.JSON.getKeyword(),"{ \"name\":\"John\", \"age\":30, \"car\":null }"));
-    listCdSimple.add(new ColumnDefinition("CJSONB",PostgresType.JSONB.getKeyword(),"{\r\n" + 
+    listCdSimple.add(new ColumnDefinition("CJSONB",PostgresType.JSONB.getKeyword(),"{ \"name\":\"John\", \"age\":30, \"car\":null }"));
+    listCdSimple.add(new ColumnDefinition("CJSON",PostgresType.JSON.getKeyword(),"{\r\n" + 
       "    \"glossary\": {\r\n" + 
       "        \"title\": \"example glossary\",\r\n" + 
       "    \"GlossDiv\": {\r\n" + 

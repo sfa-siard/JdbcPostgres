@@ -1,6 +1,7 @@
 package ch.admin.bar.siard2.jdbc;
 
 import org.junit.*;
+import org.json.simple.*;
 import org.postgresql.*;
 import org.postgresql.largeobject.*;
 
@@ -1784,13 +1785,224 @@ public class PostgresResultSetTester
           else
             fail("Type Long expected for "+tcd.getType()+"!");
         }
-        else if (tcd.getName().equals("CMONEY"))
+        else if (tcd.getName().equals("CMONEY") ||
+          tcd.getName().equals("CNUMERIC_5_2") ||
+          tcd.getName().equals("CDECIMAL_15_5"))
         {
           if (o instanceof BigDecimal)
           {
             BigDecimal bd = (BigDecimal)o;
             assertEquals("Invalid value for "+tcd.getType()+"!",(BigDecimal)tcd.getValue(),bd);
           }
+          else
+            fail("Type BigDecimal expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CDOUBLE"))
+        {
+          if (o instanceof Double)
+          {
+            Double d = (Double)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(Double)tcd.getValue(),d);
+          }
+          else
+            fail("Type Double expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CREAL"))
+        {
+          if (o instanceof Float)
+          {
+            Float f = (Float)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(Float)tcd.getValue(),f);
+          }
+          else
+            fail("Type Float expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CBOOL"))
+        {
+          if (o instanceof Boolean)
+          {
+            Boolean b = (Boolean)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(Boolean)tcd.getValue(),b);
+          }
+          else
+            fail("Type Boolean expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CDATE"))
+        {
+          if (o instanceof Date)
+          {
+            Date date = (Date)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(Date)tcd.getValue(),date);
+          }
+          else
+            fail("Type Date expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CTIME") ||
+          tcd.getName().equals("CTIMETZ"))
+        {
+          if (o instanceof Time)
+          {
+            Time time = (Time)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(Time)tcd.getValue(),time);
+          }
+          else
+            fail("Type Time expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CTIMESTAMP") ||
+          tcd.getName().equals("CTIMESTAMPTZ"))
+        {
+          if (o instanceof Timestamp)
+          {
+            Timestamp ts = (Timestamp)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(Timestamp)tcd.getValue(),ts);
+          }
+          else
+            fail("Type Timestamp expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CINTERVALYM") ||
+          tcd.getName().equals("CINTERVALDM"))
+        {
+          if (o instanceof Duration)
+          {
+            Duration d = (Duration)o;
+            Interval iv = Interval.fromDuration(d);
+            Interval ivExpected = (Interval)tcd.getValue();
+            long lNanoSeconds = ivExpected.getNanoSeconds();
+            lNanoSeconds = (lNanoSeconds+500000)/1000000;
+            lNanoSeconds = 1000000*lNanoSeconds;
+            ivExpected.setNanoSeconds(lNanoSeconds);
+            assertEquals("Invalid value for "+tcd.getType()+"!",ivExpected,iv);
+          }
+          else
+            fail("Type Duration expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CCHAR_4") ||
+          (tcd.getName().equals("CVARCHAR_500") ||
+            tcd.getName().equals("CTEXT")))
+        {
+          if (o instanceof String)
+          {
+            String s = (String)o;
+            // Postgres pads CHAR data type to maximum length
+            String sExpected = (String)tcd.getValue();
+            s = s.substring(0,sExpected.length());
+            assertEquals("Invalid value for "+tcd.getType()+"!",sExpected,s);
+          }
+          else
+            fail("Type String expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CJSON") ||
+          tcd.getName().equals("CJSONB"))
+        {
+          if (o instanceof String)
+          {
+            String s = (String)o;
+            Object oj  = JSONValue.parse(s);
+            String sExpected = (String)tcd.getValue();
+            Object ojExpected = JSONValue.parse(sExpected);
+            assertEquals("Invalid value for "+tcd.getType()+"!",ojExpected,oj);
+          }
+          else
+            fail("Type String expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CXML"))
+        {
+          if (o instanceof SQLXML)
+          {
+            SQLXML sqlxml = (SQLXML)o;
+            assertEquals("Invalid value for "+tcd.getType()+"!",(String)tcd.getValue(),sqlxml.getString());
+          }
+          else
+            fail("Type SQLXML expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CTSVECTOR"))
+        {
+          if (o instanceof String)
+          {
+            String s = (String)o;
+            String sExpected = (String)tcd.getValue();
+            String[] asTokens = sExpected.split(" ");
+            Arrays.sort(asTokens);
+            StringBuilder sbExpected = new StringBuilder();
+            String sToken = null;
+            for (int iToken = 0; iToken < asTokens.length; iToken++)
+            {
+              if (!asTokens[iToken].equals(sToken))
+              {
+                sToken = asTokens[iToken];
+                if (sbExpected.length() > 0)
+                  sbExpected.append(" ");
+                sbExpected.append("'");
+                sbExpected.append(sToken);
+                sbExpected.append("'");
+              }
+            }
+            assertEquals("Invalid value for "+tcd.getType()+"!",sbExpected.toString(),s);
+          }
+          else
+            fail("Type String expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CTSQUERY"))
+        {
+          if (o instanceof String)
+          {
+            String s = (String)o;
+            String sExpected = (String)tcd.getValue();
+            String[] asTokens = sExpected.split(" ");
+            StringBuilder sbExpected = new StringBuilder();
+            for (int iToken = 0; iToken < asTokens.length; iToken++)
+            {
+              if (sbExpected.length() > 0)
+                sbExpected.append(" ");
+              String sToken = asTokens[iToken];
+              if (sToken.equals("&") || (sToken.equals("|") || (sToken.equals("!"))))
+                sbExpected.append(sToken);
+              else
+              {
+                String sWeight = null;
+                int iWeight = sToken.indexOf(":");
+                if (iWeight > 0)
+                {
+                  sWeight = sToken.substring(iWeight+1).toUpperCase();
+                  sToken = sToken.substring(0,iWeight);
+                }
+                sbExpected.append("'");
+                sbExpected.append(sToken);
+                sbExpected.append("'");
+                if (sWeight != null)
+                {
+                  sbExpected.append(":");
+                  sbExpected.append(sWeight);
+                }
+              }
+            }
+            assertEquals("Invalid value for "+tcd.getType()+"!",sbExpected.toString(),s);
+          }
+          else
+            fail("Type String expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CBIT_256") ||
+          tcd.getName().equals("CVARBIT_805"))
+        {
+          if (o instanceof byte[])
+          {
+            byte[] buf = (byte[])o;
+            String sExpected = (String)tcd.getValue();
+            String s = PostgresLiterals.formatBitString(buf, sExpected.length());
+            assertEquals("Invalid value for "+tcd.getType()+"!",sExpected,s);
+          }
+          else
+            fail("Type byte[] expected for "+tcd.getType()+"!");
+        }
+        else if (tcd.getName().equals("CBYTEA"))
+        {
+          if (o instanceof byte[])
+          {
+            byte[] buf = (byte[])o;
+            assertTrue("Invalid value for "+tcd.getType()+"!",Arrays.equals((byte[])tcd.getValue(), buf));
+          }
+          else
+            fail("Type byte[] expected for "+tcd.getType()+"!");
         }
         else
           fail("Unexpected column: "+tcd.getName()+"!");

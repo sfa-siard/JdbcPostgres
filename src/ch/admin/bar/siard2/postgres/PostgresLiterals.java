@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
 import java.util.UUID;
 
 import ch.enterag.sqlparser.*;
-import ch.enterag.sqlparser.datatype.enums.IntervalField;
+import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.utils.*;
 
 /* =============================================================================== */
@@ -99,44 +99,55 @@ public abstract class PostgresLiterals extends SqlLiterals
       {
         ifStart = IntervalField.DAY;
         sValue = String.valueOf(ivValue.getDays());
+        if (ivValue.getSign() < 0)
+          sValue = sMINUS + sSP + sValue;
       }
       if (ivValue.getHours() != 0)
       {
+        String sHours = String.valueOf(ivValue.getHours());
+        if (ivValue.getSign() < 0)
+          sHours = sMINUS + sSP + sHours;
         if (ifStart == null)
         {
           ifStart = IntervalField.HOUR;
-          sValue = String.valueOf(ivValue.getHours());
+          sValue = sHours;
         }
         else
         {
           ifEnd = IntervalField.HOUR;
-          sValue = sValue + sSP + String.valueOf(ivValue.getHours());
+          sValue = sValue + sSP + sHours;
         }
       }
       if (ivValue.getMinutes() != 0)
       {
+        String sMinutes = String.valueOf(ivValue.getMinutes());
         if (ifStart == null)
         {
           ifStart = IntervalField.MINUTE;
-          sValue = String.valueOf(ivValue.getMinutes());
+          sValue = sMinutes;
+          if (ivValue.getSign() < 0)
+            sValue = sMINUS + sSP + sValue;
         }
         else
         {
           ifEnd = IntervalField.MINUTE;
-          sValue = sValue + sCOLON + String.valueOf(ivValue.getMinutes());
+          sValue = sValue + sCOLON + sMinutes;
         }
       }
       if ((ivValue.getSeconds() != 0) || (ivValue.getNanoSeconds() != 0))
       {
+        String sSeconds = String.valueOf(ivValue.getSeconds());
         if (ifStart == null)
         {
           ifStart = IntervalField.SECOND;
-          sValue = String.valueOf(ivValue.getSeconds());
+          sValue = sSeconds;
+          if (ivValue.getSign() < 0)
+            sValue = sMINUS + sSP + sValue;
         }
         else
         {
           ifEnd = IntervalField.SECOND;
-          sValue = sValue + sCOLON + String.valueOf(ivValue.getSeconds());
+          sValue = sValue + sCOLON + sSeconds;
         }
         if (ivValue.getNanoSeconds() != 0)
         {
@@ -151,8 +162,6 @@ public abstract class PostgresLiterals extends SqlLiterals
         }
       }
       sFormatted = sINTERVAL_LITERAL_PREFIX + sSP;
-      if (ivValue.getSign() < 0)
-        sValue = sMINUS + sSP + sValue;
       sFormatted = sFormatted + formatStringLiteral(sValue) + 
         sSP + ifStart.getKeywords();
       if ((ifStart == IntervalField.SECOND) && (iSecondsPrecision >= 0))
