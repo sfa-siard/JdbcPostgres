@@ -275,21 +275,34 @@ implements ResultSet
       o = getClob(columnIndex);
     else if (iType == Types.BLOB)
       o = getBlob(columnIndex);
-    else if (iType == Types.OTHER)
+    else if ((iType == Types.BINARY) ||
+      (iType == Types.VARBINARY))
     {
-      o = super.getObject(columnIndex);
-      if (o instanceof PGInterval)
-        o = getDuration((PGInterval)o);
-      else
-        o = getBytes(columnIndex);
+      try 
+      { 
+        o = super.getObject(columnIndex);
+        if (o instanceof PGobject)
+        {
+          PGobject po = (PGobject)o;
+          o = PostgresLiterals.parseBitString(po.getValue());
+        }
+        else if (o instanceof UUID)
+        {
+          UUID uuid = (UUID)o;
+          o = PostgresLiterals.convertUuidToByteArray(uuid);
+        }
+      }
+      catch(SQLException se)
+      {
+        String s = getString(columnIndex);
+        o = PostgresLiterals.parseBitString(s);
+      }
     }
-    else if (iType == Types.BIT)
-      o = getBytes(columnIndex);
     else if (iType == Types.SMALLINT)
       o = getShort(columnIndex);
-    else if (iType == Types.DOUBLE)
+    else if (iType == Types.DECIMAL)
     {
-      try { o = super.getObject(columnIndex,Double.class); }
+      try { o = super.getObject(columnIndex); }
       catch(SQLException se) // bad JDBC implementation of MONEY data type
       {
         // most likely Postgres JDBC uses the client locale for formatting the string ...
@@ -314,6 +327,24 @@ implements ResultSet
     }
     else if (iType == Types.VARCHAR)
       o = super.getString(columnIndex);
+    else if (iType == Types.OTHER)
+    {
+      o = super.getObject(columnIndex);
+      if (o instanceof PGInterval)
+        o = getDuration((PGInterval)o);
+      else if (o instanceof PGobject)
+      {
+        PGobject po = (PGobject)o;
+        PostgresType pt = PostgresType.getByKeyword(po.getType());
+        if (pt == PostgresType.VARBIT)
+          o = getBytes(columnIndex);
+        else if ((pt == PostgresType.MACADDR) || 
+          (pt == PostgresType.MACADDR8))
+          o = po.getValue();
+      }
+      else if (!(o instanceof UUID))
+        o = getBytes(columnIndex);
+    }
     else 
       o = super.getObject(columnIndex);
     return o;

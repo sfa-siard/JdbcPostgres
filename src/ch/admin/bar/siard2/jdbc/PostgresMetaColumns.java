@@ -40,6 +40,7 @@ public class PostgresMetaColumns
     String sCatalogName, String sSchemaName)
     throws SQLException
   {
+    /*** dont overwrite original type names!
     // internal names starting with _ are used for array elements
     if (sTypeName.startsWith("_"))
       sTypeName = sTypeName.substring(1);
@@ -49,6 +50,7 @@ public class PostgresMetaColumns
       PreType pt = pgt.getPreType();
       sTypeName = pt.getKeyword();
     }
+    ***/
     return sTypeName;
   } /* getTypeName */
   

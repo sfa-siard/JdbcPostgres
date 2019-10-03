@@ -21,9 +21,9 @@ import ch.enterag.sqlparser.identifier.*;
 public class TestSqlDatabase 
 {
   public static final String _sTEST_SCHEMA = "TESTSQLSCHEMA";
-  private static final String _sTEST_TABLE_SIMPLE = "TSQLSIMPLE";
+  public static final String _sTEST_TABLE_SIMPLE = "TSQLSIMPLE";
   public static QualifiedId getQualifiedSimpleTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_SIMPLE); }
-  private static final String _sTEST_TABLE_COMPLEX = "TSQLCOMPLEX";
+  public static final String _sTEST_TABLE_COMPLEX = "TSQLCOMPLEX";
   public static QualifiedId getQualifiedComplexTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_COMPLEX); }
   private static final String _sTEST_VIEW_SIMPLE = "VSQLSIMPLE";
   public static QualifiedId getQualifiedSimpleView() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_VIEW_SIMPLE); }
@@ -51,15 +51,17 @@ public class TestSqlDatabase
     listCdSimple.add(new TestColumnDefinition("CBLOB","BLOB",TestUtils.getBytes(1000000)));
     listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",BigInteger.valueOf(1234567890123456789l)));
     listCdSimple.add(new TestColumnDefinition("CDECIMAL_15_5","DECIMAL(15,5)",new BigDecimal(BigInteger.valueOf(3141592653210l),5)));
-    listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",new Short((short)-32000)));
-    listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",new Short((short)-128)));
+    listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",Short.valueOf((short)-32000)));
+    listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",Short.valueOf((short)-128)));
     _iPrimarySimple = listCdSimple.size(); // next column will be primary key column 
-    listCdSimple.add(new TestColumnDefinition("CINTEGER","INTEGER",new Integer(1234567890)));
-    listCdSimple.add(new TestColumnDefinition("CBIGINT","BIGINT",new Long(-123456789012345678l)));
-    listCdSimple.add(new TestColumnDefinition("CFLOAT_10","FLOAT(10)",new Float(Math.E)));
-    listCdSimple.add(new TestColumnDefinition("CREAL","REAL",new Float(Math.PI)));
-    listCdSimple.add(new TestColumnDefinition("CDOUBLE","DOUBLE PRECISION",new Double(Math.E)));
-    listCdSimple.add(new TestColumnDefinition("CBOOLEAN","BOOLEAN",new Boolean(true)));
+    listCdSimple.add(new TestColumnDefinition("CINTEGER","INTEGER",Integer.valueOf(1234567890)));
+    listCdSimple.add(new TestColumnDefinition("CBIGINT","BIGINT",Long.valueOf(-123456789012345678l)));
+    DecimalFormat df = new DecimalFormat("#.######");
+    df.setRoundingMode(RoundingMode.CEILING);
+    listCdSimple.add(new TestColumnDefinition("CFLOAT_10","FLOAT(10)",Float.valueOf(df.format(Math.E))));
+    listCdSimple.add(new TestColumnDefinition("CREAL","REAL",Float.valueOf(Double.valueOf(Math.PI).floatValue())));
+    listCdSimple.add(new TestColumnDefinition("CDOUBLE","DOUBLE PRECISION",Double.valueOf(Math.E)));
+    listCdSimple.add(new TestColumnDefinition("CBOOLEAN","BOOLEAN",Boolean.valueOf(true)));
     listCdSimple.add(new TestColumnDefinition("CDATE","DATE",new Date(2016-1900,11,28)));
     listCdSimple.add(new TestColumnDefinition("CTIME","TIME",new Time(13,45,28)));
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,11,28,13,45,28,123456789)));

@@ -20,9 +20,9 @@ import ch.admin.bar.siard2.jdbc.*;
 public class TestPostgresDatabase
 {
   public static final String _sTEST_SCHEMA = "TESTPGSCHEMA";
-  private static final String _sTEST_TABLE_SIMPLE = "TPGSIMPLE";
+  public static final String _sTEST_TABLE_SIMPLE = "TPGSIMPLE";
   public static QualifiedId getQualifiedSimpleTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_SIMPLE); }
-  private static final String _sTEST_TABLE_COMPLEX = "TPGCOMPLEX";
+  public static final String _sTEST_TABLE_COMPLEX = "TPGCOMPLEX";
   public static QualifiedId getQualifiedComplexTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_COMPLEX); }
   private static final String _sTEST_INTEGER_DOMAIN = "TPGDOMAIN";
   public static QualifiedId getQualifiedDomainType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_INTEGER_DOMAIN); }
@@ -168,6 +168,11 @@ public class TestPostgresDatabase
           Interval iv = (Interval)getValue();
           sValueLiteral = PostgresLiterals.formatIntervalLiteral(iv);
         }
+        else if (getName().equals("CUUID"))
+        {
+          UUID uuid = (UUID)getValue();
+          sValueLiteral = PostgresLiterals.formatStringLiteral(uuid.toString());
+        }
         else
           sValueLiteral = super.getValueLiteral();
       }
@@ -256,13 +261,13 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CMACADDR8",PostgresType.MACADDR8.getKeyword(),PostgresLiterals.formatMacAddr(TestUtils.getBytes(8))));
     
     // spatial
-    listCdSimple.add(new ColumnDefinition("CPOINT",PostgresType.POINT.getKeyword(),"(1.5, 2.0)"));
-    listCdSimple.add(new ColumnDefinition("CLINE",PostgresType.LINE.getKeyword(),"{0.5, -0.1, 1.0}"));
-    listCdSimple.add(new ColumnDefinition("CLSEG",PostgresType.LSEG.getKeyword(),"[(1.2, 2.1), (4.8, 5.1)]"));
-    listCdSimple.add(new ColumnDefinition("CBOX",PostgresType.BOX.getKeyword(),"((1, 1), (2, 2))"));
-    listCdSimple.add(new ColumnDefinition("CPATH",PostgresType.PATH.getKeyword(),"[(0, 0), (10, 0), (10, 10), (0, 10)]"));
-    listCdSimple.add(new ColumnDefinition("CPOLYGON",PostgresType.POLYGON.getKeyword(),"((0, 0), (10, 0), (10, 10), (0, 10))"));
-    listCdSimple.add(new ColumnDefinition("CCIRCLE",PostgresType.CIRCLE.getKeyword(),"<(1.0, 0.0),5.0>"));
+    listCdSimple.add(new ColumnDefinition("CPOINT",PostgresType.POINT.getKeyword(),"(1.5,2.0)"));
+    listCdSimple.add(new ColumnDefinition("CLINE",PostgresType.LINE.getKeyword(),"{0.5,-0.1,1.0}"));
+    listCdSimple.add(new ColumnDefinition("CLSEG",PostgresType.LSEG.getKeyword(),"[(1.2, 2.1),(4.8, 5.1)]"));
+    listCdSimple.add(new ColumnDefinition("CBOX",PostgresType.BOX.getKeyword(),"((1,1),(2,2))"));
+    listCdSimple.add(new ColumnDefinition("CPATH",PostgresType.PATH.getKeyword(),"[(0,0),(10,0),(10,10),(0,10)]"));
+    listCdSimple.add(new ColumnDefinition("CPOLYGON",PostgresType.POLYGON.getKeyword(),"((0,0),(10,0),(10,10),(0,10))"));
+    listCdSimple.add(new ColumnDefinition("CCIRCLE",PostgresType.CIRCLE.getKeyword(),"<(1.0,0.0),5.0>"));
     
     return listCdSimple;    
   }
