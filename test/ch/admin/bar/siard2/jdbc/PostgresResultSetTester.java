@@ -12,15 +12,15 @@ import java.io.*;
 import java.math.*;
 import java.sql.*;
 import java.sql.Date;
+import java.text.*;
 import java.util.*;
 import javax.xml.datatype.*;
 
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
-import ch.enterag.utils.database.SqlTypes;
+import ch.enterag.utils.database.*;
 import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.*;
-import ch.enterag.sqlparser.datatype.enums.PreType;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -1896,7 +1896,7 @@ public class PostgresResultSetTester
     assertEquals("Invalid value for "+PostgresType.INTERVAL.getKeyword()+"!",ivExpected,iv);
   } /* checkDuration */
   
-  private void checkObject(Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
+  private void checkDuration(Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
     throws SQLException
   {
     if (sTypeName.equals(PostgresType.INTERVAL.getKeyword()))
@@ -1908,6 +1908,92 @@ public class PostgresResultSetTester
     }
     else
       fail("Invalid type "+sTypeName+" for "+sDataType+"!");
+  } /* checkDuration */
+  
+  private void checkStruct(String sIndent, Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
+    throws SQLException
+  {
+    try
+    {
+      if (o instanceof Struct)
+      {
+        Struct struct = (Struct)o;
+        if (tcd.getValue() instanceof List<?>)
+        {
+          @SuppressWarnings("unchecked")
+          List<TestColumnDefinition> listAttributes = (List<TestColumnDefinition>)tcd.getValue();
+          // sTypeName holds name of type
+          QualifiedId qiType = new QualifiedId(sTypeName);
+          DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
+          ResultSet rsAttribute = dmd.getAttributes(
+            qiType.getCatalog(), 
+            qiType.getSchema(),
+            qiType.getName(),
+            "%");
+          for (int iAttribute = 0; iAttribute < listAttributes.size(); iAttribute++)
+          {
+            TestColumnDefinition tcdAttribute = listAttributes.get(iAttribute);
+            if (rsAttribute.next())
+            {
+              String sAttributeName = rsAttribute.getString("ATTR_NAME");
+              int iDataType = rsAttribute.getInt("DATA_TYPE");
+              String sAttributeDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
+              String sAttributeTypeName = rsAttribute.getString("ATTR_TYPE_NAME");
+              System.out.println(sIndent + sAttributeName + ": " +sAttributeDataType+" "+sAttributeTypeName);
+              if (tcdAttribute.getName().toLowerCase().equals(sAttributeName))
+              {
+                Object oAttribute = struct.getAttributes()[iAttribute];
+                checkObject(sIndent + "  ", oAttribute, tcdAttribute, iDataType, sAttributeTypeName, sAttributeDataType);
+              }
+              else
+                fail("Invalid attribute found: "+tcdAttribute.getName());
+            }
+            else
+              fail("Invalid attribute found: "+tcd.getName());
+          }
+          if (rsAttribute.next())
+            fail("Too many attribute meta data found!");
+          rsAttribute.close();
+        }
+        else
+          fail("Value of UDT must be a list!");
+      }
+      else
+        fail("Type Struct expected for "+sTypeName+"!");
+    }
+    catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
+  } /* checkStruct */
+  
+  private void checkObject(String sIndent, Object o, TestColumnDefinition tcd, int iDataType, String sTypeName, String sDataType)
+    throws SQLException
+  {
+    switch(iDataType)
+    {
+      case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
+      case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
+      case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
+      case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
+      case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
+      case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
+      case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
+      case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
+      case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
+      case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
+      case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
+      case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
+      case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
+      case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
+      case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
+      case Types.DOUBLE: checkDouble(o,tcd,sTypeName,sDataType); break;
+      case Types.REAL: checkFloat(o,tcd,sTypeName,sDataType); break;
+      case Types.BOOLEAN: checkBoolean(o,tcd,sTypeName,sDataType); break;
+      case Types.DATE: checkDate(o,tcd,sTypeName,sDataType); break;
+      case Types.TIME: checkTime(o,tcd,sTypeName,sDataType); break;
+      case Types.TIMESTAMP: checkTimestamp(o,tcd,sTypeName,sDataType); break;
+      case Types.OTHER: checkDuration(o,tcd,sTypeName,sDataType); break;
+      case Types.STRUCT: checkStruct(sIndent, o,tcd,sTypeName,sDataType); break;
+      default: fail("Invalid data type found: "+sDataType+"!");
+    }
   } /* checkObject */
   
   @Test
@@ -1923,6 +2009,7 @@ public class PostgresResultSetTester
         "%");
       for (int iColumn = 0; iColumn < TestSqlDatabase._listCdSimple.size(); iColumn++)
       {
+        TestColumnDefinition tcd = TestSqlDatabase._listCdSimple.get(iColumn);
         if (rsColumn.next())
         {
           String sColumnName = rsColumn.getString("COLUMN_NAME");
@@ -1930,39 +2017,13 @@ public class PostgresResultSetTester
           String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
           String sTypeName = rsColumn.getString("TYPE_NAME");
           System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
-          TestColumnDefinition tcd = TestSqlDatabase._listCdSimple.get(iColumn);
           if (tcd.getName().toLowerCase().equals(sColumnName))
           {
             Object o = getResultSet().getObject(sColumnName);
-            switch(iDataType)
-            {
-              case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-              case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-              case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
-              case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-              case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-              case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
-              case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-              case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-              case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
-              case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
-              case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
-              case Types.DOUBLE: checkDouble(o,tcd,sTypeName,sDataType); break;
-              case Types.REAL: checkFloat(o,tcd,sTypeName,sDataType); break;
-              case Types.BOOLEAN: checkBoolean(o,tcd,sTypeName,sDataType); break;
-              case Types.DATE: checkDate(o,tcd,sTypeName,sDataType); break;
-              case Types.TIME: checkTime(o,tcd,sTypeName,sDataType); break;
-              case Types.TIMESTAMP: checkTimestamp(o,tcd,sTypeName,sDataType); break;
-              case Types.OTHER: checkObject(o,tcd,sTypeName,sDataType); break;
-              default: fail("Invalid data type found: "+sDataType+"!");
-            }
+            checkObject("  ",o, tcd, iDataType, sTypeName, sDataType);
           }
           else
-            fail("Invalid column found: "+sColumnName);
+            fail("Invalid column found: "+tcd.getName());
         }
         else
           fail("Column meta data not found!");
@@ -1987,6 +2048,7 @@ public class PostgresResultSetTester
         "%");
       for (int iColumn = 0; iColumn < TestPostgresDatabase._listCdSimple.size(); iColumn++)
       {
+        TestColumnDefinition tcd = TestPostgresDatabase._listCdSimple.get(iColumn);
         if (rsColumn.next())
         {
           String sColumnName = rsColumn.getString("COLUMN_NAME");
@@ -1994,39 +2056,13 @@ public class PostgresResultSetTester
           String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
           String sTypeName = rsColumn.getString("TYPE_NAME");
           System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
-          TestColumnDefinition tcd = TestPostgresDatabase._listCdSimple.get(iColumn);
           if (tcd.getName().toLowerCase().equals(sColumnName))
           {
             Object o = getResultSet().getObject(sColumnName);
-            switch(iDataType)
-            {
-              case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-              case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-              case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-              case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
-              case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-              case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-              case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
-              case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-              case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-              case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
-              case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
-              case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
-              case Types.DOUBLE: checkDouble(o,tcd,sTypeName,sDataType); break;
-              case Types.REAL: checkFloat(o,tcd,sTypeName,sDataType); break;
-              case Types.BOOLEAN: checkBoolean(o,tcd,sTypeName,sDataType); break;
-              case Types.DATE: checkDate(o,tcd,sTypeName,sDataType); break;
-              case Types.TIME: checkTime(o,tcd,sTypeName,sDataType); break;
-              case Types.TIMESTAMP: checkTimestamp(o,tcd,sTypeName,sDataType); break;
-              case Types.OTHER: checkObject(o,tcd,sTypeName,sDataType); break;
-              default: fail("Invalid data type found: "+sDataType+"!");
-            }
+            checkObject("  ",o, tcd, iDataType, sTypeName, sDataType);
           }
           else
-            fail("Invalid column found: "+sColumnName);
+            fail("Invalid column found: "+tcd.getName());
         }
         else
           fail("Column meta data not found!");
@@ -2038,4 +2074,43 @@ public class PostgresResultSetTester
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetObjectNativeSimple */
   
+  @Test
+  public void testGetObjectSqlComplex()
+  {
+    try
+    {
+      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
+      ResultSet rsColumn = dmd.getColumns(null, 
+        TestSqlDatabase._sTEST_SCHEMA.toLowerCase(),
+        TestSqlDatabase._sTEST_TABLE_COMPLEX.toLowerCase(),
+        "%");
+      for (int iColumn = 0; iColumn < TestSqlDatabase._listCdComplex.size(); iColumn++)
+      {
+        TestColumnDefinition tcd = TestSqlDatabase._listCdComplex.get(iColumn);
+        if (rsColumn.next())
+        {
+          String sColumnName = rsColumn.getString("COLUMN_NAME");
+          int iDataType = rsColumn.getInt("DATA_TYPE");
+          String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
+          String sTypeName = rsColumn.getString("TYPE_NAME");
+          System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
+          if (tcd.getName().toLowerCase().equals(sColumnName))
+          {
+            Object o = getResultSet().getObject(sColumnName);
+            checkObject("  ",o, tcd, iDataType, sTypeName, sDataType);
+          }
+          else
+            fail("Invalid column found: "+tcd.getName());
+        }
+        else
+          fail("Column meta data not found!");
+      }
+      if (rsColumn.next())
+        fail("Too many column meta data found!");
+      rsColumn.close();
+    }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  } /* testGetObjectSqlComplex */
+    
 }
