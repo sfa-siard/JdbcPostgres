@@ -42,7 +42,7 @@ public class PostgresUnsignedLiteral
     else if (getBitString() != null)
       sFormatted = PostgresLiterals.formatBitStringLiteral(getBitString());
     else if (getBytes() != null)
-      sFormatted = SqlLiterals.formatBitStringLiteral(PostgresLiterals.formatBitString(getBytes(),8*getBytes().length));
+      sFormatted = PostgresLiterals.formatBytesLiteral(getBytes());
     else if (getDate() != null)
       sFormatted = PostgresLiterals.formatDateLiteral(getDate());
     else if (getTime() != null)

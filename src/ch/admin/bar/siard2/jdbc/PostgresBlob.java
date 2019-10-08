@@ -6,7 +6,7 @@ import org.postgresql.jdbc.*;
 public class PostgresBlob
   extends BaseBlob
 {
-  PostgresBlob(PgBlob pgBlob)
+  public PostgresBlob(PgBlob pgBlob)
   {
     super(pgBlob);
   } /* constructor PostgresBlob */

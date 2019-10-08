@@ -103,8 +103,8 @@ public enum PostgresType
       case NVARCHAR: pgt = VARCHAR; break;
       case NCLOB: pgt = CLOB; break;
       case XML: pgt = XML; break;
-      case BINARY: pgt = BIT; break;
-      case VARBINARY: pgt = VARBIT; break;
+      case BINARY: pgt = BYTEA; break;
+      case VARBINARY: pgt = BYTEA; break;
       case BLOB: pgt = BLOB; break;
       case NUMERIC: pgt = NUMERIC; break;
       case DECIMAL: pgt = NUMERIC; break;

@@ -11,9 +11,12 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
+import java.text.*;
 
-import ch.admin.bar.siard2.postgres.PostgresType;
-import ch.enterag.sqlparser.datatype.enums.PreType;
+import ch.admin.bar.siard2.postgres.*;
+import ch.enterag.sqlparser.datatype.enums.*;
+import ch.enterag.sqlparser.identifier.*;
+import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 
 /*====================================================================*/
@@ -42,11 +45,11 @@ public class PostgresResultSetMetaData
     int iType = super.getColumnType(column);
     String sTypeName = super.getColumnTypeName(column);
     String sTableName = super.getTableName(column);
+    String sColumnName = super.getColumnName(column);
+    String sSchemaName = super.getSchemaName(column);
+    PostgresDatabaseMetaData pdmd = (PostgresDatabaseMetaData)_stmt.getConnection().getMetaData();
     if ((sTableName != null) && (sTableName.length() > 0))
     {
-      String sColumnName = super.getColumnName(column);
-      String sSchemaName = super.getSchemaName(column);
-      PostgresDatabaseMetaData pdmd = (PostgresDatabaseMetaData)_stmt.getConnection().getMetaData();
       ResultSet rsColumn = pdmd.getColumns(null, 
         pdmd.toPattern(sSchemaName), 
         pdmd.toPattern(sTableName),
@@ -61,6 +64,26 @@ public class PostgresResultSetMetaData
       PreType pt = pgt.getPreType();
       if (pt != null)
         iType = pt.getSqlType();
+    }
+    else
+    {
+      try
+      {
+        QualifiedId qiType = new QualifiedId(sTypeName);
+        ResultSet rsUdt = pdmd.getUDTs(
+          pdmd.toPattern(qiType.getCatalog()), 
+          pdmd.toPattern(qiType.getSchema()), 
+          pdmd.toPattern(qiType.getName()),
+          null);
+        if (rsUdt.next())
+        {
+          iType = rsUdt.getInt("DATA_TYPE");
+          if (iType == Types.DISTINCT)
+            iType = rsUdt.getInt("BASE_TYPE");
+        }
+        rsUdt.close();
+      }
+      catch(ParseException pe) { throw new SQLException("Type name "+sTypeName+" could not be parsed ("+EU.getExceptionMessage(pe)+")!"); }
     }
     return iType;
   }

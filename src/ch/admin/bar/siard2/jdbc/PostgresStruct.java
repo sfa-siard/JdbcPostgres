@@ -23,7 +23,7 @@ public class PostgresStruct
    * @param sType type (qualified)
    * @param ao array of objects.
    */
-  PostgresStruct(String sType, Object[] ao)
+  public PostgresStruct(String sType, Object[] ao)
   {
     super(null);
     _sType = sType;

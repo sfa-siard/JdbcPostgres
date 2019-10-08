@@ -1967,33 +1967,38 @@ public class PostgresResultSetTester
   private void checkObject(String sIndent, Object o, TestColumnDefinition tcd, int iDataType, String sTypeName, String sDataType)
     throws SQLException
   {
-    switch(iDataType)
+    if (tcd.getValue() != null)
     {
-      case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
-      case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-      case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-      case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-      case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-      case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-      case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
-      case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-      case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-      case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
-      case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-      case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-      case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
-      case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
-      case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
-      case Types.DOUBLE: checkDouble(o,tcd,sTypeName,sDataType); break;
-      case Types.REAL: checkFloat(o,tcd,sTypeName,sDataType); break;
-      case Types.BOOLEAN: checkBoolean(o,tcd,sTypeName,sDataType); break;
-      case Types.DATE: checkDate(o,tcd,sTypeName,sDataType); break;
-      case Types.TIME: checkTime(o,tcd,sTypeName,sDataType); break;
-      case Types.TIMESTAMP: checkTimestamp(o,tcd,sTypeName,sDataType); break;
-      case Types.OTHER: checkDuration(o,tcd,sTypeName,sDataType); break;
-      case Types.STRUCT: checkStruct(sIndent, o,tcd,sTypeName,sDataType); break;
-      default: fail("Invalid data type found: "+sDataType+"!");
+      switch(iDataType)
+      {
+        case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
+        case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
+        case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
+        case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
+        case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
+        case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
+        case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
+        case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
+        case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
+        case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
+        case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
+        case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
+        case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
+        case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
+        case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
+        case Types.DOUBLE: checkDouble(o,tcd,sTypeName,sDataType); break;
+        case Types.REAL: checkFloat(o,tcd,sTypeName,sDataType); break;
+        case Types.BOOLEAN: checkBoolean(o,tcd,sTypeName,sDataType); break;
+        case Types.DATE: checkDate(o,tcd,sTypeName,sDataType); break;
+        case Types.TIME: checkTime(o,tcd,sTypeName,sDataType); break;
+        case Types.TIMESTAMP: checkTimestamp(o,tcd,sTypeName,sDataType); break;
+        case Types.OTHER: checkDuration(o,tcd,sTypeName,sDataType); break;
+        case Types.STRUCT: checkStruct(sIndent, o,tcd,sTypeName,sDataType); break;
+        default: fail("Invalid data type found: "+sDataType+"!");
+      }
     }
+    else if (o != null)
+      fail("Expected NULL value not found!");
   } /* checkObject */
   
   @Test

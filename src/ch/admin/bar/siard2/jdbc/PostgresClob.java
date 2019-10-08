@@ -10,7 +10,7 @@ public class PostgresClob
   /** constructor
    * @param pgClob
    */
-  PostgresClob(PgClob pgClob)
+  public PostgresClob(PgClob pgClob)
   {
     super(pgClob);
   } /* constructor PostgresClob */

@@ -71,9 +71,6 @@ public class PostgresPredefinedType
           (getType() == PreType.NCHAR) ||
           (getType() == PreType.NVARCHAR))
         sType = sType + formatLength();
-      else if ((getType() == PreType.BINARY) ||
-               (getType() == PreType.VARBINARY))
-        sType = sType + formatBitLength();
       else if ((getType() == PreType.NUMERIC) ||
           (getType() == PreType.DECIMAL))
         sType = sType + formatPrecisionScale();

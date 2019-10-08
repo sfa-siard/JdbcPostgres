@@ -345,6 +345,19 @@ implements ResultSet
       else if (!(o instanceof UUID))
         o = getBytes(columnIndex);
     }
+    else if (iType == Types.STRUCT)
+    {
+      o = super.getObject(columnIndex);
+      PGobject po = (PGobject)o;
+      System.out.println(po.getValue());
+      try
+      {
+        PostgresObject pobj = new PostgresObject(po.getValue(), po.getType(),
+          (PostgresConnection)getStatement().getConnection());
+        o = pobj.getObject(0, iType);
+      }
+      catch(ParseException pe) { throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!"); }
+    }
     else 
       o = super.getObject(columnIndex);
     return o;
