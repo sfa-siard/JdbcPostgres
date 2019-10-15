@@ -349,10 +349,9 @@ implements ResultSet
     {
       o = super.getObject(columnIndex);
       PGobject po = (PGobject)o;
-      System.out.println(po.getValue());
       try
       {
-        PostgresObject pobj = new PostgresObject(po.getValue(), po.getType(),
+        PostgresObject pobj = new PostgresObject(po.getValue(), iType, po.getType(),
           (PostgresConnection)getStatement().getConnection());
         o = pobj.getObject(0, iType);
       }

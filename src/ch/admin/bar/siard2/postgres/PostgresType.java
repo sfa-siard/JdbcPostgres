@@ -34,9 +34,9 @@ public enum PostgresType
   REAL(PreType.REAL, "real", "float4"),
   BOOLEAN(PreType.BOOLEAN, "boolean", "bool"),
   DATE(PreType.DATE, "date"),
-  TIME(PreType.TIME, "time"),
+  TIME(PreType.TIME, "time", "time without time zone"),
   TIMETZ(PreType.TIME, "time with time zone", "timetz"),
-  TIMESTAMP(PreType.TIMESTAMP, "timestamp"),
+  TIMESTAMP(PreType.TIMESTAMP, "timestamp", "timestamp without time zone"),
   TIMESTAMPTZ(PreType.TIMESTAMP, "timestamp with time zone", "timestamptz"),
   INTERVAL(PreType.INTERVAL, "interval"),
   CHAR(PreType.CHAR, "character", "char","bpchar"),
@@ -66,7 +66,6 @@ public enum PostgresType
   TXID(PreType.VARCHAR, "txid_snapshot"), // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
   BLOB(PreType.BLOB, "blob"), // domain in schema public based on oid created by PostgresConnection
   CLOB(PreType.CLOB, "clob"); // domain in schema public based on oid created by PostgresConnection
-  
   
   private String _sKeyword = null;
   public String getKeyword() { return _sKeyword; }

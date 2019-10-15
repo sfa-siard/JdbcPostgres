@@ -9,8 +9,11 @@ Created    : 30.10.2016, Simon Jutz
 ======================================================================*/
 package ch.admin.bar.siard2.postgres;
 
-import java.nio.ByteBuffer;
-import java.util.UUID;
+import java.math.*;
+import java.nio.*;
+import java.text.*;
+import java.time.*;
+import java.util.*;
 
 import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.enums.*;
@@ -22,6 +25,61 @@ import ch.enterag.utils.*;
  */
 public abstract class PostgresLiterals extends SqlLiterals
 {
+  public static final String sPOSTGRES_BYTE_LITERAL_PREFIX = "\\x";
+  private static int iNANOS_PER_SECOND = 1000000000;
+  private static int iSECONDS_PER_MINUTE = 60;
+  private static int iMINUTES_PER_HOUR = 60;
+  private static int iHOURS_PER_DAY = 24;
+  private static int iMONTHS_PER_YEAR = 12;
+  static long lNANOS_PER_DAY = ((long)iNANOS_PER_SECOND)*iSECONDS_PER_MINUTE*iMINUTES_PER_HOUR*iHOURS_PER_DAY;
+  private static String[] asTYPE = new String [] {"years", "mons", "days"};
+
+  private static int skipWhite(String s, int iIndex)
+  {
+    for (; (iIndex < s.length()) && Character.isWhitespace(s.charAt(iIndex)); iIndex++) {}
+    return iIndex;    
+  } /* skipWhite */
+  
+  static long getNanos(LocalTime lt)
+  {
+    long lNanos = lt.getHour();
+    lNanos = lNanos*iMINUTES_PER_HOUR + lt.getMinute();
+    lNanos = lNanos*iSECONDS_PER_MINUTE + lt.getSecond();
+    lNanos = lNanos*iNANOS_PER_SECOND + lt.getNano();
+    return lNanos;
+  } /* getNanos */
+  
+  static LocalTime getLocalTime(long lNanos)
+  {
+    LocalTime lt = null;
+    int iNanos = (int)(lNanos % iNANOS_PER_SECOND);
+    lNanos = lNanos / iNANOS_PER_SECOND;
+    int iSeconds = (int)(lNanos % iSECONDS_PER_MINUTE);
+    lNanos = lNanos /60;
+    int iMinutes = (int)(lNanos % iSECONDS_PER_MINUTE);
+    lNanos = lNanos / iMINUTES_PER_HOUR;
+    int iHours = (int)(lNanos % iHOURS_PER_DAY);
+    lNanos = lNanos / iHOURS_PER_DAY;
+    int iDays = (int)lNanos;
+    if (iDays == 0)
+      lt = LocalTime.of(iHours, iMinutes, iSeconds, iNanos);
+    return lt;
+  } /* getLocalTime */
+  
+  /*------------------------------------------------------------------*/
+  /** test a prefix and detach it.
+   * @param s string to be tested.
+   * @param sPrefix prefix to be detached.
+   * @return string without prefix.
+   */
+  protected static String cutPrefix(String s, String sPrefix)
+  {
+    String sResult = null;
+    if (s.toLowerCase().startsWith(sPrefix))
+      sResult = s.substring(sPrefix.length()).trim();
+    return sResult;
+  } /* cutPrefix */
+  
   /*------------------------------------------------------------------*/
   /** quote an identifier in normal form (upper case, regular).
    * @param sIdentifier identifier in normal form.
@@ -59,9 +117,27 @@ public abstract class PostgresLiterals extends SqlLiterals
   {
     String sFormatted = sNULL;
     if (bufValue != null)
-      sFormatted = formatStringLiteral("\\x"+BU.toHex(bufValue));
+      sFormatted = formatStringLiteral(sPOSTGRES_BYTE_LITERAL_PREFIX+BU.toHex(bufValue));
     return sFormatted;
   } /* formatBytesLiteral */
+  
+  /*------------------------------------------------------------------*/
+  /** parse a byte string literal.
+   * @param sByteString byte string literal.
+   * @return byte buffer value.
+   * @throws ParseException if the input is not a valid byte string literal.
+   */
+  public static byte[] parseBytesLiteral(String sByteString)
+    throws ParseException
+  {
+    byte[] bufParsed = null;
+    String sParsed = cutPrefix(sByteString,sPOSTGRES_BYTE_LITERAL_PREFIX);
+    if (sParsed != null)
+      bufParsed = BU.fromHex(sParsed);
+    else
+      throw new ParseException("Byte character string literal must start with "+sPOSTGRES_BYTE_LITERAL_PREFIX+"!",0);
+    return bufParsed;
+  } /* parseBytesLiteral */
   
   /*------------------------------------------------------------------*/
   /** format an interval value
@@ -177,6 +253,111 @@ public abstract class PostgresLiterals extends SqlLiterals
     }
     return sFormatted;
   } /* formatIntervalLiteral */
+  
+  /*------------------------------------------------------------------*/
+  /** parse an interval literal.
+   * See https://www.postgresql.org/docs/11/datatype-datetime.html#DATATYPE-INTERVAL-INPUT
+   * @param sIntervalLiteral interval literal.
+   * @return interval value.
+   * @throws ParseException if the input is not a valid interval literal.
+   */
+  public static Interval parseInterval(String sIntervalLiteral)
+      throws ParseException
+  {
+    Interval interval = null;
+    DecimalFormat df = new DecimalFormat();
+    df.setParseBigDecimal(true);
+    int iYears = 0;
+    int iMonths = 0;
+    int iDays = 0;
+    long lNanos = 0;
+    int iSign = 1;
+    ParsePosition pp = new ParsePosition(0);
+    for (int iIndex = 0; iIndex < sIntervalLiteral.length(); )
+    {
+      iIndex = skipWhite(sIntervalLiteral,iIndex);
+      // get number
+      pp.setIndex(iIndex);
+      BigDecimal bdValue = (BigDecimal)df.parse(sIntervalLiteral,pp);
+      if (sIntervalLiteral.charAt(pp.getIndex()) != ':')
+      {
+        iIndex = pp.getIndex();
+        int iValue = bdValue.intValue();
+        iIndex = skipWhite(sIntervalLiteral,iIndex);
+        String sTruncated = sIntervalLiteral.substring(iIndex);
+        String sType = null;
+        int iType = 0;
+        for (; (iType < asTYPE.length) && (sType == null); iType++) 
+        {
+          if (sTruncated.startsWith(asTYPE[iType]))
+            sType = asTYPE[iType];
+        }
+        switch (iType)
+        {
+          case 1: iYears = iValue; break;
+          case 2: iMonths = iValue; break;
+          case 3: iDays = iValue; break;
+        }
+        iIndex = iIndex + sType.length();
+      }
+      else
+      {
+        // iIndex points to [-] HH.mm.ss.SSSSSSSSS
+        int iSignNanos = 1;
+        if (sIntervalLiteral.charAt(iIndex) == '-')
+        {
+          iSignNanos = -1;
+          iIndex = iIndex + 1;
+        }
+        LocalTime lt = LocalTime.parse(sIntervalLiteral.substring(iIndex));
+        lNanos = getNanos(lt)*iSignNanos;
+        iIndex = sIntervalLiteral.length();
+      }
+    }
+    
+    if ((iYears != 0) ||(iMonths != 0))
+    {
+      while ((iYears > 0) && (iMonths < 0))
+      {
+        iYears = iYears - 1;
+        iMonths = iMonths + iMONTHS_PER_YEAR;
+      }
+      while ((iYears < 0) && (iMonths > 0))
+      {
+        iYears = iYears + 1;
+        iMonths = iMonths - iMONTHS_PER_YEAR;
+      }
+      if ((iYears < 0) || (iMonths < 0))
+      {
+        iSign = -1;
+        iYears = -iYears;
+        iMonths = -iMonths;
+      }
+      interval = new Interval(iSign, iYears, iMonths);
+    }
+    else
+    {
+      while ((iDays > 0) && (lNanos < 0))
+      {
+        iDays = iDays - 1;
+        lNanos = lNanos + lNANOS_PER_DAY; 
+      }
+      while ((iDays < 0) && (lNanos > 0))
+      {
+        iDays = iDays + 1;
+        lNanos = lNanos - lNANOS_PER_DAY; 
+      }
+      if ((iDays < 0) || (lNanos < 0))
+      {
+        iSign = -1;
+        iDays = -iDays;
+        lNanos = -lNanos;
+      }
+      LocalTime lt = getLocalTime(lNanos);
+      interval = new Interval(iSign, iDays, lt.getHour(), lt.getMinute(), lt.getSecond(), lt.getNano());
+    }
+    return interval;
+  } /* parseInterval */
   
   /*------------------------------------------------------------------*/
   /** format a bit string

@@ -1659,6 +1659,11 @@ public class PostgresResultSetTester
       else
       {
         s = s.substring(0,((String)tcd.getValue()).length());
+        if (!s.equals(sExpected))
+        {
+          System.out.println("expected: "+sExpected);
+          System.out.println("found: "+s);
+        }
         assertEquals("Invalid value for "+sTypeName+"!",sExpected,s);
       }
     }

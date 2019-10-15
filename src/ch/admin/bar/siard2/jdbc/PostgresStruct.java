@@ -1,16 +1,7 @@
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
-import java.sql.Date;
-import java.text.*;
-import java.util.*;
-
-import ch.enterag.utils.EU;
-import ch.enterag.utils.database.SqlTypes;
 import ch.enterag.utils.jdbc.*;
-import ch.enterag.sqlparser.identifier.*;
-
-import org.postgresql.util.*;
 
 public class PostgresStruct
   extends BaseStruct

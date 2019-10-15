@@ -86,14 +86,35 @@ public class PostgresDatabaseMetaData
     }
     sbTypeNameCase.append("    WHEN ");
     sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("USER-DEFINED"));
-    sbTypeNameCase.append(" THEN ");
+    sbTypeNameCase.append("   THEN\r\n");
+    sbTypeNameCase.append("     CASE WHEN a.attribute_udt_schema = 'public' THEN\r\n");
+    sbTypeNameCase.append("       CASE a.attribute_udt_name\r\n");
+    sbTypeNameCase.append("         WHEN 'blob' THEN 'BLOB'\r\n");
+    sbTypeNameCase.append("         WHEN 'clob' THEN 'CLOB'\r\n");
+    sbTypeNameCase.append("         ELSE ");
     sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("\""));
     sbTypeNameCase.append(" || a.attribute_udt_schema || ");
     sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("."));
     sbTypeNameCase.append(" || a.attribute_udt_name || ");
     sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("\""));
     sbTypeNameCase.append("\r\n");
-    sbTypeNameCase.append("END");
+    sbTypeNameCase.append("       END\r\n");
+    sbTypeNameCase.append("       ELSE ");
+    sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("\""));
+    sbTypeNameCase.append(" || a.attribute_udt_schema || ");
+    sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("."));
+    sbTypeNameCase.append(" || a.attribute_udt_name || ");
+    sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("\""));
+    sbTypeNameCase.append("\r\n");
+    sbTypeNameCase.append("     END\r\n");
+    sbTypeNameCase.append("     ELSE ");
+    sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("\""));
+    sbTypeNameCase.append(" || a.attribute_udt_schema || ");
+    sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("."));
+    sbTypeNameCase.append(" || a.attribute_udt_name || ");
+    sbTypeNameCase.append(PostgresLiterals.formatStringLiteral("\""));
+    sbTypeNameCase.append("\r\n");
+    sbTypeNameCase.append("  END");
     return sbTypeNameCase.toString();
   }
 
@@ -121,7 +142,24 @@ public class PostgresDatabaseMetaData
     }
     sbDataTypeCase.append("    WHEN ");
     sbDataTypeCase.append(PostgresLiterals.formatStringLiteral("USER-DEFINED"));
-    sbDataTypeCase.append(" THEN ");
+    sbDataTypeCase.append(" THEN\r\n");
+    sbDataTypeCase.append("      CASE WHEN a.attribute_udt_schema = 'public' THEN\r\n");
+    sbDataTypeCase.append("        CASE a.attribute_udt_name\r\n");
+    sbDataTypeCase.append("          WHEN 'blob' THEN ");
+    sbDataTypeCase.append(String.valueOf(Types.BLOB));
+    sbDataTypeCase.append("\r\n");
+    sbDataTypeCase.append("          WHEN 'clob' THEN ");
+    sbDataTypeCase.append(String.valueOf(Types.CLOB));
+    sbDataTypeCase.append("\r\n");
+    sbDataTypeCase.append("          ELSE ");
+    sbDataTypeCase.append(String.valueOf(Types.STRUCT));
+    sbDataTypeCase.append("\r\n");
+    sbDataTypeCase.append("        END\r\n");
+    sbDataTypeCase.append("        ELSE ");
+    sbDataTypeCase.append(String.valueOf(Types.STRUCT));
+    sbDataTypeCase.append("\r\n");
+    sbDataTypeCase.append("      END\r\n");
+    sbDataTypeCase.append("      ELSE ");
     sbDataTypeCase.append(String.valueOf(Types.STRUCT));
     sbDataTypeCase.append("\r\n");
     sbDataTypeCase.append("END");
@@ -177,7 +215,7 @@ public class PostgresDatabaseMetaData
       "  a.scope_catalog AS SCOPE_CATALOG,\r\n" +
       "  a.scope_schema AS SCOPE_SCHEMA,\r\n" +
       "  a.scope_name AS SCOPE_TABLE,\r\n" +
-      "  NULL AS SOURCE_DATA_TYPE\r\n" + // nonsense: DISTINCT types have no attributes!
+      "  NULL AS SOURCE_DATA_TYPE\r\n" + // nonsense: DISTINCT types have no attributes?
       "FROM information_schema.attributes a\r\n" +
       "WHERE " + sbCondition.toString() + 
       "ORDER BY TYPE_CAT, TYPE_SCHEM, TYPE_NAME, ORDINAL_POSITION";
