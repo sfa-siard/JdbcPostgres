@@ -24,15 +24,15 @@ public class TestPostgresDatabase
   public static QualifiedId getQualifiedSimpleTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_SIMPLE); }
   public static final String _sTEST_TABLE_COMPLEX = "TPGCOMPLEX";
   public static QualifiedId getQualifiedComplexTable() { return new QualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_COMPLEX); }
-  private static final String _sTEST_INTEGER_DOMAIN = "TPGDOMAIN";
+  private static final String _sTEST_INTEGER_DOMAIN = "TYPPGDOMAIN";
   public static QualifiedId getQualifiedDomainType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_INTEGER_DOMAIN); }
   private static final String _sTEST_BUILTIN_RANGE = "TPGBUILTIN";
   public static QualifiedId getQualifiedBuiltinRange() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_BUILTIN_RANGE); }
-  private static final String _sTEST_TYPE_ENUM = "TPGENUM";
+  private static final String _sTEST_TYPE_ENUM = "TYPPGENUM";
   public static QualifiedId getQualifiedEnumType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_ENUM); }
-  private static final String _sTEST_TYPE_COMP = "TPGCOMP";
+  private static final String _sTEST_TYPE_COMP = "TYPPGCOMP";
   public static QualifiedId getQualifiedCompositeType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_COMP); }
-  private static final String _sTEST_TYPE_RANGE = "TPGRANGE";
+  private static final String _sTEST_TYPE_RANGE = "TYPPGRANGE";
   public static QualifiedId getQualifiedRangeType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_TYPE_RANGE); }
   private static final String _sTEST_STRING_ARRAY = "TPGARRAY";
   public static QualifiedId getQualifiedArrayType() { return new QualifiedId(null,_sTEST_SCHEMA, _sTEST_STRING_ARRAY); }
@@ -277,8 +277,8 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getListBuiltinRange()
   {
     List<TestColumnDefinition> listBuiltinRange = new ArrayList<TestColumnDefinition>();
-    listBuiltinRange.add(new ColumnDefinition("min","int4",Integer.valueOf(473)));
-    listBuiltinRange.add(new ColumnDefinition("sup","int4",Integer.valueOf(5435)));
+    listBuiltinRange.add(new ColumnDefinition("inf","int4",Integer.valueOf(473)));
+    listBuiltinRange.add(new ColumnDefinition("max","int4",Integer.valueOf(5435)));
     return listBuiltinRange;
   }
   public static List<TestColumnDefinition> _listBuiltinRange = getListBuiltinRange();
@@ -367,7 +367,7 @@ public class TestPostgresDatabase
     listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
     listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
     listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));
-    listCdComplex.add(new ColumnDefinition("CINT_BUILTIN",getQualifiedBuiltinRange().format(),_listBuiltinRange));
+    // listCdComplex.add(new ColumnDefinition("CINT_BUILTIN",getQualifiedBuiltinRange().format(),_listBuiltinRange));
     listCdComplex.add(new ColumnDefinition("CSTRING_RANGE",getQualifiedRangeType().format(),_listRangeType));
     listCdComplex.add(new ColumnDefinition("CSTRING_ARRAY",getQualifiedRangeType().format(),_listStringArray));
     listCdComplex.add(new ColumnDefinition("CDOUBLE_MATRIX",getQualifiedRangeType().format(),_listDoubleMatrix));

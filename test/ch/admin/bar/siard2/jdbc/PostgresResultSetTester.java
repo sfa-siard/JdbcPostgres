@@ -1904,15 +1904,10 @@ public class PostgresResultSetTester
   private void checkDuration(Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
     throws SQLException
   {
-    if (sTypeName.equals(PostgresType.INTERVAL.getKeyword()))
-    {
-      if (o instanceof Duration)
-        checkDuration(o,tcd.getValue());
-      else
-        fail("Type Duration expected for "+sTypeName+"!");
-    }
+    if (o instanceof Duration)
+      checkDuration(o,tcd.getValue());
     else
-      fail("Invalid type "+sTypeName+" for "+sDataType+"!");
+      fail("Type Duration expected for "+sTypeName+"!");
   } /* checkDuration */
   
   private void checkStruct(String sIndent, Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
@@ -1969,6 +1964,79 @@ public class PostgresResultSetTester
     catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
   } /* checkStruct */
   
+  private void checkArray(String sIndent, Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
+    throws SQLException
+  {
+    if (o instanceof Array)
+    {
+      Array array = (Array)o;
+      int iDataType = array.getBaseType();
+      String sElementDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
+      String sElementTypeName = array.getBaseTypeName();
+      if (tcd.getValue() instanceof List<?>)
+      {
+        @SuppressWarnings("unchecked")
+        List<TestColumnDefinition> listElements = (List<TestColumnDefinition>)tcd.getValue();
+        Object[] ao = (Object[])array.getArray();
+        if (ao.length == listElements.size())
+        {
+          for (int iElement = 0; iElement < listElements.size(); iElement++)
+          {
+            System.out.println(sIndent + tcd.getName() + "["+String.valueOf(iElement)+"]: " +sElementDataType+" "+sElementTypeName);
+            TestColumnDefinition tcdElement = listElements.get(iElement);
+            Object oElement = ao[iElement];
+            checkObject(sIndent + "  ", oElement, tcdElement, iDataType, sElementTypeName, sElementDataType);
+          }
+        }
+        else
+          fail("Unexpected number of elements!");
+      }
+      else
+        fail("Value of Array must be a list!");
+    }
+    else
+      fail("Type Array expected for "+sTypeName+"!");
+  } /* checkArray */
+  
+  private void checkDistinct(Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
+    throws SQLException
+  {
+    //try
+    //{
+      if (tcd.getValue() instanceof List<?>)
+      {
+        @SuppressWarnings("unchecked")
+        List<TestColumnDefinition> listElements = (List<TestColumnDefinition>)tcd.getValue();
+        if (listElements.size() == 1)
+        {
+          tcd = listElements.get(0);
+          assertEquals("Invalid value for "+sTypeName+"!",tcd.getValue(),o);
+        }
+        else
+          fail("List with 1 element expected for DISTINCT values!");
+      }
+      else
+        fail("List expected for DISTINCT values!");
+      // get the base type
+      /***
+      int iBaseType = Types.NULL;
+      QualifiedId qiType = new QualifiedId(sTypeName);
+      DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
+      ResultSet rs = dmd.getUDTs(
+        qiType.getCatalog(),
+        qiType.getSchema(),
+        qiType.getName(),
+        new int[] {Types.DISTINCT});
+      if (rs.next()) { iBaseType = rs.getInt("BASE_TYPE"); }
+      rs.close();
+      // according to base type we could check object (but we do not have a "base type name!")
+      // assertEquals("Invalid type for DISTINCT found!",Types.VARCHAR,iBaseType);
+       ***/
+    //}
+    //catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
+  } /* checkDistinct */
+  
+  
   private void checkObject(String sIndent, Object o, TestColumnDefinition tcd, int iDataType, String sTypeName, String sDataType)
     throws SQLException
   {
@@ -1999,6 +2067,8 @@ public class PostgresResultSetTester
         case Types.TIMESTAMP: checkTimestamp(o,tcd,sTypeName,sDataType); break;
         case Types.OTHER: checkDuration(o,tcd,sTypeName,sDataType); break;
         case Types.STRUCT: checkStruct(sIndent, o,tcd,sTypeName,sDataType); break;
+        case Types.DISTINCT: checkDistinct(o, tcd, sTypeName, sDataType); break;
+        case Types.ARRAY: checkArray(sIndent, o,tcd,sTypeName,sDataType); break;
         default: fail("Invalid data type found: "+sDataType+"!");
       }
     }
@@ -2122,5 +2192,44 @@ public class PostgresResultSetTester
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetObjectSqlComplex */
+    
+  @Test
+  public void testGetObjectNativeComplex()
+  {
+    try
+    {
+      openResultSet(_sNativeQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
+      ResultSet rsColumn = dmd.getColumns(null, 
+        TestPostgresDatabase._sTEST_SCHEMA.toLowerCase(),
+        TestPostgresDatabase._sTEST_TABLE_COMPLEX.toLowerCase(),
+        "%");
+      for (int iColumn = 0; iColumn < TestPostgresDatabase._listCdComplex.size(); iColumn++)
+      {
+        TestColumnDefinition tcd = TestPostgresDatabase._listCdComplex.get(iColumn);
+        if (rsColumn.next())
+        {
+          String sColumnName = rsColumn.getString("COLUMN_NAME");
+          int iDataType = rsColumn.getInt("DATA_TYPE");
+          String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
+          String sTypeName = rsColumn.getString("TYPE_NAME");
+          System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
+          if (tcd.getName().toLowerCase().equals(sColumnName))
+          {
+            Object o = getResultSet().getObject(sColumnName);
+            checkObject("  ",o, tcd, iDataType, sTypeName, sDataType);
+          }
+          else
+            fail("Invalid column found: "+tcd.getName());
+        }
+        else
+          fail("Column meta data not found!");
+      }
+      if (rsColumn.next())
+        fail("Too many column meta data found!");
+      rsColumn.close();
+    }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  } /* testGetObjectNativeComplex */
     
 }

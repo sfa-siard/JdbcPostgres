@@ -120,7 +120,7 @@ public class TestSqlDatabase
     listCdComplex.add(new TestColumnDefinition("CID","INTEGER",Integer.valueOf(1234567890)));
     listCdComplex.add(new TestColumnDefinition("COMPLETE",getQualifiedAllType().format(),_listCdSimple));
     listCdComplex.add(new TestColumnDefinition("CUDT",getQualifiedComplexType().format(),_listAdComplex));
-    listCdComplex.add(new TestColumnDefinition("CDISTINCT",getQualifiedDistinctType().format(),"NIÑO"));
+    listCdComplex.add(new TestColumnDefinition("CDISTINCT",getQualifiedDistinctType().format(),_listBaseDistinct));
     listCdComplex.add(new TestColumnDefinition("CARRAY","VARCHAR(255) ARRAY[1000]",_listCdArray));
     return listCdComplex;
   }

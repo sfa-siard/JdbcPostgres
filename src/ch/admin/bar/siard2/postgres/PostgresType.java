@@ -67,6 +67,17 @@ public enum PostgresType
   BLOB(PreType.BLOB, "blob"), // domain in schema public based on oid created by PostgresConnection
   CLOB(PreType.CLOB, "clob"); // domain in schema public based on oid created by PostgresConnection
   
+  /* https://www.postgresql.org/docs/11/rangetypes.html */
+  public static Set<String>  setBUILTIN_RANGES = new HashSet<String>(Arrays.asList(new String[] 
+  {
+    "int4range",
+    "int8range",
+    "numrange",
+    "tsrange",
+    "tstzrange",
+    "daterange"
+  }));
+  
   private String _sKeyword = null;
   public String getKeyword() { return _sKeyword; }
   private Set<String> _setAliases = null;

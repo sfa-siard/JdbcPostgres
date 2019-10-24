@@ -609,6 +609,18 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   }
 
   @Test
+  public void testGetUserUDTsNative()
+  {
+    enter();
+    try 
+    { 
+      String sSchema = "testpgschema";
+      print(getDatabaseMetaData().getUDTs(null,sSchema,"%", null ));
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
+  @Test
   public void testGetUserAttributes()
   {
     enter();

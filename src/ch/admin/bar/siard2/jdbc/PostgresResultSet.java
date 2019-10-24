@@ -357,7 +357,29 @@ implements ResultSet
       }
       catch(ParseException pe) { throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!"); }
     }
-    else 
+    else if (iType == Types.ARRAY)
+    {
+      o = super.getObject(columnIndex);
+      PgArray pa = (PgArray)o;
+      o = new PostgresArray(pa);
+    }
+    else if (iType == Types.DISTINCT)
+    {
+      o = super.getObject(columnIndex);
+      if (o instanceof PGobject)
+      {
+        PGobject po = (PGobject)o;
+        try
+        {
+          
+          PostgresObject pobj = new PostgresObject(po.getValue(), iType, po.getType(),
+            (PostgresConnection)getStatement().getConnection());
+          o = pobj.getObject(0, iType);
+        }
+        catch(ParseException pe) { throw new SQLException("Parsing of DISTINCT failed ("+EU.getExceptionMessage(pe)+")!"); }
+      }
+    }
+    else
       o = super.getObject(columnIndex);
     return o;
   } /* getObject */

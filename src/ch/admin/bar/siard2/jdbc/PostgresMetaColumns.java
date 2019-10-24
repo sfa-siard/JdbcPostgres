@@ -11,8 +11,12 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
+import java.text.*;
 
+import ch.enterag.utils.*;
+import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.datatype.enums.*;
+import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
 
 /*====================================================================*/
@@ -32,7 +36,6 @@ public class PostgresMetaColumns
   private int _iScale = -1;
   private int _iNumPrecRadix = -1;
 
-  @SuppressWarnings("unused")
   private Connection _conn;
   
   /*------------------------------------------------------------------*/
@@ -65,6 +68,30 @@ public class PostgresMetaColumns
       PreType pt = pgt.getPreType();
       if (pt != null)
         iType = pt.getSqlType();
+    }
+    else
+    {
+      if (!sTypeName.startsWith("_"))
+      {
+        if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
+          iType = Types.STRUCT;
+        else
+        {
+          try
+          {
+            QualifiedId qiType = new QualifiedId(sTypeName);
+            BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
+            ResultSet  rs = bdmd.getUDTs(qiType.getCatalog(),
+              bdmd.toPattern(qiType.getSchema()),
+              bdmd.toPattern(qiType.getName()), 
+              null);
+            if (rs.next())
+              iType = rs.getInt("DATA_TYPE");
+            rs.close();
+          }
+          catch(ParseException pe) { throw new SQLException("Type "+sTypeName+" could not be parsed ("+EU.getExceptionMessage(pe)+")!"); }
+        }
+      }
     }
     return iType;
   } /* getDataType */
