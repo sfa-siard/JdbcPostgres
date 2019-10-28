@@ -361,7 +361,7 @@ implements ResultSet
     {
       o = super.getObject(columnIndex);
       PgArray pa = (PgArray)o;
-      o = new PostgresArray(pa);
+      o = new PostgresArray(pa,(PostgresConnection)getStatement().getConnection());
     }
     else if (iType == Types.DISTINCT)
     {

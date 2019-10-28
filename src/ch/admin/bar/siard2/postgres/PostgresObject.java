@@ -8,17 +8,17 @@ import java.time.*;
 import java.util.*;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
-import org.postgresql.core.BaseConnection;
+import org.postgresql.core.*;
 
 import ch.enterag.utils.database.*;
-import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbc.*;
+import ch.admin.bar.siard2.postgres.identifier.*;
 
 public class PostgresObject
 {
   private static char cCOMMA = ',';
   private PGtokenizer _pt = null;
-  private QualifiedId _qiType = null;
+  private PostgresQualifiedId _qiType = null;
   private PostgresConnection _pconn = null;
   
   private class AttributeDescription
@@ -34,26 +34,28 @@ public class PostgresObject
     }
   } /* class AttributeDescription */
   
-  private String stripQuotes(String s)
+  public static String stripQuotes(String s)
     throws ParseException
   {
     if (s != null)
     {
-      if ((s.length() > 1) && (s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"'))
+      if (s.length() > 1)
       {
-        s = s.substring(1,s.length()-1).
-          replace("\"\"", "\"").
-          replace("\\t","\t"). // TAB
-          replace("\\b","\b"). // BACKSPACE
-          replace("\\n","\n"). // NEW LINE
-          replace("\\r","\r"). // CARRIAGE RETURN
-          replace("\\f","\f"). // FORM FEED
-          replace("\\'","'"). // escaped single quotes
-          replace("\\\"","\""). // escaped double quotes
-          replace("\\\\","\\"); // escaped escape
+        if (((s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"')) ||
+          ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\'')))
+        {
+          s = s.substring(1,s.length()-1).
+            replace("\"\"", "\"").
+            replace("\\t","\t"). // TAB
+            replace("\\b","\b"). // BACKSPACE
+            replace("\\n","\n"). // NEW LINE
+            replace("\\r","\r"). // CARRIAGE RETURN
+            replace("\\f","\f"). // FORM FEED
+            replace("\\'","'"). // escaped single quotes
+            replace("\\\"","\""). // escaped double quotes
+            replace("\\\\","\\"); // escaped escape
+        }
       }
-      else
-        throw new ParseException("Quotes could not be stripped from unquoted string!",0);
     }
     return s;
   } /* stripQuotes */
@@ -63,28 +65,11 @@ public class PostgresObject
   {
     _pt = new PGtokenizer(sValue, cCOMMA);
     if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT) || (iDataType == Types.ARRAY))
-      _qiType = new QualifiedId(sTypeName);
+    {
+      _qiType = new PostgresQualifiedId(sTypeName);
+    }
     _pconn = pconn;
   } /* constructor */
-  
-  private AttributeDescription getBuiltinRangeDescription()
-  {
-    AttributeDescription ad = null;
-    String sTypeName = _qiType.getName();
-    if (sTypeName.equals("int4range"))
-      ad = new AttributeDescription(Types.INTEGER,"int4");
-    else if (sTypeName.equals("int8range"))
-      ad = new AttributeDescription(Types.BIGINT,"int8");
-    else if (sTypeName.equals("numrange"))
-      ad = new AttributeDescription(Types.NUMERIC,"numeric");
-    else if (sTypeName.equals("tsrange"))
-      ad = new AttributeDescription(Types.TIMESTAMP,"timestamp");
-    else if (sTypeName.equals("tstzrange"))
-      ad = new AttributeDescription(Types.TIMESTAMP_WITH_TIMEZONE,"timestamptz");
-    else if (sTypeName.equals("daterange"))
-      ad = new AttributeDescription(Types.DATE,"date");
-    return ad;
-  } /* getBuiltinRangeDescription */
   
   private List<AttributeDescription> getAttributeDescriptions()
     throws SQLException
@@ -119,7 +104,11 @@ public class PostgresObject
     if (sToken.startsWith("\"") && sToken.endsWith("\""))
       sToken = sToken.substring(1,sToken.length()-1);
     // strip parentheses
-    if ((sToken.startsWith("(") || sToken.startsWith("[")) && (sToken.endsWith(")") || sToken.endsWith("]")))
+    String sStartMark = sToken.substring(0,1);
+    String sEndMark = sToken.substring(sToken.length()-1,sToken.length());
+    
+    if ((sStartMark.equals("(") || sStartMark.equals("[")) && 
+        (sEndMark.equals(")") || sEndMark.equals("]")))
     {
       Object[] ao = null;
       List<AttributeDescription> listAttributeDescriptions = getAttributeDescriptions();
@@ -140,10 +129,26 @@ public class PostgresObject
           else
             ao[iAttribute] = null;
         }
-        struct = new PostgresStruct(_qiType.format(), ao); 
+      }
+      else if ((ptAttributes.getSize() == 2) && (listAttributeDescriptions.size() == 3))
+      {
+        ao = new Object[3];
+        
+        String sAttributeStart = ptAttributes.getToken(0);
+        AttributeDescription adStart = listAttributeDescriptions.get(0);
+        PostgresObject poStart = new PostgresObject(sAttributeStart,adStart.getDataType(),adStart.getTypeName(),_pconn);
+        ao[0] = poStart.getObject(0, adStart.getDataType());
+        
+        String sAttributeEnd = ptAttributes.getToken(1);
+        AttributeDescription adEnd = listAttributeDescriptions.get(1);
+        PostgresObject poEnd = new PostgresObject(sAttributeEnd,adEnd.getDataType(),adEnd.getTypeName(),_pconn);
+        ao[1] = poEnd.getObject(0, adEnd.getDataType());
+        
+        ao[2] = sStartMark+sEndMark;
       }
       else
         throw new ParseException("Number of attributes does not match number of tokens when parsing "+_pt.toString()+"!",0);
+      struct = new PostgresStruct(_qiType.format(), ao); 
     }
     else
       throw new ParseException("STRUCT must be in parentheses!",0);
@@ -225,39 +230,6 @@ public class PostgresObject
         o = PostgresLiterals.parseInterval(stripQuotes(sToken)).toDuration();
         break;
       case Types.STRUCT:
-        if (PostgresType.setBUILTIN_RANGES.contains(_qiType.format()))
-        {
-          Object[] ao = new Object[4];
-          /* a[0] indicates, whether lower limit is included in range */
-          if (sToken.startsWith("["))
-            ao[0] = Boolean.TRUE;
-          else if (sToken.startsWith("("))
-            ao[0] = Boolean.FALSE;
-          else
-            throw new SQLException("Range must start with [ or (!");
-          /* a[3] indicates, whether upper limit is included in range */
-          if (sToken.endsWith("]"))
-            ao[3] = Boolean.TRUE;
-          else if (sToken.endsWith(")"))
-            ao[3] = Boolean.FALSE;
-          else
-            throw new SQLException("Range must end with ] or )!");
-          sToken = sToken.substring(1,sToken.length()-1);
-          PGtokenizer ptLimits = new PGtokenizer(sToken, cCOMMA);
-          if (ptLimits.getSize() == 2)
-          {
-            AttributeDescription adRange = getBuiltinRangeDescription();
-            String sLowerLimit = ptLimits.getToken(0);
-            PostgresObject poLower = new PostgresObject(sLowerLimit,adRange.getDataType(),adRange.getTypeName(),_pconn);
-            ao[1] = poLower.getObject(0, adRange.getDataType());
-            String sUpperLimit = ptLimits.getToken(1);
-            PostgresObject poUpper = new PostgresObject(sUpperLimit,adRange.getDataType(),adRange.getTypeName(),_pconn);
-            ao[1] = poUpper.getObject(0, adRange.getDataType());
-          }
-          else
-            throw new SQLException("Range must have upper and lower range!");
-        }
-        else
           o = parseStruct(sToken);
         break;
       default:

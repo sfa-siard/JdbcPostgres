@@ -8,6 +8,7 @@ import static org.junit.Assert.*;
 import org.junit.*;
 
 import ch.enterag.sqlparser.datatype.enums.*;
+import ch.enterag.sqlparser.identifier.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
 import ch.enterag.utils.jdbc.*;
@@ -388,7 +389,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   /** list columns of user tables
    */
   @Test
-  public void testGetUserColumns()
+  public void testGetColumnsUser()
   {
     enter();
     try
@@ -474,11 +475,13 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             }
             else
             {
-              PostgresType pgt = parsePostgresType(cd.getType());
+              PostgresType pgtFound = parsePostgresType(sTypeName);
+              sTypeName = pgtFound.getPreType().getKeyword();
+              PostgresType pgtExpected = parsePostgresType(cd.getType());
               iPrecision = parsePrecision(cd.getType());
               iScale = parseScale(cd.getType());
-              iType = pgt.getPreType().getSqlType();
-              sType = pgt.getPreType().getKeyword();
+              iType = pgtExpected.getPreType().getSqlType();
+              sType = pgtExpected.getPreType().getKeyword();
               if (cd.getType().indexOf("serial") >= 0)
                 sAutoIncrement = "YES";
               if (sAutoIncrement.equals("YES"))
@@ -487,7 +490,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
                 sNullable = "NO";
               else if (iNulls == DatabaseMetaData.columnNullableUnknown)
                 sNullable = "";
-              if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
+              if ((pgtExpected == PostgresType.BIT) || (pgtExpected == PostgresType.VARBIT))
                 iRadix = 2;
             }
           }  
@@ -527,6 +530,8 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             }
             else
             {
+              PostgresType pgtFound = parsePostgresType(sTypeName);
+              sTypeName = pgtFound.getPreType().getKeyword();
               iPrecision = parsePrecision(tcd.getType());
               iScale = parseScale(tcd.getType());
               PreType pt = parsePreType(tcd.getType());
@@ -575,7 +580,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   } /* getUserSchemas */
   
   @Test
-  public void testGetUserUDTsDistinct()
+  public void testGetUDTsUserDistinct()
   {
     enter();
     try 
@@ -592,7 +597,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   }
 
   @Test
-  public void testGetUserUDTsStruct()
+  public void testGetUDTsUserStruct()
   {
     enter();
     try 
@@ -609,7 +614,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   }
 
   @Test
-  public void testGetUserUDTsNative()
+  public void testGetUDTsUserNative()
   {
     enter();
     try 
@@ -621,7 +626,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   }
 
   @Test
-  public void testGetUserAttributes()
+  public void testGetAttributesUser()
   {
     enter();
     try 
@@ -637,10 +642,33 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   }
 
+  @Test
+  public void testGetAttributesRange()
+  {
+    enter();
+    try 
+    { 
+      QualifiedId qiType = TestPostgresDatabase.getQualifiedRangeType();
+      print(getDatabaseMetaData().getAttributes(null,qiType.getSchema().toLowerCase(),qiType.getName().toLowerCase(), null));
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
+  @Test
+  public void testGetAttributesRangeBuiltin()
+  {
+    enter();
+    try 
+    { 
+      print(getDatabaseMetaData().getAttributes(null,null,"int4range", null));
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
   /** get procedures of schemas holding user tables
    */
   @Test
-  public void testGetUserProcedures()
+  public void testGetProceduresUser()
   {
     enter();
     try 
@@ -660,7 +688,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   /** get parameters of procedures of schemas holding user tables
    */
   @Test
-  public void testGetUserProcedureColumns()
+  public void testGetProcedureColumnsUser()
   {
     enter();
     try 
@@ -672,7 +700,6 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
         System.out.println("Schema "+sSchema);
         print(getDatabaseMetaData().getProcedureColumns(null,sSchema,"%","%"));
       }
-      print(getDatabaseMetaData().getProcedureColumns(null,null,"int4range","%"));
     } 
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetUserProcedureColumns */
@@ -680,7 +707,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   /** get functions of schemas holding user tables
    */
   @Test
-  public void testGetUserFunctions()
+  public void testGetFunctionsUser()
   {
     enter();
     try 
@@ -697,4 +724,33 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   }
 
+  @Test
+  public void testGetFunctionColumnsUser()
+  {
+    enter();
+    try 
+    { 
+      Set<String>setSchemas = getUserSchemas();
+      for (Iterator<String>iterSchema = setSchemas.iterator(); iterSchema.hasNext(); )
+      {
+        String sSchema = iterSchema.next();
+        System.out.println("Schema "+sSchema);
+        print(getDatabaseMetaData().getFunctionColumns(null,sSchema,"%","%"));
+      }
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+  
+  @Test
+  @Override
+  public void testGetProcedureColumns()
+  {
+  }
+  
+  @Test
+  @Override
+  public void testGetFunctionColumns()
+  {
+  }
+  
 }

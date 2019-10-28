@@ -109,6 +109,35 @@ public abstract class PostgresLiterals extends SqlLiterals
   } /* formatId */
   
   /*------------------------------------------------------------------*/
+  /** format a catalog-qualified schema name for use in an SQL statement.
+   * @param sCatalogName catalog name or null.
+   * @param sUnqualifiedSchemaName schema name (must not be null).
+   * @return formatted schema name - possibly qualified by catalog name.
+   */
+  public static String formatQualifiedSchema(String sCatalogName, String sUnqualifiedSchemaName)
+  {
+    String sFormattedSchemaName = formatId(sUnqualifiedSchemaName);
+    if (sCatalogName != null)
+      sFormattedSchemaName = formatId(sCatalogName)+sDOT+sFormattedSchemaName;
+    return sFormattedSchemaName;
+  } /* formatQualifiedSchema */
+  
+  /*------------------------------------------------------------------*/
+  /** format a schema-qualified name for use in an SQL statement.
+   * @param sCatalogName catalog name or null.
+   * @param sSchemaName schema name or null.
+   * @param sUnqualifiedName schema-qualified name (must not be null).
+   * @return formatted name - possibly qualified by schema name.
+   */
+  public static String formatQualifiedName(String sCatalogName, String sSchemaName, String sUnqualifiedName)
+  {
+    String sFormattedQualifiedName = formatId(sUnqualifiedName);
+    if (sSchemaName != null)
+      sFormattedQualifiedName = formatQualifiedSchema(sCatalogName, sSchemaName)+sDOT+sFormattedQualifiedName;
+    return sFormattedQualifiedName;
+  } /* formatQualifiedName */
+  
+  /*------------------------------------------------------------------*/
   /** format byte buffer value.
    * @param bufValue byte buffer value to be formatted.
    * @return byte string literal.

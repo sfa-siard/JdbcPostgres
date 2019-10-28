@@ -13,7 +13,7 @@ import ch.enterag.sqlparser.datatype.*;
 import ch.enterag.sqlparser.ddl.*;
 import ch.enterag.sqlparser.ddl.enums.*;
 import ch.enterag.sqlparser.dml.*;
-import ch.enterag.sqlparser.dml.enums.SpecialValue;
+import ch.enterag.sqlparser.dml.enums.*;
 import ch.enterag.sqlparser.expression.*;
 import ch.enterag.sqlparser.expression.enums.*;
 import ch.enterag.sqlparser.identifier.*;
@@ -117,7 +117,7 @@ public class TestSqlDatabase
   {
     List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();
     _iPrimaryComplex = listCdComplex.size(); // next column will be primary key column
-    listCdComplex.add(new TestColumnDefinition("CID","INTEGER",Integer.valueOf(1234567890)));
+    listCdComplex.add(new TestColumnDefinition("CID","INT",Integer.valueOf(1234567890)));
     listCdComplex.add(new TestColumnDefinition("COMPLETE",getQualifiedAllType().format(),_listCdSimple));
     listCdComplex.add(new TestColumnDefinition("CUDT",getQualifiedComplexType().format(),_listAdComplex));
     listCdComplex.add(new TestColumnDefinition("CDISTINCT",getQualifiedDistinctType().format(),_listBaseDistinct));

@@ -24,6 +24,7 @@ import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
+import ch.admin.bar.siard2.postgres.identifier.*;
 
 public class PostgresResultSetTester
   extends BaseResultSetTester
@@ -1061,6 +1062,7 @@ public class PostgresResultSetTester
       InputStream is = new ByteArrayInputStream((byte[])tcd.getValue());
       getResultSet().updateBinaryStream(tcd.getName(),is,((byte[])tcd.getValue()).length);
     }
+    catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateBinaryStream_Int */
   
@@ -1131,7 +1133,8 @@ public class PostgresResultSetTester
       Map<String,Class<?>> map = new HashMap<String,Class<?>>();
       map.put(tcd.getType(), tcd.getValue().getClass());
       Object o = getResultSet().getObject(tcd.getName(),map);
-      assertEquals("Invalid Udt!",tcd.getValue(),o);
+      String sDataType = String.valueOf(Types.STRUCT)+" ("+SqlTypes.getTypeName(Types.STRUCT)+")";
+      checkObject("  ",o,tcd,Types.STRUCT,tcd.getType(),sDataType);
     }
     catch(SQLFeatureNotSupportedException snse) { System.out.println("testGetObject_Map: "+EU.getExceptionMessage(snse)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
@@ -1923,7 +1926,7 @@ public class PostgresResultSetTester
           @SuppressWarnings("unchecked")
           List<TestColumnDefinition> listAttributes = (List<TestColumnDefinition>)tcd.getValue();
           // sTypeName holds name of type
-          QualifiedId qiType = new QualifiedId(sTypeName);
+          PostgresQualifiedId qiType = new PostgresQualifiedId(sTypeName);
           DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
           ResultSet rsAttribute = dmd.getAttributes(
             qiType.getCatalog(), 
@@ -2001,8 +2004,6 @@ public class PostgresResultSetTester
   private void checkDistinct(Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
     throws SQLException
   {
-    //try
-    //{
       if (tcd.getValue() instanceof List<?>)
       {
         @SuppressWarnings("unchecked")
@@ -2017,21 +2018,6 @@ public class PostgresResultSetTester
       }
       else
         fail("List expected for DISTINCT values!");
-      // get the base type
-      /***
-      int iBaseType = Types.NULL;
-      QualifiedId qiType = new QualifiedId(sTypeName);
-      DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
-      ResultSet rs = dmd.getUDTs(
-        qiType.getCatalog(),
-        qiType.getSchema(),
-        qiType.getName(),
-        new int[] {Types.DISTINCT});
-      if (rs.next()) { iBaseType = rs.getInt("BASE_TYPE"); }
-      rs.close();
-      // according to base type we could check object (but we do not have a "base type name!")
-      // assertEquals("Invalid type for DISTINCT found!",Types.VARCHAR,iBaseType);
-       ***/
     //}
     //catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
   } /* checkDistinct */
@@ -2161,9 +2147,11 @@ public class PostgresResultSetTester
     {
       openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
       DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
-      ResultSet rsColumn = dmd.getColumns(null, 
-        TestSqlDatabase._sTEST_SCHEMA.toLowerCase(),
-        TestSqlDatabase._sTEST_TABLE_COMPLEX.toLowerCase(),
+      PostgresQualifiedId pqiTable = new PostgresQualifiedId(TestSqlDatabase.getQualifiedComplexTable().format());
+      ResultSet rsColumn = dmd.getColumns(
+        pqiTable.getCatalog(), 
+        pqiTable.getSchema(),
+        pqiTable.getName(),
         "%");
       for (int iColumn = 0; iColumn < TestSqlDatabase._listCdComplex.size(); iColumn++)
       {
@@ -2190,6 +2178,7 @@ public class PostgresResultSetTester
         fail("Too many column meta data found!");
       rsColumn.close();
     }
+    catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetObjectSqlComplex */
     

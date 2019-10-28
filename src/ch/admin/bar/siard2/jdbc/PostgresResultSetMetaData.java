@@ -72,11 +72,12 @@ public class PostgresResultSetMetaData
         try
         {
           QualifiedId qiType = new QualifiedId(sTypeName);
-          ResultSet rsUdt = pdmd.getUDTs(
-            pdmd.toPattern(qiType.getCatalog()), 
-            pdmd.toPattern(qiType.getSchema()), 
-            pdmd.toPattern(qiType.getName()),
-            null);
+          if ((qiType.getCatalog() == null) && (qiType.getSchema() == null))
+            qiType.setName(sTypeName);
+          String sCatalog = pdmd.toPattern(qiType.getCatalog());
+          String sSchema = pdmd.toPattern(qiType.getSchema());
+          String sName = pdmd.toPattern(qiType.getName());
+          ResultSet rsUdt = pdmd.getUDTs(sCatalog, sSchema, sName, null);
           if (rsUdt.next())
           {
             iType = rsUdt.getInt("DATA_TYPE");

@@ -26,6 +26,10 @@ public class PostgresDatabaseMetaData
   extends BaseDatabaseMetaData
   implements DatabaseMetaData
 {
+  public static final String sRANGE_START = "range_start";
+  public static final String sRANGE_END = "range_end";
+  public static final String sRANGE_SIGNATURE = "range_signature";
+  
   /** logger */
   private static IndentLogger _il = IndentLogger.getIndentLogger(PostgresDatabaseMetaData.class.getName());
   private static int iMAX_VAR_SIZE = 10*1024*1024;
@@ -60,7 +64,8 @@ public class PostgresDatabaseMetaData
   {
     DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
     ResultSet rs = dmd.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
-    return new PostgresMetaColumns(rs,_conn,1,2,5,6,7,16,9,10);
+    PostgresStatement stmt = new PostgresStatement(rs.getStatement(),_conn);
+    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,5,6,7,16,9,10);
   } /* getColumns */
 
   /*------------------------------------------------------------------*/
@@ -70,8 +75,10 @@ public class PostgresDatabaseMetaData
     String schemaPattern, String procedureNamePattern,
     String columnNamePattern) throws SQLException
   {
-    return new PostgresMetaColumns(super.getProcedureColumns(catalog, schemaPattern,
-      procedureNamePattern, columnNamePattern),_conn,1,2,6,7,8,9,10,-1);
+    DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
+    ResultSet rs = dmd.getProcedureColumns(catalog, schemaPattern, procedureNamePattern, columnNamePattern);
+    PostgresStatement stmt = new PostgresStatement(rs.getStatement(),_conn);
+    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,6,7,8,9,10,-1);
   } /* getProcedureColumns */
 
   /*------------------------------------------------------------------*/
@@ -81,8 +88,10 @@ public class PostgresDatabaseMetaData
     String schemaPattern, String functionNamePattern,
     String columnNamePattern) throws SQLException
   {
-    return new PostgresMetaColumns(super.getFunctionColumns(catalog, schemaPattern,
-      functionNamePattern, columnNamePattern),_conn,1,2,6,7,8,9,10,-1);
+    DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
+    ResultSet rs = dmd.getFunctionColumns(catalog, schemaPattern, functionNamePattern, columnNamePattern);
+    PostgresStatement stmt = new PostgresStatement(rs.getStatement(),_conn);
+    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,6,7,8,9,10,-1);
   } /* getFunctionColumns */
   
   /*------------------------------------------------------------------*/
@@ -477,10 +486,9 @@ public class PostgresDatabaseMetaData
     sb.append(sPgTypeRangeBase);
     sb.append("\r\n    .oid");
     sb.append("\r\n    JOIN (VALUES");
-    sb.append("\r\n      ('is_min','boolean',1,1,'NO','NULL'),");
-    sb.append("\r\n      ('min_inf',NULL,NULL,2,NULL,NULL),");
-    sb.append("\r\n      ('is_max','boolean',1,3,'NO','NULL'),");
-    sb.append("\r\n      ('max_sup',null,null,4,NULL,NULL)");
+    sb.append("\r\n      ('"+sRANGE_START+"',NULL,NULL,1,NULL,NULL),");
+    sb.append("\r\n      ('"+sRANGE_END+"',NULL,NULL,2,NULL,NULL),");
+    sb.append("\r\n      ('"+sRANGE_SIGNATURE+"','char',2,3,'NO','NULL')");
     sb.append("\r\n   ) ");
     sb.append(sPgValues);
     sb.append(" (attname,typname,typlen,attnum,attnotnull,typbasetypename) ON TRUE");
@@ -554,15 +562,23 @@ public class PostgresDatabaseMetaData
   } /* getCaseAttributeName */
   
   /*------------------------------------------------------------------*/
-  private String getCaseTypeName(String sPgTypeAttribute, String sPgTypeRange)
+  private String getCaseTypeName(String sPgTypeAttribute, String sPgTypeRange, String sPgValues)
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
     sb.append("\r\n    WHEN ");
     sb.append(sPgTypeAttribute);
     sb.append(".typname IS NULL THEN ");
+    sb.append("\r\n      CASE");
+    sb.append("\r\n        WHEN ");
+    sb.append(sPgValues);
+    sb.append(".typname IS NULL THEN ");
     sb.append(sPgTypeRange);
     sb.append(".typname");
+    sb.append("\r\n        ELSE ");
+    sb.append(sPgValues);
+    sb.append(".typname");
+    sb.append("\r\n      END");
     sb.append("\r\n    ELSE ");
     sb.append(sPgTypeAttribute);
     sb.append(".typname");
@@ -764,10 +780,10 @@ public class PostgresDatabaseMetaData
     sb.append(getCaseAttributeName(sPgAttribute,sPgValues));
     sb.append(" AS ATTR_NAME,");
     sb.append("\r\n  ");
-    sb.append(getCaseDataType(getCaseTypeName(sPgTypeAttribute,sPgTypeRange)));
+    sb.append(getCaseDataType(getCaseTypeName(sPgTypeAttribute,sPgTypeRange,sPgValues)));
     sb.append(" AS DATA_TYPE,");
     sb.append("\r\n  ");
-    sb.append(getCaseTypeName(sPgTypeAttribute,sPgTypeRange));
+    sb.append(getCaseTypeName(sPgTypeAttribute,sPgTypeRange,sPgValues));
     sb.append(" AS ATTR_TYPE_NAME,");
     sb.append("\r\n  ");
     sb.append(getCaseAttrSize(sPgTypeAttribute,sPgTypeRange,sPgValues));
