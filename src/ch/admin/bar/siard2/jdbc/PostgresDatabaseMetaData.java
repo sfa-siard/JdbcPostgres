@@ -775,7 +775,7 @@ public class PostgresDatabaseMetaData
     sb.append(".nspname AS TYPE_SCHEM,");
     sb.append("\r\n  ");
     sb.append(sPgTypeParent);
-    sb.append(".typname AS TYPENAME,");
+    sb.append(".typname AS TYPE_NAME,");
     sb.append("\r\n  ");
     sb.append(getCaseAttributeName(sPgAttribute,sPgValues));
     sb.append(" AS ATTR_NAME,");
