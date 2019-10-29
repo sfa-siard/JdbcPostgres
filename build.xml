@@ -39,11 +39,12 @@ Created    : 16.06.2016, Simon Jutz
   <property name="jarjdbcbasetest" value="jdbcbase-test.jar"/>
   <property name="cpjdbcbase" value="${dirlib}/${jarjdbcbase}"/> 
   <property name="cpjdbcbase-test" value="${dirlib}/${jarjdbcbase};${dirlib}/${jarjdbcbasetest}"/>
-	<!-- Oracle JDBC jars -->
-  <property name="jarojdbc" value="ojdbc6.jar"/>
-  <property name="jarxdb" value="xdb6.jar"/>
-  <property name="jarxmlparser" value="xmlparserv2.jar"/>
-	<property name="cporaclejdbc" value="${dirlib}/${jarojdbc};${dirlib}/${jarxdb};${dirlib}/${jarxmlparser}"/> 
+	<!-- JSON jar -->
+  <property name="jarjson" value="json-simple-1.1.1.jar"/>
+	<property name="cpjson" value="${dirlib}/${jarjson}"/> 
+	<!-- Postgres jar -->
+  <property name="jarpostgres" value="postgresql-42.2.5.jar"/>
+	<property name="cppostgresjdbc" value="${dirlib}/${jarpostgres}"/> 
   <!-- junit -->
 	<property name="jarhamcrest" value="hamcrest-core-1.3.jar"/>
 	<property name="jarjunit4" value="junit-4.12.jar"/>
@@ -208,7 +209,7 @@ Created    : 16.06.2016, Simon Jutz
       flags="gm"/>
   </target>
   
-  <!-- build the JdbcOracle classes -->
+  <!-- build the JdbcPostgres classes -->
   <target name="build" depends="init,revision">
     <echo message="${ant.project.name}: build"/>
     <!-- without this, the package-info class is not generated! -->
@@ -221,7 +222,7 @@ Created    : 16.06.2016, Simon Jutz
       source="${source}" 
       target="${target}"
       encoding="UTF-8"
-      classpath="${cporaclejdbc};${cpjdbcbase};${cpsqlparser};${cpenterutils}"
+      classpath="${cppostgresjdbc};${cpjdbcbase};${cpsqlparser};${cpenterutils}"
       srcdir="${dirsrc}"
       destdir="${dirbuildclasses}">
     </javac>
@@ -241,9 +242,9 @@ Created    : 16.06.2016, Simon Jutz
   </target>
 	
 	<!-- create and run all tests -->
-  <property name="classdatasourcetester" value="ch.admin.bar.siard2.jdbcx.OracleDataSourceTester"/>
+  <property name="classdatasourcetester" value="ch.admin.bar.siard2.jdbcx.PostgresDataSourceTester"/>
   <property name="filedatasourcetest" value="datasource-test"/>
-  <property name="classjdbctestsuite" value="ch.admin.bar.siard2.jdbc._OracleJdbcTestSuite"/>
+  <property name="classjdbctestsuite" value="ch.admin.bar.siard2.jdbc._PostgresJdbcTestSuite"/>
   <property name="filejdbctests" value="jdbc-tests"/>
 	<target name="tests" depends="jar" if="dbuser">
     <echo message="${ant.project.name}: tests"/>
@@ -258,7 +259,8 @@ Created    : 16.06.2016, Simon Jutz
       destdir="${dirbuildtests}">
       <classpath>
         <pathelement path="${dirdist}/${jarfile}"/>
-        <pathelement path="${cporaclejdbc}"/>
+        <pathelement path="${cppostgresjdbc}"/>
+        <pathelement path="${cpjson}"/>
         <pathelement path="${cpjdbcbase-test}"/>
         <pathelement path="${cpsqlparser}"/>
         <pathelement path="${cpenterutils}"/>
@@ -272,7 +274,8 @@ Created    : 16.06.2016, Simon Jutz
       <classpath>
         <pathelement path="${dirbuildtests}"/>
         <pathelement path="${dirdist}/${jarfile}"/>
-        <pathelement path="${cporaclejdbc}"/>
+        <pathelement path="${cppostgresjdbc}"/>
+        <pathelement path="${cpjson}"/>
         <pathelement path="${cpjdbcbase-test}"/>
         <pathelement path="${cpsqlparser}"/>
         <pathelement path="${cpenterutils}"/>
@@ -290,7 +293,8 @@ Created    : 16.06.2016, Simon Jutz
       <classpath>
         <pathelement path="${dirbuildtests}"/>
         <pathelement path="${dirdist}/${jarfile}"/>
-        <pathelement path="${cporaclejdbc}"/>
+        <pathelement path="${cppostgresjdbc}"/>
+        <pathelement path="${cpjson}"/>
         <pathelement path="${cpjdbcbase-test}"/>
         <pathelement path="${cpsqlparser}"/>
         <pathelement path="${cpenterutils}"/>

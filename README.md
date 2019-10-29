@@ -1,3 +1,0 @@
-# JdbcPostgres
-SIARD Suite - JdbcPostgres
-.

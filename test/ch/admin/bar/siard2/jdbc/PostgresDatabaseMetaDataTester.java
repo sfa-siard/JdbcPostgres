@@ -211,6 +211,8 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       pt = PreType.CHAR;
     else if (pt == PreType.NVARCHAR)
       pt = PreType.VARCHAR;
+    else if (pt == PreType.BINARY)
+      pt = PreType.VARBINARY;
     else if (pt == PreType.NCLOB)
       pt = PreType.CLOB;
     else if (pt == PreType.DECIMAL)
@@ -423,17 +425,18 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           int iRadix = 10;
           int iType = Types.NULL;
           String sType = sTypeName;
-          if ((sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
-              (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase())))
+          // native 
+          if ((sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedSimpleTable().getName())) ||
+              (sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedComplexTable().getName())))
           {
             TestColumnDefinition cd = null;
-            if (sTableView.equals(TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
+            if (sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedSimpleTable().getName()))
             {
               cd = findTestColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
               if (iPosition == TestPostgresDatabase._iPrimarySimple)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            else if (sTableView.equals(TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase()))
+            else if (sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedComplexTable().getName()))
             {
               cd = findTestColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
               if (iPosition == TestPostgresDatabase._iPrimaryComplex)
@@ -442,39 +445,41 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             if (sColumnName.equalsIgnoreCase("CINT_DOMAIN"))
             {
               iType = Types.DISTINCT;
-              System.out.println("DISTINCT "+sTypeName);
+              System.out.println("  DISTINCT "+sTypeName);
+            }
+            else if (sColumnName.equalsIgnoreCase("CENUM_SUIT"))
+            {
+              iType = Types.DISTINCT;
+              System.out.println("  ENUM "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CCOMPOSITE"))
             {
               iType = Types.STRUCT;
-              System.out.println("STRUCT "+sTypeName);
+              System.out.println("  STRUCT "+sTypeName);
             }
-            else if (sColumnName.equalsIgnoreCase("CENUM_SUIT"))
-              iType = Types.VARCHAR;
             else if (sColumnName.equalsIgnoreCase("CINT_BUILTIN"))
             {
-              iType = Types.OTHER; // TODO: change to ARRAY
-              System.out.println("BUILTIN "+sTypeName);
-              System.out.println("  Size: "+String.valueOf(iColumnSize));
+              iType = Types.STRUCT;
+              System.out.println("  BUILTIN "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CSTRING_RANGE"))
             {
-              iType = Types.OTHER; // TODO: change to ARRAY
-              System.out.println("RANGE "+sTypeName);
-              System.out.println("  Size: "+String.valueOf(iColumnSize));
+              iType = Types.STRUCT;
+              System.out.println("  RANGE "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CSTRING_ARRAY"))
             {
               iType = Types.ARRAY;
-              sTypeName = "VARCHAR"; // could be parsed from list ...
+              System.out.println("  ARRAY "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CDOUBLE_MATRIX"))
             {
               iType = Types.ARRAY;
-              sTypeName = "DOUBLE PRECISION"; // could be parsed from list ...
+              System.out.println("  MATRIX "+sTypeName);
             }
             else
             {
+              // we really do not really need to check the TYPE_NAME as it remains unchanged
               PostgresType pgtFound = parsePostgresType(sTypeName);
               sTypeName = pgtFound.getPreType().getKeyword();
               PostgresType pgtExpected = parsePostgresType(cd.getType());
@@ -493,43 +498,45 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
               if ((pgtExpected == PostgresType.BIT) || (pgtExpected == PostgresType.VARBIT))
                 iRadix = 2;
             }
-          }  
-          else if ((sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase())) ||
-            (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase())) ||
-            (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase())))
+          }
+          // SQL
+          else if ((sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleTable().getName())) ||
+            (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedComplexTable().getName())) ||
+            (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleView().getName())))
           {
             TestColumnDefinition tcd = null;
-            if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase()))
+            if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleTable().getName()))
             {
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
               if (iPosition == TestSqlDatabase._iPrimarySimple)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            else if (sTableView.equals(TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase()))
+            else if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedComplexTable().getName()))
             {
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdComplex);
               if (iPosition == TestSqlDatabase._iPrimaryComplex)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            else if (sTableView.equals(TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()))
+            else if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleView().getName()))
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
             if (sColumnName.equalsIgnoreCase("CDISTINCT"))
             {
               iType = Types.DISTINCT;
-              System.out.println("DISTINCT "+sTypeName);
+              System.out.println("  DISTINCT "+sTypeName);
             }
-            else if (sColumnName.equalsIgnoreCase("CUDT"))
+            else if (sColumnName.equalsIgnoreCase("CUDT") || sColumnName.equalsIgnoreCase("COMPLETE"))
             {
               iType = Types.STRUCT;
-              System.out.println("STRUCT "+sTypeName);
+              System.out.println("  STRUCT "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CARRAY"))
             {
               iType = Types.ARRAY;
-              sTypeName = "VARCHAR"; // could be parsed from list ...
+              System.out.println("  ARRAY "+sTypeName);
             }
             else
             {
+              // we really do not really need to check the TYPE_NAME as it remains unchanged
               PostgresType pgtFound = parsePostgresType(sTypeName);
               sTypeName = pgtFound.getPreType().getKeyword();
               iPrecision = parsePrecision(tcd.getType());
@@ -541,8 +548,10 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
                 sNullable = "NO";
               else if (iNulls == DatabaseMetaData.columnNullableUnknown)
                 sNullable = "";
-              if ((pt == PreType.BINARY) || (pt == PreType.VARBINARY))
+              if (pt == PreType.BINARY)
                 iRadix = 2;
+              if (pt == PreType.VARBINARY)
+                iPrecision = Integer.MAX_VALUE;
             }
           }
           assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);
