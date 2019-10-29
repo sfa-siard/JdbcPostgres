@@ -43,6 +43,11 @@ public class PostgresMetaColumns
     String sCatalogName, String sSchemaName)
     throws SQLException
   {
+    if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
+    {
+      QualifiedId qiType = new QualifiedId(null,"pg_catalog",sTypeName);
+      sTypeName = qiType.format();
+    }
     /*** dont overwrite original type names!
     // internal names starting with _ are used for array elements
     if (sTypeName.startsWith("_"))

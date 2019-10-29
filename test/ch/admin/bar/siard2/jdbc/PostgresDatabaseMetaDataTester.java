@@ -618,6 +618,10 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
         System.out.println("Schema "+sSchema);
         print(getDatabaseMetaData().getUDTs(null,sSchema,"%", new int[] {Types.STRUCT} ));
       }
+      // and the built-in range
+      System.out.println("Schema pg_catalog");
+      print(getDatabaseMetaData().getUDTs(null,null,"int4range", new int[] {Types.STRUCT} ));
+      
     } 
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   }
