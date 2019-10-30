@@ -144,7 +144,7 @@ public class PostgresMetaColumns
         PreType pt = pgt.getPreType();
         sTypeName = pt.getKeyword();
       }
-      sTypeName = sTypeName + " array["+String.valueOf(Integer.MAX_VALUE)+"]";
+      sTypeName = sTypeName + " ARRAY["+String.valueOf(Integer.MAX_VALUE)+"]";
     }
     return sTypeName;
   } /* getTypeName */
