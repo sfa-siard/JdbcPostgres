@@ -38,13 +38,10 @@ public class PostgresMetaColumns
 
   private Connection _conn;
 
-  private int getAttTypMod()
+  private static int getAttTypMod(Connection conn, String sSchemaName, String sTableName, String sColumnName)
     throws SQLException
   {
     int iAttTypMod = -1;
-    String sSchemaName = this.getString(2);
-    String sTableName = this.getString(3);
-    String sColumnName = this.getString(4);
     StringBuilder sb = new StringBuilder();
     sb.append("SELECT a.atttypmod");
     sb.append("\r\nFROM pg_attribute a");
@@ -59,14 +56,75 @@ public class PostgresMetaColumns
     sb.append("\r\n a.attname = '");
     sb.append(sColumnName);
     sb.append("'");
-    Connection conn = _conn.unwrap(Connection.class);
-    Statement stmt = conn.createStatement();
+    Connection connPostgres = conn.unwrap(Connection.class);
+    Statement stmt = connPostgres.createStatement();
     ResultSet rs = stmt.executeQuery(sb.toString());
     if (rs.next())
       iAttTypMod = rs.getInt(1);
     rs.close();
     return iAttTypMod;    
   } /* getAttTypMod */
+  
+  public static String getIntervalTypeName(Connection conn, 
+    String sSchemaName, String sTableName, String sColumnName, 
+    String sTypeName)
+      throws SQLException
+  {
+    int iAttTypMod = getAttTypMod(conn,sSchemaName,sTableName,sColumnName);
+    if (iAttTypMod <= 0)
+      sTypeName = "VARCHAR";
+    else
+    {
+      int iDecimals = iAttTypMod & 0x0000FFFF;
+      boolean bYear = (iAttTypMod & 0x00040000) != 0;
+      boolean bMonth = (iAttTypMod & 0x00020000) != 0;
+      boolean bDay =  (iAttTypMod & 0x00080000) != 0;
+      boolean bHour =  (iAttTypMod & 0x04000000) != 0;
+      boolean bMinute =  (iAttTypMod & 0x08000000) != 0;
+      boolean bSecond =  (iAttTypMod & 0x10000000) != 0;
+      if (bYear)
+      {
+        if (bMonth)
+          sTypeName = "interval year to month";
+        else
+          sTypeName = "interval year";
+      }
+      else if (bMonth)
+        sTypeName = "interval month";
+      else if (bDay)
+      {
+        if (bSecond)
+          sTypeName = "interval day to second";
+        else if (bMinute)
+          sTypeName = "interval day to minute";
+        else if (bHour)
+          sTypeName = "interval day to hour";
+        else
+          sTypeName = "interval day";
+      }
+      else if (bHour)
+      {
+        if (bSecond)
+          sTypeName = "interval hour to second";
+        else if (bMinute)
+          sTypeName = "interval hour to minute";
+        else
+          sTypeName = "interval hour";
+      }
+      else if (bMinute)
+      {
+        if (bSecond)
+          sTypeName = "interval minute to second";
+        else 
+          sTypeName = "interval minute";
+      }
+      else if (bSecond)
+        sTypeName = "interval second";
+      if (bSecond && (iDecimals > 0))
+        sTypeName = sTypeName + "("+String.valueOf(iDecimals)+")";
+    }
+    return sTypeName;
+  } /* getIntervalTypeName */
   
   /*------------------------------------------------------------------*/
   private String getTypeName(String sTypeName, int iType)
@@ -79,59 +137,10 @@ public class PostgresMetaColumns
     }
     else if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
     {
-      int iAttTypMod = getAttTypMod();
-      if (iAttTypMod <= 0)
-        sTypeName = "VARCHAR";
-      else
-      {
-        int iDecimals = iAttTypMod & 0x0000FFFF;
-        boolean bYear = (iAttTypMod & 0x00040000) != 0;
-        boolean bMonth = (iAttTypMod & 0x00020000) != 0;
-        boolean bDay =  (iAttTypMod & 0x00080000) != 0;
-        boolean bHour =  (iAttTypMod & 0x04000000) != 0;
-        boolean bMinute =  (iAttTypMod & 0x08000000) != 0;
-        boolean bSecond =  (iAttTypMod & 0x10000000) != 0;
-        if (bYear)
-        {
-          if (bMonth)
-            sTypeName = "interval year to month";
-          else
-            sTypeName = "interval year";
-        }
-        else if (bMonth)
-          sTypeName = "interval month";
-        else if (bDay)
-        {
-          if (bSecond)
-            sTypeName = "interval day to second";
-          else if (bMinute)
-            sTypeName = "interval day to minute";
-          else if (bHour)
-            sTypeName = "interval day to hour";
-          else
-            sTypeName = "interval day";
-        }
-        else if (bHour)
-        {
-          if (bSecond)
-            sTypeName = "interval hour to second";
-          else if (bMinute)
-            sTypeName = "interval hour to minute";
-          else
-            sTypeName = "interval hour";
-        }
-        else if (bMinute)
-        {
-          if (bSecond)
-            sTypeName = "interval minute to second";
-          else 
-            sTypeName = "interval minute";
-        }
-        else if (bSecond)
-          sTypeName = "interval second";
-        if (bSecond && (iDecimals > 0))
-          sTypeName = sTypeName + "("+String.valueOf(iDecimals)+")";
-      }
+      String sSchemaName = this.getString(2);
+      String sTableName = this.getString(3);
+      String sColumnName = this.getString(4);
+      sTypeName = getIntervalTypeName(_conn, sSchemaName, sTableName, sColumnName, sTypeName);
     }
     else if (iType == Types.ARRAY)
     {
@@ -150,8 +159,7 @@ public class PostgresMetaColumns
   } /* getTypeName */
   
   /*------------------------------------------------------------------*/
-  private int getDataType(int iType, String sTypeName,
-    String sCatalogName, String sSchemaName)
+  private int getDataType(int iType, String sTypeName)
     throws SQLException
   {
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
@@ -162,7 +170,10 @@ public class PostgresMetaColumns
         iType = pt.getSqlType();
       if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
       {
-        if (getAttTypMod() <= 0)
+        String sSchemaName = this.getString(2);
+        String sTableName = this.getString(3);
+        String sColumnName = this.getString(4);
+        if (getAttTypMod(_conn,sSchemaName,sTableName,sColumnName) <= 0)
           iType = Types.VARCHAR;
       }
     }
@@ -305,9 +316,8 @@ public class PostgresMetaColumns
     {
       iResult = getDataType(
         iResult, 
-        super.getString(_iTypeName),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getString(_iTypeName)
+        );
     }
     else if (columnIndex == _iPrecision)
     {
@@ -358,9 +368,7 @@ public class PostgresMetaColumns
       int iResult = super.getInt(columnIndex); // maps null to 0
       oResult = getDataType(
         iResult, 
-        super.getString(_iTypeName),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iPrecision)
     {

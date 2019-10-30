@@ -823,9 +823,9 @@ public class PostgresDatabaseMetaData
       catalog, schemaPattern, typeNamePattern, attributeNamePattern));
     sb.append("\r\nORDER BY 1 ASC, 2 ASC, 3 ASC, 16 ASC");
     
-    Statement stmt = getConnection().createStatement().unwrap(Statement.class);
-    ResultSet rsAttributes = stmt.executeQuery(sb.toString());
-    return rsAttributes;
+    Statement stmt = getConnection().createStatement();
+    ResultSet rsAttributes = new PostgresResultSet(stmt.unwrap(Statement.class).executeQuery(sb.toString()),stmt);
+    return new PostgresMetaColumns(rsAttributes,getConnection(), 1,2,5,6,7,7,8,9);
   } /* getAttributes */
 
 } /* class PostgresDatabaseMetaData */

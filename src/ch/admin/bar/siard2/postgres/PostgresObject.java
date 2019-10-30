@@ -84,10 +84,17 @@ public class PostgresObject
     while (rsAttributes.next())
     {
       int iDataType = rsAttributes.getInt("DATA_TYPE");
-      String sTypeName = rsAttributes.getString("ATTR_TYPE_NAME");
+      String sAttributeTypeName = rsAttributes.getString("ATTR_TYPE_NAME");
+      if ((iDataType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sAttributeTypeName)))
+      {
+        String sSchemaName = rsAttributes.getString("TYPE_SCHEM");
+        String sTypeName = rsAttributes.getString("TYPE_NAME");
+        String sAttributeName = rsAttributes.getString("ATTR_NAME");
+        sAttributeTypeName = PostgresMetaColumns.getIntervalTypeName(_pconn, sSchemaName, sTypeName, sAttributeName, sAttributeTypeName);
+      }
       AttributeDescription ad = new AttributeDescription(
         iDataType,
-        sTypeName);
+        sAttributeTypeName);
       // String sAttributeName = rsAttributes.getString("ATTR_NAME");
       // System.out.println(sAttributeName+": "+String.valueOf(ad.getDataType())+" "+ad.getTypeName());
       listAttributeDescription.add(ad);

@@ -667,6 +667,17 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   }
 
   @Test
+  public void testGetAttributesAll()
+  {
+    enter();
+    try 
+    { 
+      print(getDatabaseMetaData().getAttributes(null,"testsqlschema","typsqlall", null));
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
+  @Test
   public void testGetAttributesRange()
   {
     enter();
