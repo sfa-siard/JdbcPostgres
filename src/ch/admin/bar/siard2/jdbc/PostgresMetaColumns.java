@@ -37,6 +37,36 @@ public class PostgresMetaColumns
   private int _iNumPrecRadix = -1;
 
   private Connection _conn;
+
+  private int getAttTypMod()
+    throws SQLException
+  {
+    int iAttTypMod = -1;
+    String sSchemaName = this.getString(2);
+    String sTableName = this.getString(3);
+    String sColumnName = this.getString(4);
+    StringBuilder sb = new StringBuilder();
+    sb.append("SELECT a.atttypmod");
+    sb.append("\r\nFROM pg_attribute a");
+    sb.append("\r\n  JOIN pg_class c ON (a.attrelid = c.oid)");
+    sb.append("\r\n  JOIN pg_namespace cn ON (c.relnamespace = cn.oid)");
+    sb.append("\r\nWHERE c.relname = '");
+    sb.append(sTableName);
+    sb.append("' AND");
+    sb.append("\r\n cn.nspname = '");
+    sb.append(sSchemaName);
+    sb.append("' AND");
+    sb.append("\r\n a.attname = '");
+    sb.append(sColumnName);
+    sb.append("'");
+    Connection conn = _conn.unwrap(Connection.class);
+    Statement stmt = conn.createStatement();
+    ResultSet rs = stmt.executeQuery(sb.toString());
+    if (rs.next())
+      iAttTypMod = rs.getInt(1);
+    rs.close();
+    return iAttTypMod;    
+  } /* getAttTypMod */
   
   /*------------------------------------------------------------------*/
   private String getTypeName(String sTypeName, int iType)
@@ -47,7 +77,63 @@ public class PostgresMetaColumns
       QualifiedId qiType = new QualifiedId(null,"pg_catalog",sTypeName);
       sTypeName = qiType.format();
     }
-    if (iType == Types.ARRAY)
+    else if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
+    {
+      int iAttTypMod = getAttTypMod();
+      if (iAttTypMod <= 0)
+        sTypeName = "VARCHAR";
+      else
+      {
+        int iDecimals = iAttTypMod & 0x0000FFFF;
+        boolean bYear = (iAttTypMod & 0x00040000) != 0;
+        boolean bMonth = (iAttTypMod & 0x00020000) != 0;
+        boolean bDay =  (iAttTypMod & 0x00080000) != 0;
+        boolean bHour =  (iAttTypMod & 0x04000000) != 0;
+        boolean bMinute =  (iAttTypMod & 0x08000000) != 0;
+        boolean bSecond =  (iAttTypMod & 0x10000000) != 0;
+        if (bYear)
+        {
+          if (bMonth)
+            sTypeName = "interval year to month";
+          else
+            sTypeName = "interval year";
+        }
+        else if (bMonth)
+          sTypeName = "interval month";
+        else if (bDay)
+        {
+          if (bSecond)
+            sTypeName = "interval day to second";
+          else if (bMinute)
+            sTypeName = "interval day to minute";
+          else if (bHour)
+            sTypeName = "interval day to hour";
+          else
+            sTypeName = "interval day";
+        }
+        else if (bHour)
+        {
+          if (bSecond)
+            sTypeName = "interval hour to second";
+          else if (bMinute)
+            sTypeName = "interval hour to minute";
+          else
+            sTypeName = "interval hour";
+        }
+        else if (bMinute)
+        {
+          if (bSecond)
+            sTypeName = "interval minute to second";
+          else 
+            sTypeName = "interval minute";
+        }
+        else if (bSecond)
+          sTypeName = "interval second";
+        if (bSecond && (iDecimals > 0))
+          sTypeName = sTypeName + "("+String.valueOf(iDecimals)+")";
+      }
+    }
+    else if (iType == Types.ARRAY)
     {
       // internal names starting with _ are used for array elements
       if (sTypeName.startsWith("_"))
@@ -58,7 +144,7 @@ public class PostgresMetaColumns
         PreType pt = pgt.getPreType();
         sTypeName = pt.getKeyword();
       }
-      sTypeName = sTypeName + " ARRAY["+String.valueOf(Integer.MAX_VALUE)+"]";
+      sTypeName = sTypeName + " array["+String.valueOf(Integer.MAX_VALUE)+"]";
     }
     return sTypeName;
   } /* getTypeName */
@@ -74,6 +160,11 @@ public class PostgresMetaColumns
       PreType pt = pgt.getPreType();
       if (pt != null)
         iType = pt.getSqlType();
+      if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
+      {
+        if (getAttTypMod() <= 0)
+          iType = Types.VARCHAR;
+      }
     }
     else
     {

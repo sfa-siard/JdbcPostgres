@@ -480,13 +480,26 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             else
             {
               // we really do not really need to check the TYPE_NAME as it remains unchanged
-              PostgresType pgtFound = parsePostgresType(sTypeName);
-              sTypeName = pgtFound.getPreType().getKeyword();
-              PostgresType pgtExpected = parsePostgresType(cd.getType());
+              if (!sTypeName.startsWith(PostgresType.INTERVAL.getKeyword()))
+              {
+                PostgresType pgtFound = parsePostgresType(sTypeName);
+                sTypeName = pgtFound.getPreType().getKeyword();
+              }
               iPrecision = parsePrecision(cd.getType());
               iScale = parseScale(cd.getType());
-              iType = pgtExpected.getPreType().getSqlType();
-              sType = pgtExpected.getPreType().getKeyword();
+              if (!cd.getType().startsWith(PostgresType.INTERVAL.getKeyword()))
+              {
+                PostgresType pgtExpected = parsePostgresType(cd.getType());
+                iType = pgtExpected.getPreType().getSqlType();
+                sType = pgtExpected.getPreType().getKeyword();
+                if ((pgtExpected == PostgresType.BIT) || (pgtExpected == PostgresType.VARBIT))
+                  iRadix = 2;
+              }
+              else
+              {
+                iType = Types.OTHER;
+                sType = cd.getType();
+              }
               if (cd.getType().indexOf("serial") >= 0)
                 sAutoIncrement = "YES";
               if (sAutoIncrement.equals("YES"))
@@ -495,8 +508,6 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
                 sNullable = "NO";
               else if (iNulls == DatabaseMetaData.columnNullableUnknown)
                 sNullable = "";
-              if ((pgtExpected == PostgresType.BIT) || (pgtExpected == PostgresType.VARBIT))
-                iRadix = 2;
             }
           }
           // SQL
