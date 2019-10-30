@@ -39,8 +39,7 @@ public class PostgresMetaColumns
   private Connection _conn;
   
   /*------------------------------------------------------------------*/
-  private String getTypeName(String sTypeName, int iColumnSize, int iDecimals,
-    String sCatalogName, String sSchemaName)
+  private String getTypeName(String sTypeName, int iType)
     throws SQLException
   {
     if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
@@ -48,17 +47,19 @@ public class PostgresMetaColumns
       QualifiedId qiType = new QualifiedId(null,"pg_catalog",sTypeName);
       sTypeName = qiType.format();
     }
-    /*** dont overwrite original type names!
-    // internal names starting with _ are used for array elements
-    if (sTypeName.startsWith("_"))
-      sTypeName = sTypeName.substring(1);
-    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
-    if (pgt != null)
+    if (iType == Types.ARRAY)
     {
-      PreType pt = pgt.getPreType();
-      sTypeName = pt.getKeyword();
+      // internal names starting with _ are used for array elements
+      if (sTypeName.startsWith("_"))
+        sTypeName = sTypeName.substring(1);
+      PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+      if (pgt != null)
+      {
+        PreType pt = pgt.getPreType();
+        sTypeName = pt.getKeyword();
+      }
+      sTypeName = sTypeName + " ARRAY["+String.valueOf(Integer.MAX_VALUE)+"]";
     }
-    ***/
     return sTypeName;
   } /* getTypeName */
   
@@ -195,10 +196,7 @@ public class PostgresMetaColumns
         iLength = super.getInt(_iLength);
       sResult = getTypeName(
         sResult, 
-        iLength, 
-        super.getInt(_iScale),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getInt(_iDataType));
     }
     return sResult;
   } /* getString */
@@ -316,10 +314,7 @@ public class PostgresMetaColumns
         iLength = super.getInt(_iLength);
       oResult = getTypeName(
         (String)oResult, 
-        iLength, 
-        super.getInt(_iScale),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getInt(_iDataType));
     }
     return oResult;
   } /* getObject */

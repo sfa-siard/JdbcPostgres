@@ -567,7 +567,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
         }
         rsColumns.close();
-        // print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
+        print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
       }
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
