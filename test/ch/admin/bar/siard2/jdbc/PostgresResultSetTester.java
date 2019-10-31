@@ -1966,6 +1966,24 @@ public class PostgresResultSetTester
     }
     catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
   } /* checkStruct */
+
+  private List<TestColumnDefinition> flattenElements(List<TestColumnDefinition> listElements)
+  {
+    List<TestColumnDefinition> listFlat = new ArrayList<TestColumnDefinition>();
+    for (int iElement = 0; iElement < listElements.size(); iElement++)
+    {
+      TestColumnDefinition tcd = listElements.get(iElement);
+      if (tcd.getValue() instanceof List<?>)
+      {
+        @SuppressWarnings("unchecked")
+        List<TestColumnDefinition> list = (List<TestColumnDefinition>)tcd.getValue();
+        listFlat.addAll(flattenElements(list));
+      }
+      else
+        listFlat.add(tcd);
+    }
+    return listFlat;
+  } /* flattenElements */
   
   private void checkArray(String sIndent, Object o, TestColumnDefinition tcd, String sTypeName, String sDataType)
     throws SQLException
@@ -1980,6 +1998,7 @@ public class PostgresResultSetTester
       {
         @SuppressWarnings("unchecked")
         List<TestColumnDefinition> listElements = (List<TestColumnDefinition>)tcd.getValue();
+        listElements = flattenElements(listElements);
         Object[] ao = (Object[])array.getArray();
         if (ao.length == listElements.size())
         {

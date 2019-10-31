@@ -2,6 +2,7 @@ package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
 import java.text.*;
+import java.util.*;
 
 import ch.admin.bar.siard2.postgres.*;
 import ch.enterag.utils.*;
@@ -45,7 +46,24 @@ public class PostgresArray
     }
     catch(ParseException pe) { throw new SQLException("Could not parse array element "+String.valueOf(oElement)+" ("+EU.getExceptionMessage(pe)+")!"); }
     return oElement;
-  }
+  } /* getElement */
+
+  private void addElements(Object[] ao,List<Object> list)
+    throws SQLException
+  {
+    for (int iElement = 0; iElement < ao.length; iElement++)
+    {
+      Object oElement = ao[iElement];
+      if (!(oElement instanceof Array)) 
+        list.add(oElement);
+      else
+      {
+        Array array = (Array)oElement;
+        Object[] aoElement = (Object[])array.getArray();
+        addElements(aoElement,list);
+      }
+    }
+  } /* addElements */
   
   public PostgresArray(Array array, PostgresConnection conn)
     throws SQLException
@@ -59,7 +77,12 @@ public class PostgresArray
     Object[] ao = new Object[_ao.length];
     for (int iElement = 0; iElement < _ao.length; iElement++)
       ao[iElement] = getElement(_ao[iElement],conn);
-    _ao = ao;
+    // now flatten it!
+    List<Object> list = new ArrayList<Object>();
+    addElements(ao,list);
+    _ao = list.toArray();
+    _iBaseType = _iFinalBaseType;
+    _sBaseTypeName = _sFinalBaseTypeName; 
   } /* constructor */
   
   public PostgresArray(Object[] ao, int iFinalBaseType, String sFinalBaseTypeName, PostgresConnection conn)
