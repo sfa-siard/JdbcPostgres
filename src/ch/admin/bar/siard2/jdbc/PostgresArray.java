@@ -4,6 +4,7 @@ import java.sql.*;
 import java.text.*;
 import java.util.*;
 
+import org.postgresql.jdbc.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
@@ -13,6 +14,7 @@ public class PostgresArray
 {
   private Object[] _ao = null;
   private int _iBaseType = Types.NULL;
+  @SuppressWarnings("unused")
   private String _sBaseTypeName = null;
   private int _iFinalBaseType = Types.NULL;
   private String _sFinalBaseTypeName = null;
@@ -65,7 +67,7 @@ public class PostgresArray
     }
   } /* addElements */
   
-  public PostgresArray(Array array, PostgresConnection conn)
+  public PostgresArray(PgArray array, PostgresConnection conn)
     throws SQLException
   {
     super(array);
@@ -77,12 +79,7 @@ public class PostgresArray
     Object[] ao = new Object[_ao.length];
     for (int iElement = 0; iElement < _ao.length; iElement++)
       ao[iElement] = getElement(_ao[iElement],conn);
-    // now flatten it!
-    List<Object> list = new ArrayList<Object>();
-    addElements(ao,list);
-    _ao = list.toArray();
-    _iBaseType = _iFinalBaseType;
-    _sBaseTypeName = _sFinalBaseTypeName; 
+    _ao = ao;
   } /* constructor */
   
   public PostgresArray(Object[] ao, int iFinalBaseType, String sFinalBaseTypeName, PostgresConnection conn)
@@ -103,7 +100,7 @@ public class PostgresArray
   @Override
   public String getBaseTypeName() throws SQLException
   {
-    return _sBaseTypeName;
+    return _sFinalBaseTypeName;
   } /* getBaseTypeName */
 
   /*------------------------------------------------------------------*/
@@ -111,7 +108,7 @@ public class PostgresArray
   @Override
   public int getBaseType() throws SQLException
   {
-    return _iBaseType;
+    return _iFinalBaseType;
   } /* getBaseType */
 
   /*------------------------------------------------------------------*/
@@ -119,7 +116,18 @@ public class PostgresArray
   @Override
   public Object getArray() throws SQLException
   {
-    return _ao;
+    // now flatten it!
+    List<Object> list = new ArrayList<Object>();
+    addElements(_ao,list);
+    Object[] ao = list.toArray();
+    return ao;
   } /* getArray */
+  
+  public String getFieldString()
+  {
+    StringBuilder sbFields = new StringBuilder();
+    // create PostgresObject and get its field string
+    return sbFields.toString();
+  }
 
 }

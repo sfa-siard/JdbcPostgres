@@ -1416,9 +1416,9 @@ public class PostgresResultSetTester
     try 
     { 
       openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
-      // TestColumnDefinition tcd = findColumnDefinition(_listCdComplex,"CARRAY");
-      Array array = getResultSet().getArray(1);
-      getResultSet().updateArray("CARRAY",array);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CARRAY");
+      Array array = getResultSet().getArray(tcd.getName());
+      getResultSet().updateArray(tcd.getName(),array);
       array.free();
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }

@@ -67,6 +67,8 @@ public class PostgresResultSetMetaData
         if (pt != null)
           iType = pt.getSqlType();
       }
+      else if (sTypeName.startsWith("interval"))
+        iType = PreType.INTERVAL.getSqlType();
       else
       {
         try

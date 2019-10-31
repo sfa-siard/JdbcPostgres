@@ -179,6 +179,30 @@ implements ResultSet
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
+  public Array getArray(int columnIndex) throws SQLException
+  {
+    PostgresConnection conn = (PostgresConnection)_stmt.getConnection();
+    Array array = new PostgresArray((PgArray)super.getArray(columnIndex), conn);
+    return array;
+  } /* getArray */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc}
+  @Override
+  public void updateArray(int columnIndex, Array x) throws SQLException
+  {
+    PostgresArray pa = (PostgresArray)x;
+    int iOid = 0;
+    String sFields = pa.getFieldString();
+    PostgresConnection conn = (PostgresConnection)_stmt.getConnection();
+    org.postgresql.core.BaseConnection bconn = (org.postgresql.core.BaseConnection)conn.unwrap(Connection.class);
+    PgArray parray = new PgArray(bconn,iOid,sFields);
+    super.updateArray(columnIndex, parray);
+  } /* updateArray */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
   public Blob getBlob(int columnIndex) throws SQLException
   {
     Blob blob = new PostgresBlob((PgBlob)super.getBlob(columnIndex));
