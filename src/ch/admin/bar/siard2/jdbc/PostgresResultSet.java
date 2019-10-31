@@ -11,6 +11,7 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.sql.*;
 import java.text.*;
 import java.util.*;
@@ -96,6 +97,30 @@ implements ResultSet
     else
       super.updateBytes(columnIndex, x);
   } /* updateBytes */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public BigDecimal getBigDecimal(int columnIndex) throws SQLException
+  {
+    BigDecimal bd = null;
+    try { bd = super.getBigDecimal(columnIndex); }
+    catch(SQLException se) // bad JDBC implementation of MONEY data type
+    {
+      // most likely Postgres JDBC uses the client locale for formatting the string ...
+      String s = super.getString(columnIndex);
+      // in JAVA 8 the Locale de_CH uses apostrophes rather than right single quotes!
+      Locale locDefault = Locale.getDefault();
+      DecimalFormatSymbols dfs = new DecimalFormatSymbols(locDefault);
+      DecimalFormat df = new DecimalFormat("#,##0.0#",dfs);
+      df.setParseBigDecimal(true);
+      s = s.substring(df.getCurrency().getCurrencyCode().length()).trim();
+      s = s.replace('\u2019', '\'');
+      try { bd = (BigDecimal)df.parse(s); }
+      catch(ParseException pe) { throw new SQLException("Error parsing string ("+EU.getExceptionMessage(pe)+")!"); }
+    }
+    return bd;
+  } /* getBigDecimal */
 
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */

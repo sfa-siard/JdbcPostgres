@@ -569,7 +569,8 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CDECIMAL_15_5");
+      openResultSet(_sNativeQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      TestColumnDefinition tcd = findColumnDefinition(TestPostgresDatabase._listCdSimple,"CMONEY");
       BigDecimal bd = getResultSet().getBigDecimal(tcd.getName());
       assertTrue("Invalid BigDecimal!",bd.compareTo((BigDecimal)tcd.getValue()) == 0);
     }
