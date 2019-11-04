@@ -174,6 +174,11 @@ public class TestPostgresDatabase
           UUID uuid = (UUID)getValue();
           sValueLiteral = PostgresLiterals.formatStringLiteral(uuid.toString());
         }
+        else if (getName().equals("CMACADDR") || (getName().equals("CMACADDR8")))
+        {
+          byte[] buf = (byte[])getValue();
+          sValueLiteral = PostgresLiterals.formatStringLiteral(PostgresLiterals.formatMacAddr(buf));
+        }
         else
           sValueLiteral = super.getValueLiteral();
       }
@@ -258,8 +263,8 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CVARBIT_805",PostgresType.VARBIT.getKeyword()+"(805)",PostgresLiterals.formatBitString(TestUtils.getBytes(101),805)));
     listCdSimple.add(new ColumnDefinition("CBYTEA",PostgresType.BYTEA.getKeyword(),TestUtils.getBytes(5000)));
     listCdSimple.add(new ColumnDefinition("CUUID",PostgresType.UUID.getKeyword(),UUID.randomUUID()));
-    listCdSimple.add(new ColumnDefinition("CMACADDR",PostgresType.MACADDR.getKeyword(),PostgresLiterals.formatMacAddr(TestUtils.getBytes(6))));
-    listCdSimple.add(new ColumnDefinition("CMACADDR8",PostgresType.MACADDR8.getKeyword(),PostgresLiterals.formatMacAddr(TestUtils.getBytes(8))));
+    listCdSimple.add(new ColumnDefinition("CMACADDR",PostgresType.MACADDR.getKeyword(),TestUtils.getBytes(6)));
+    listCdSimple.add(new ColumnDefinition("CMACADDR8",PostgresType.MACADDR8.getKeyword(),TestUtils.getBytes(8)));
     
     // spatial
     listCdSimple.add(new ColumnDefinition("CPOINT",PostgresType.POINT.getKeyword(),"(1.5,2.0)"));

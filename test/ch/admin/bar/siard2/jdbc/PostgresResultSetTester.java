@@ -89,6 +89,56 @@ public class PostgresResultSetTester
   }
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();
   
+  private static List<TestColumnDefinition> getListAdSimple()
+  {
+    List<TestColumnDefinition> listAdSimple = new ArrayList<TestColumnDefinition>();
+    listAdSimple.add(new TestColumnDefinition("TABLEID","INTEGER",Integer.valueOf(2)));
+    listAdSimple.add(new TestColumnDefinition("TRANSCRIPTION","CLOB",TestUtils.getString(500000)));
+    listAdSimple.add(new TestColumnDefinition("SOUND","BLOB",TestUtils.getBytes(500000)));
+    return listAdSimple;
+  }
+  public static List<TestColumnDefinition> _listAdSimple = getListAdSimple();
+  
+  private static List<TestColumnDefinition> getListAdComplex()
+  {
+    List<TestColumnDefinition> listAdComplex = new ArrayList<TestColumnDefinition>();
+    listAdComplex.add(new TestColumnDefinition("ID","INTEGER",Integer.valueOf(2)));
+    listAdComplex.add(new TestColumnDefinition("NESTED_ROW",TestSqlDatabase.getQualifiedSimpleType().format(),getListAdSimple()));
+    return listAdComplex;
+  }
+  public static List<TestColumnDefinition> _listAdComplex = getListAdComplex();
+
+  private static List<TestColumnDefinition> getListBaseDistinct()
+  {
+    List<TestColumnDefinition> listBaseDistinct = new ArrayList<TestColumnDefinition>();
+    listBaseDistinct.add(new TestColumnDefinition(TestSqlDatabase.getQualifiedDistinctType().format(),"NCHAR VARYING(10)","AuwäähNiño"));
+    return listBaseDistinct;
+  }
+  public static List<TestColumnDefinition> _listBaseDistinct = getListBaseDistinct();
+  
+  private static List<TestColumnDefinition> getListCdArray()
+  {
+    List<TestColumnDefinition> listCd = new ArrayList<TestColumnDefinition>();
+    listCd.add(new TestColumnDefinition("CARRAY[1]","VARCHAR(255)",TestUtils.getString(94)));
+    listCd.add(new TestColumnDefinition("CARRAY[2]","VARCHAR(255)",TestUtils.getString(125)));
+    listCd.add(new TestColumnDefinition("CARRAY[3]","VARCHAR(255)",TestUtils.getString(32)));
+    listCd.add(new TestColumnDefinition("CARRAY[4]","VARCHAR(255)",TestUtils.getString(4)));
+    return listCd;
+  }
+  public static List<TestColumnDefinition> _listCdArray = getListCdArray();
+
+  private static List<TestColumnDefinition> getListCdComplex()
+  {
+    List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();
+    listCdComplex.add(new TestColumnDefinition("CID","INT",Integer.valueOf(987654321)));
+    listCdComplex.add(new TestColumnDefinition("COMPLETE",TestSqlDatabase.getQualifiedAllType().format(),_listCdSimple));
+    listCdComplex.add(new TestColumnDefinition("CUDT",TestSqlDatabase.getQualifiedComplexType().format(),_listAdComplex));
+    listCdComplex.add(new TestColumnDefinition("CDISTINCT",TestSqlDatabase.getQualifiedDistinctType().format(),_listBaseDistinct));
+    listCdComplex.add(new TestColumnDefinition("CARRAY","VARCHAR(255) ARRAY[1000]",_listCdArray));
+    return listCdComplex;
+  }
+  public static List<TestColumnDefinition> _listCdComplex = getListCdComplex();
+  
   private static final int iBUFSIZ = 8192;
   
   @BeforeClass
@@ -720,7 +770,7 @@ public class PostgresResultSetTester
   private Timestamp truncateToMicros(Timestamp ts)
   {
     int iNanos = ts.getNanos();
-    ts.setNanos(1000*((iNanos+999)/1000));
+    ts.setNanos(1000*((iNanos+499)/1000));
     return ts;
   } /* truncateToMicros */
   
@@ -1635,30 +1685,31 @@ public class PostgresResultSetTester
     {
       String s = (String)o;
       String sExpected = (String)tcd.getValue();
-      if (sTypeName.equals(PostgresType.JSONB.getKeyword()) ||
-        (sTypeName.equals(PostgresType.JSON.getKeyword())))
+      PostgresType pt = PostgresType.getByKeyword(sTypeName);
+      if ((pt == PostgresType.JSONB) ||
+        (pt == PostgresType.JSON))
       {
         Object oj  = JSONValue.parse(s);
         Object ojExpected = JSONValue.parse(sExpected);
         assertEquals("Invalid value for "+tcd.getType()+"!",ojExpected,oj);
       }
-      else if (sTypeName.equals(PostgresType.TSVECTOR.getKeyword()))
+      else if (pt == PostgresType.TSVECTOR)
         checkTsVector(s, sExpected);
-      else if (sTypeName.equals(PostgresType.TSQUERY.getKeyword()))
+      else if (pt == PostgresType.TSQUERY)
         checkTsQuery(s, sExpected);
-      else if (sTypeName.equals(PostgresType.POINT.getKeyword()))
+      else if (pt == PostgresType.POINT)
         checkPoint(s, sExpected);
-      else if (sTypeName.equals(PostgresType.LINE.getKeyword()))
+      else if (pt == PostgresType.LINE)
         checkLine(s, sExpected);
-      else if (sTypeName.equals(PostgresType.LSEG.getKeyword()))
+      else if (pt == PostgresType.LSEG)
         checkLseg(s, sExpected);
-      else if (sTypeName.equals(PostgresType.BOX.getKeyword()))
+      else if (pt == PostgresType.BOX)
         checkBox(s, sExpected);
-      else if (sTypeName.equals(PostgresType.PATH.getKeyword()))
+      else if (pt == PostgresType.PATH)
         checkPath(s, sExpected);
-      else if (sTypeName.equals(PostgresType.POLYGON.getKeyword()))
+      else if (pt == PostgresType.POLYGON)
         checkPolygon(s, sExpected);
-      else if (sTypeName.equals(PostgresType.CIRCLE.getKeyword()))
+      else if (pt == PostgresType.CIRCLE)
         checkCircle(s, sExpected);
       else
       {
@@ -1714,7 +1765,13 @@ public class PostgresResultSetTester
       else if (tcd.getValue() instanceof String)
       {
         String sExpected = (String)tcd.getValue();
-        bufExpected = PostgresLiterals.parseBitString(sExpected);
+        PostgresType pt = PostgresType.getByKeyword(sTypeName);
+        if ((pt == PostgresType.BIT) ||
+          (pt  == PostgresType.VARBIT))
+          bufExpected = PostgresLiterals.parseBitString(sExpected);
+        else if ((pt == PostgresType.MACADDR) ||
+          (pt == PostgresType.MACADDR8))
+          bufExpected = PostgresLiterals.parseMacAddr(sExpected);
       }
       else
         bufExpected = (byte[])tcd.getValue();
@@ -2240,5 +2297,331 @@ public class PostgresResultSetTester
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetObjectNativeComplex */
+  
+  @Test
+  public void testInsertRowSimple() throws SQLException
+  {
+    enter();
+    try 
+    {
+      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      getResultSet().moveToInsertRow();
+      TestColumnDefinition tcd = findColumnDefinition(_listCdSimple,"CINTEGER");
+      getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+      tcd = findColumnDefinition(_listCdSimple,"CCHAR_5");
+      getResultSet().updateString(tcd.getName(),(String)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CVARCHAR_255");
+      getResultSet().updateString(tcd.getName(),(String)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CNCHAR_5");
+      getResultSet().updateString(tcd.getName(),(String)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CNVARCHAR_127");
+      getResultSet().updateString(tcd.getName(),(String)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CCLOB_2M");
+      Clob clob = getResultSet().getStatement().getConnection().createClob();
+      clob.setString(1l, (String)tcd.getValue());
+      getResultSet().updateClob(tcd.getName(), clob);
+      tcd = findColumnDefinition(_listCdSimple,"CNCLOB_1M");
+      NClob nclob = getResultSet().getStatement().getConnection().createNClob();
+      nclob.setString(1l, (String)tcd.getValue());
+      getResultSet().updateNClob(tcd.getName(), nclob);
+      tcd = findColumnDefinition(_listCdSimple,"CXML");
+      SQLXML sqlxml = getResultSet().getStatement().getConnection().createSQLXML();
+      sqlxml.setString((String)tcd.getValue());
+      getResultSet().updateSQLXML(tcd.getName(), sqlxml);
+      tcd = findColumnDefinition(_listCdSimple,"CBINARY_5");
+      getResultSet().updateBytes(tcd.getName(),(byte[])tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CVARBINARY_255");
+      getResultSet().updateBytes(tcd.getName(),(byte[])tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CBLOB");
+      Blob blob = getResultSet().getStatement().getConnection().createBlob();
+      blob.setBytes(1l, (byte[])tcd.getValue());
+      getResultSet().updateBlob(tcd.getName(), blob);
+      tcd = findColumnDefinition(_listCdSimple,"CNUMERIC_31");
+      getResultSet().updateBigDecimal(tcd.getName(),new BigDecimal((BigInteger)tcd.getValue()));
+      tcd = findColumnDefinition(_listCdSimple,"CDECIMAL_15_5");
+      getResultSet().updateBigDecimal(tcd.getName(),(BigDecimal)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CSMALLINT");
+      getResultSet().updateShort(tcd.getName(),((Short)tcd.getValue()).shortValue());
+      tcd = findColumnDefinition(_listCdSimple,"CINTEGER");
+      getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+      tcd = findColumnDefinition(_listCdSimple,"CBIGINT");
+      getResultSet().updateLong(tcd.getName(),((Long)tcd.getValue()).longValue());
+      tcd = findColumnDefinition(_listCdSimple,"CFLOAT_10");
+      getResultSet().updateDouble(tcd.getName(),((Float)tcd.getValue()).doubleValue());
+      tcd = findColumnDefinition(_listCdSimple,"CREAL");
+      getResultSet().updateFloat(tcd.getName(),((Float)tcd.getValue()).floatValue());
+      tcd = findColumnDefinition(_listCdSimple,"CDOUBLE");
+      getResultSet().updateDouble(tcd.getName(),((Double)tcd.getValue()).doubleValue());
+      tcd = findColumnDefinition(_listCdSimple,"CBOOLEAN");
+      getResultSet().updateBoolean(tcd.getName(),((Boolean)tcd.getValue()).booleanValue());
+      tcd = findColumnDefinition(_listCdSimple,"CDATE");
+      getResultSet().updateDate(tcd.getName(),(Date)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CTIME");
+      getResultSet().updateTime(tcd.getName(),(Time)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CTIMESTAMP");
+      getResultSet().updateTimestamp(tcd.getName(),(Timestamp)tcd.getValue());
+      tcd = findColumnDefinition(_listCdSimple,"CINTERVAL_YEAR_3_MONTH");
+      ((BaseResultSet)getResultSet()).updateDuration(tcd.getName(),((Interval)tcd.getValue()).toDuration());
+      tcd = findColumnDefinition(_listCdSimple,"CINTERVAL_DAY_2_SECONDS_6");
+      ((BaseResultSet)getResultSet()).updateDuration(tcd.getName(),((Interval)tcd.getValue()).toDuration());
+      getResultSet().insertRow();
+      getResultSet().moveToCurrentRow();
+      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      tcd = findColumnDefinition(
+        _listCdSimple,"CINTEGER");
+      while ((getResultSet().getInt(tcd.getName()) != ((Integer)tcd.getValue()).intValue()) && 
+        getResultSet().next()) {}
+
+      tcd = findColumnDefinition(_listCdSimple,"CINTEGER");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        ((Integer)tcd.getValue()).intValue(),
+        getResultSet().getInt(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CCHAR_5");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        (getResultSet().getString(tcd.getName())).substring(0,((String)tcd.getValue()).length()));
+      tcd = findColumnDefinition(_listCdSimple,"CVARCHAR_255");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        getResultSet().getString(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CNCHAR_5");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        (getResultSet().getString(tcd.getName())).substring(0,((String)tcd.getValue()).length()));
+      tcd = findColumnDefinition(_listCdSimple,"CNVARCHAR_127");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        getResultSet().getString(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CCLOB_2M");
+      clob = getResultSet().getClob(tcd.getName());
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        clob.getSubString(1l, (int)clob.length()));
+      tcd = findColumnDefinition(_listCdSimple,"CNCLOB_1M");
+      nclob = getResultSet().getNClob(tcd.getName());
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        nclob.getSubString(1l, (int)nclob.length()));
+      tcd = findColumnDefinition(_listCdSimple,"CXML");
+      sqlxml = getResultSet().getSQLXML(tcd.getName());
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (String)tcd.getValue(),
+        sqlxml.getString().replaceAll("\\n\\s*",""));
+      tcd = findColumnDefinition(_listCdSimple,"CBINARY_5");
+      assertTrue("Insert of "+tcd.getType()+" failed!",
+        Arrays.equals(
+          (byte[])tcd.getValue(),
+          Arrays.copyOf(
+            getResultSet().getBytes(tcd.getName()),
+            ((byte[])tcd.getValue()).length)));
+      tcd = findColumnDefinition(_listCdSimple,"CVARBINARY_255");
+      assertTrue("Insert of "+tcd.getType()+" failed!",
+        Arrays.equals(
+          (byte[])tcd.getValue(),
+          getResultSet().getBytes(tcd.getName())));
+      tcd = findColumnDefinition(_listCdSimple,"CBLOB");
+      blob = getResultSet().getBlob(tcd.getName());
+      assertTrue("Insert of "+tcd.getType()+" failed!",
+        Arrays.equals(
+          (byte[])tcd.getValue(),
+          blob.getBytes(1l,(int)blob.length())));
+      tcd = findColumnDefinition(_listCdSimple,"CNUMERIC_31");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (BigInteger)tcd.getValue(),
+        getResultSet().getBigDecimal(tcd.getName()).toBigInteger());
+      tcd = findColumnDefinition(_listCdSimple,"CDECIMAL_15_5");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (BigDecimal)tcd.getValue(),
+        getResultSet().getBigDecimal(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CSMALLINT");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        ((Short)tcd.getValue()).shortValue(),
+        getResultSet().getShort(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CINTEGER");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        ((Integer)tcd.getValue()).intValue(),
+        getResultSet().getInt(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CBIGINT");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        ((Long)tcd.getValue()).longValue(),
+        getResultSet().getLong(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CFLOAT_10");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Float)tcd.getValue(),
+        Float.valueOf(getResultSet().getFloat(tcd.getName())));
+      tcd = findColumnDefinition(_listCdSimple,"CREAL");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Float)tcd.getValue(),
+        Float.valueOf(getResultSet().getFloat(tcd.getName())));
+      tcd = findColumnDefinition(_listCdSimple,"CDOUBLE");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Double)tcd.getValue(),
+        Double.valueOf(getResultSet().getDouble(tcd.getName())));
+      tcd = findColumnDefinition(_listCdSimple,"CBOOLEAN");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Boolean)tcd.getValue(),
+        Boolean.valueOf(getResultSet().getBoolean(tcd.getName())));
+      tcd = findColumnDefinition(_listCdSimple,"CDATE");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Date)tcd.getValue(),
+        getResultSet().getDate(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CTIME");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Time)tcd.getValue(),
+        getResultSet().getTime(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CTIMESTAMP");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        truncateToMicros((Timestamp)tcd.getValue()),
+        getResultSet().getTimestamp(tcd.getName()));
+      tcd = findColumnDefinition(_listCdSimple,"CINTERVAL_YEAR_3_MONTH");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        (Interval)tcd.getValue(),
+        Interval.fromDuration(((BaseResultSet)getResultSet()).getDuration(tcd.getName())));
+      tcd = findColumnDefinition(_listCdSimple,"CINTERVAL_DAY_2_SECONDS_6");
+      Date dateZero = new Date(0l);
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        ((Interval)tcd.getValue()).toDuration().getTimeInMillis(dateZero)/1000,
+        ((BaseResultSet)getResultSet()).getDuration(tcd.getName()).getTimeInMillis(dateZero)/1000);
+      // restore the database
+      tearDown();
+      setUpClass();
+      setUp();
+    }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+  
+  private boolean equalsStructValue(Struct struct,List<TestColumnDefinition> listAd)
+    throws SQLException, ParseException
+  {
+    boolean bEqual = false;
+    if (listAd.size() == struct.getAttributes().length)
+    {
+      bEqual = true;
+      for (int iAttribute = 0; iAttribute < listAd.size(); iAttribute++)
+      {
+        TestColumnDefinition tad = listAd.get(iAttribute);
+        Object o = struct.getAttributes()[iAttribute];
+        if (o instanceof Clob)
+        {
+          Clob clob = (Clob)o;
+          o = clob.getSubString(1l, (int)clob.length());
+        }
+        else if (o instanceof Blob)
+        {
+          Blob blob = (Blob)o;
+          o = blob.getBytes(1l, (int)blob.length());
+        }
+        else if (o instanceof SQLXML)
+        {
+          SQLXML sqlxml = (SQLXML)o;
+          o = sqlxml.getString();
+        }
+        if (o.getClass().equals(tad.getValue().getClass()))
+        {
+          if (o instanceof String)
+          {
+            String s = (String)o;
+            String sExpected = (String)tad.getValue();
+            o = s.substring(0,sExpected.length());
+          }
+          if (o instanceof byte[])
+          {
+            byte[] buf = (byte[])o;
+            byte[] bufExpected = (byte[])tad.getValue();
+            assertTrue("Invalid value for "+tad.getType()+"!",Arrays.equals(bufExpected,buf));
+          }
+          else
+            assertEquals("Invalid value for "+tad.getType()+"!",tad.getValue(),o);
+        }
+        else if ((o instanceof BigDecimal) && (tad.getValue() instanceof Integer))
+        {
+          BigDecimal bd = (BigDecimal)o;
+          assertEquals("Invalid value for "+tad.getType()+"!",(Integer)tad.getValue(),Integer.valueOf(bd.intValueExact()));
+        }
+        else if ((o instanceof Struct) && (tad.getValue() instanceof List<?>))
+        {
+          Struct structSub = (Struct)o;
+          QualifiedId qiTypeExpected = new QualifiedId(tad.getType());
+          QualifiedId qiType = new QualifiedId(structSub.getSQLTypeName());
+          assertEquals("Invalid value for Struct!",qiTypeExpected,qiType);
+          @SuppressWarnings("unchecked")
+          List<TestColumnDefinition> listAdSub = (List<TestColumnDefinition>)tad.getValue();
+          assertTrue("Invalid value for "+tad.getType()+"!",equalsStructValue(structSub,listAdSub));
+        }
+        else
+          fail("Error: "+tad.getType()+": "+tad.getValue().getClass().getName()+"/"+o.getClass().getName());
+      }
+    }
+    return bEqual;
+  } /* equalsStructValue */
+  
+  private Struct createStruct(TestColumnDefinition tcd)
+    throws SQLException
+  {
+    Struct struct = null;
+    @SuppressWarnings("unchecked")
+    List<TestColumnDefinition> listAttributes = (List<TestColumnDefinition>)tcd.getValue();
+    Object[] aoAttribute = new Object[listAttributes.size()];
+    for (int i = 0; i < listAttributes.size(); i++)
+    {
+      TestColumnDefinition tad = listAttributes.get(i);
+      if (tad.getValue() instanceof List<?>)
+        aoAttribute[i] = createStruct(tad);
+      else
+        aoAttribute[i] = tad.getValue();
+    }
+    struct = getResultSet().getStatement().getConnection().createStruct(tcd.getType(), aoAttribute);
+    return struct;
+  } /* createStruct */
+  
+@Test
+public void testInsertRowComplex() throws SQLException
+{
+  enter();
+  try 
+  {
+    openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+    // needed for foreign key constraint ...
+    getResultSet().moveToInsertRow();
+    TestColumnDefinition tcd = findColumnDefinition(
+      _listCdSimple,"CINTEGER");
+    getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+    getResultSet().insertRow();
+    getResultSet().moveToCurrentRow();
+
+    openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+    getResultSet().moveToInsertRow();
+    tcd = findColumnDefinition(_listCdComplex,"CID");
+    getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+
+    tcd = findColumnDefinition(_listCdComplex,"CUDT");
+    Struct struct = createStruct(tcd); 
+    getResultSet().updateObject(tcd.getName(), struct);
     
+    getResultSet().insertRow();
+    getResultSet().moveToCurrentRow();
+    
+    openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+    tcd = findColumnDefinition(_listCdComplex,"CID");
+    while ((getResultSet().getInt(tcd.getName()) != ((Integer)tcd.getValue()).intValue()) && 
+      getResultSet().next()) {}
+
+    tcd = findColumnDefinition(_listCdComplex,"CID");
+    assertEquals("Insert of "+tcd.getType()+" failed!",
+      ((Integer)tcd.getValue()).intValue(),
+      getResultSet().getInt(tcd.getName()));
+    
+    tcd = findColumnDefinition(_listCdComplex,"CUDT");
+    struct = (Struct)getResultSet().getObject(tcd.getName()); 
+    assertTrue("Insert of "+tcd.getType()+" failed!",
+      equalsStructValue(struct, _listAdComplex));
+    // restore the database
+    tearDown();
+    setUpClass();
+    setUp();
+  }
+  catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
+} /* testInsertRowSqlComplex */
+  
 }

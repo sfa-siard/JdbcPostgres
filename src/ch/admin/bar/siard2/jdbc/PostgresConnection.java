@@ -230,6 +230,19 @@ implements Connection
     CallableStatement cs = super.prepareCall(sNative, resultSetType, resultSetConcurrency, resultSetHoldability);
     return cs;
   } /* prepareCall */
+
+  private long createLob()
+    throws SQLException
+  {
+    PgConnection pgconn = (PgConnection)unwrap(Connection.class);
+    LargeObjectManager lobj = pgconn.getLargeObjectAPI();
+    long lOid = lobj.createLO();
+    String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(lOid)+" TO PUBLIC";
+    Statement stmt = pgconn.createStatement();
+    stmt.executeUpdate(sSql);
+    stmt.close();
+    return lOid;
+  }
   
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
@@ -237,16 +250,19 @@ implements Connection
   public Clob createClob()
     throws SQLException
   {
-    PgConnection pgconn = (PgConnection)unwrap(Connection.class);
-    LargeObjectManager lobj = pgconn.getLargeObjectAPI();
-    long loid = lobj.createLO();
-    String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
-    Statement stmt = pgconn.createStatement();
-    stmt.executeUpdate(sSql);
-    stmt.close();
-    PgClob pgclob = new PgClob(pgconn,loid);
-    return pgclob;
-  }
+    long lOid = createLob();
+    return new PostgresClob(this,lOid);
+  } /* createClob */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public NClob createNClob()
+    throws SQLException
+  {
+    long lOid = createLob();
+    return new PostgresNClob(this,lOid);
+  } /* createNClob */
 
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
@@ -254,15 +270,18 @@ implements Connection
   public Blob createBlob()
     throws SQLException
   {
-    PgConnection pgconn = (PgConnection)unwrap(Connection.class);
-    LargeObjectManager lobj = pgconn.getLargeObjectAPI();
-    long loid = lobj.createLO();
-    String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
-    Statement stmt = pgconn.createStatement();
-    stmt.executeUpdate(sSql);
-    stmt.close();
-    PgBlob pgblob = new PgBlob(pgconn,loid);
-    return pgblob;
+    long lOid = createLob();
+    return new PostgresBlob(this,lOid);
   }
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc}
+   */
+  @Override
+  public Struct createStruct(String typeName, Object[] attributes)
+    throws SQLException
+  {
+    return new PostgresStruct(typeName,attributes);
+  } /* createStruct */
 
 } /* class PostgresConnection */

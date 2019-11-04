@@ -10,6 +10,7 @@ import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
 import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.*;
+import ch.enterag.sqlparser.datatype.enums.PreType;
 import ch.enterag.sqlparser.ddl.*;
 import ch.enterag.sqlparser.ddl.enums.*;
 import ch.enterag.sqlparser.dml.*;
@@ -602,7 +603,10 @@ public class TestSqlDatabase
       if (o instanceof String)
       {
         String s = (String)o;
-        if ((s != null) && (s.length() < 1000))
+        if ((s != null) && 
+          (!tcd.getType().startsWith(PreType.CLOB.getKeyword())) && 
+          (!tcd.getType().startsWith(PreType.NCLOB.getKeyword())) && 
+          (s.length() < 1000))
           cve.getValueExpressionPrimary().getUnsignedLit().
             initCharacterString(s);
         else
@@ -614,7 +618,9 @@ public class TestSqlDatabase
       else if (o instanceof byte[])
       {
         byte[] buf = (byte[])o;
-        if ((buf != null) && (buf.length < 1000))
+        if ((buf != null) && 
+          (!tcd.getType().startsWith(PreType.BLOB.getKeyword())) && 
+          (buf.length < 1000))
           cve.getValueExpressionPrimary().getUnsignedLit().
             initBytes(buf);
         else

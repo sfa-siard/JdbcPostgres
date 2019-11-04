@@ -11,13 +11,14 @@ Created    : 09.08.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.io.*;
-import java.math.BigDecimal;
+import java.math.*;
 import java.sql.*;
 import java.text.*;
 import java.util.*;
 import javax.xml.datatype.*;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
+
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -69,17 +70,37 @@ implements ResultSet
   public byte[] getBytes(int columnIndex) throws SQLException
   {
     byte[] buf = null;
-    ResultSetMetaData rsmd = getMetaData();
-    int iColumnType = rsmd.getColumnType(columnIndex);
-    if ((iColumnType == Types.BIT) ||
-        (iColumnType == Types.OTHER))
+    try
+    {
+      Object o = super.getObject(columnIndex);
+      if (o instanceof byte[])
+        buf = (byte[])o;
+      else if (o instanceof PGobject)
+      {
+        PGobject po = (PGobject)o;
+        PostgresType pt = PostgresType.getByKeyword(po.getType());
+        if (pt == PostgresType.VARBIT)
+        {
+          String sBitString = po.getValue();
+          if (sBitString != null)
+            buf = PostgresLiterals.parseBitString(sBitString);
+        }
+        else if ((pt == PostgresType.MACADDR) || 
+          (pt == PostgresType.MACADDR8))
+          buf = PostgresLiterals.parseMacAddr(po.getValue());
+      }
+      else if (o instanceof UUID)
+      {
+        UUID uuid = (UUID)o;
+        buf = PostgresLiterals.convertUuidToByteArray(uuid);
+      }
+    }
+    catch(SQLException se)
     {
       String sBitString = super.getString(columnIndex);
-      buf = PostgresLiterals.parseBitString(sBitString);
+      if (sBitString != null)
+        buf = PostgresLiterals.parseBitString(sBitString);
     }
-    else
-      buf = super.getBytes(columnIndex);
-    _bWasNull = super.wasNull();
     return buf;
   } /* getBytes */
 
@@ -109,15 +130,18 @@ implements ResultSet
     {
       // most likely Postgres JDBC uses the client locale for formatting the string ...
       String s = super.getString(columnIndex);
-      // in JAVA 8 the Locale de_CH uses apostrophes rather than right single quotes!
-      Locale locDefault = Locale.getDefault();
-      DecimalFormatSymbols dfs = new DecimalFormatSymbols(locDefault);
-      DecimalFormat df = new DecimalFormat("#,##0.0#",dfs);
-      df.setParseBigDecimal(true);
-      s = s.substring(df.getCurrency().getCurrencyCode().length()).trim();
-      s = s.replace('\u2019', '\'');
-      try { bd = (BigDecimal)df.parse(s); }
-      catch(ParseException pe) { throw new SQLException("Error parsing string ("+EU.getExceptionMessage(pe)+")!"); }
+      if (s != null)
+      {
+        // in JAVA 8 the Locale de_CH uses apostrophes rather than right single quotes!
+        Locale locDefault = Locale.getDefault();
+        DecimalFormatSymbols dfs = new DecimalFormatSymbols(locDefault);
+        DecimalFormat df = new DecimalFormat("#,##0.0#",dfs);
+        df.setParseBigDecimal(true);
+        s = s.substring(df.getCurrency().getCurrencyCode().length()).trim();
+        s = s.replace('\u2019', '\'');
+        try { bd = (BigDecimal)df.parse(s); }
+        catch(ParseException pe) { throw new SQLException("Error parsing string ("+EU.getExceptionMessage(pe)+")!"); }
+      }
     }
     return bd;
   } /* getBigDecimal */
@@ -230,7 +254,8 @@ implements ResultSet
   @Override
   public Blob getBlob(int columnIndex) throws SQLException
   {
-    Blob blob = new PostgresBlob((PgBlob)super.getBlob(columnIndex));
+    long lOid = super.getLong(columnIndex);
+    Blob blob = new PostgresBlob((PostgresConnection)getStatement().getConnection(),lOid);
     return blob;
   } /* getBlob */
 
@@ -239,8 +264,8 @@ implements ResultSet
   @Override
   public void updateBlob(int columnIndex, Blob x) throws SQLException
   {
-    // TODO: String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
-    super.updateBlob(columnIndex, x);
+    PostgresBlob pb = (PostgresBlob)x;
+    super.updateLong(columnIndex, pb.getOid());
   } /* updateBlob */
 
   /*------------------------------------------------------------------*/
@@ -248,7 +273,8 @@ implements ResultSet
   @Override
   public Clob getClob(int columnIndex) throws SQLException
   {
-    Clob clob = new PostgresClob((PgClob)super.getClob(columnIndex));
+    long lOid = super.getLong(columnIndex);
+    Clob clob = new PostgresClob((PostgresConnection)getStatement().getConnection(),lOid);
     return clob;
   } /* getClob */
 
@@ -257,62 +283,119 @@ implements ResultSet
   @Override
   public void updateClob(int columnIndex, Clob x) throws SQLException
   {
-    // TODO: String sSql = "GRANT ALL ON LARGE OBJECT "+String.valueOf(loid)+" TO PUBLIC";
-    super.updateClob(columnIndex, x);
+    PostgresClob pc = (PostgresClob)x;
+    super.updateLong(columnIndex, pc.getOid());
   } /* updateClob */
 
-  private Duration getDuration(PGInterval pgi)
-    throws SQLException
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public NClob getNClob(int columnIndex) throws SQLException
+  {
+    long lOid = super.getLong(columnIndex);
+    NClob nclob = new PostgresNClob((PostgresConnection)getStatement().getConnection(),lOid);
+    return nclob;
+  } /* getNClob */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public void updateNClob(int columnIndex, NClob x) throws SQLException
+  {
+    PostgresNClob pnc = (PostgresNClob)x;
+    super.updateLong(columnIndex, pnc.getOid());
+  } /* updateClob */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public Time getTime(int columnIndex) throws SQLException
+  {
+    Time time = null;
+    String s = super.getString(columnIndex);
+    if (s != null)
+    {
+      if (s.length() > 8)
+        s = s.substring(0,8); // ignore offset, return local time
+      time = Time.valueOf(s);
+    }
+    return time;
+  } /* getTime */
+
+  /*------------------------------------------------------------------*/
+  public Duration getDuration(int columnIndex) 
+    throws SQLException, SQLFeatureNotSupportedException
   {
     Duration duration = null;
-    try
+    Object o = super.getObject(columnIndex);
+    if (o instanceof PGInterval)
     {
-      DatatypeFactory df = DatatypeFactory.newInstance();
-      boolean bPositive = true;
-      if ((pgi.getDays() == 0) && 
-          (pgi.getMinutes() == 0) && 
-          (pgi.getSeconds() == 0.0))
+      PGInterval pgi = (PGInterval)o;
+      try
       {
-        int iYears = pgi.getYears();
-        int iMonths = pgi.getMonths();
-        if ((iYears < 0) || (iMonths < 0))
+        DatatypeFactory df = DatatypeFactory.newInstance();
+        boolean bPositive = true;
+        if ((pgi.getDays() == 0) && 
+            (pgi.getMinutes() == 0) && 
+            (pgi.getSeconds() == 0.0))
         {
-          bPositive = false;
-          iYears = -iYears;
-          iMonths = -iMonths;
+          int iYears = pgi.getYears();
+          int iMonths = pgi.getMonths();
+          if ((iYears < 0) || (iMonths < 0))
+          {
+            bPositive = false;
+            iYears = -iYears;
+            iMonths = -iMonths;
+          }
+          duration = df.newDurationYearMonth(bPositive, iYears, iMonths);
         }
-        duration = df.newDurationYearMonth(bPositive, iYears, iMonths);
-      }
-      else
-      {
-        int iDays = pgi.getDays();
-        int iHours = pgi.getHours();
-        int iMinutes = pgi.getMinutes();
-        double dSeconds = pgi.getSeconds();
-        if ((iDays < 0) || (iHours < 0) || (iMinutes < 0) || (dSeconds < 0.0))
+        else
         {
-          bPositive = false;
-          iDays = -iDays;
-          iHours = -iHours;
-          iMinutes = -iMinutes;
-          dSeconds = -dSeconds;
+          int iDays = pgi.getDays();
+          int iHours = pgi.getHours();
+          int iMinutes = pgi.getMinutes();
+          double dSeconds = pgi.getSeconds();
+          if ((iDays < 0) || (iHours < 0) || (iMinutes < 0) || (dSeconds < 0.0))
+          {
+            bPositive = false;
+            iDays = -iDays;
+            iHours = -iHours;
+            iMinutes = -iMinutes;
+            dSeconds = -dSeconds;
+          }
+          int iSeconds = (int)Math.round(dSeconds);
+          int iMilliSeconds = (int)Math.round(1000*(dSeconds-iSeconds));  
+          long lMilliSeconds = iDays;
+          lMilliSeconds = 24*lMilliSeconds+iHours;
+          lMilliSeconds = 60*lMilliSeconds+iMinutes;
+          lMilliSeconds = 60*lMilliSeconds+iSeconds;
+          lMilliSeconds = 1000*lMilliSeconds+iMilliSeconds;
+          if (!bPositive)
+            lMilliSeconds = -lMilliSeconds;
+          duration = df.newDurationDayTime(lMilliSeconds);
         }
-        int iSeconds = (int)Math.round(dSeconds);
-        int iMilliSeconds = (int)Math.round(1000*(dSeconds-iSeconds));  
-        long lMilliSeconds = iDays;
-        lMilliSeconds = 24*lMilliSeconds+iHours;
-        lMilliSeconds = 60*lMilliSeconds+iMinutes;
-        lMilliSeconds = 60*lMilliSeconds+iSeconds;
-        lMilliSeconds = 1000*lMilliSeconds+iMilliSeconds;
-        if (!bPositive)
-          lMilliSeconds = -lMilliSeconds;
-        duration = df.newDurationDayTime(lMilliSeconds);
       }
+      catch(DatatypeConfigurationException dcfe){}
     }
-    catch(DatatypeConfigurationException dcfe){}
     return duration;
   } /* getDuration */
-  
+
+  /*------------------------------------------------------------------*/
+  public void updateDuration(int columnIndex, Duration x)
+    throws SQLException
+  {
+    int iSign = x.getSign();
+    int iYears = iSign*x.getYears();
+    int iMonths = iSign*x.getMonths();
+    int iDays = iSign*x.getDays();
+    int iHours = iSign*x.getHours();
+    int iMinutes = iSign*x.getMinutes();
+    long lMillis = x.getTimeInMillis(new java.util.Date(0)) % 60000;
+    double dSeconds = iSign*lMillis/1000.0;
+    PGInterval pgi = new PGInterval(iYears, iMonths, iDays, iHours, iMinutes, dSeconds);
+    super.updateObject(columnIndex, pgi);
+  } /* updateDuration */
+
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
@@ -326,74 +409,20 @@ implements ResultSet
       o = getBlob(columnIndex);
     else if ((iType == Types.BINARY) ||
       (iType == Types.VARBINARY))
-    {
-      try 
-      { 
-        o = super.getObject(columnIndex);
-        if (o instanceof PGobject)
-        {
-          PGobject po = (PGobject)o;
-          o = PostgresLiterals.parseBitString(po.getValue());
-        }
-        else if (o instanceof UUID)
-        {
-          UUID uuid = (UUID)o;
-          o = PostgresLiterals.convertUuidToByteArray(uuid);
-        }
-      }
-      catch(SQLException se)
-      {
-        String s = getString(columnIndex);
-        o = PostgresLiterals.parseBitString(s);
-      }
-    }
+      o = getBytes(columnIndex);
     else if (iType == Types.SMALLINT)
       o = getShort(columnIndex);
-    else if (iType == Types.DECIMAL)
-    {
-      try { o = super.getObject(columnIndex); }
-      catch(SQLException se) // bad JDBC implementation of MONEY data type
-      {
-        // most likely Postgres JDBC uses the client locale for formatting the string ...
-        String s = super.getString(columnIndex);
-        // in JAVA 8 the Locale de_CH uses apostrophes rather than right single quotes!
-        Locale locDefault = Locale.getDefault();
-        DecimalFormatSymbols dfs = new DecimalFormatSymbols(locDefault);
-        DecimalFormat df = new DecimalFormat("#,##0.0#",dfs);
-        df.setParseBigDecimal(true);
-        s = s.substring(df.getCurrency().getCurrencyCode().length()).trim();
-        s = s.replace('\u2019', '\'');
-        try { o = df.parse(s); }
-        catch(ParseException pe) { throw new SQLException("Error parsing string ("+EU.getExceptionMessage(pe)+")!"); }
-      }
-    }
+    else if ((iType == Types.DECIMAL) ||
+      (iType == Types.NUMERIC))
+      o = getBigDecimal(columnIndex);
     else if (iType == Types.TIME)
-    {
-      String s = super.getString(columnIndex);
-      if (s.length() > 8)
-        s = s.substring(0,8); // ignore offset, return local time
-      o = Time.valueOf(s);
-    }
+      o = getTime(columnIndex);
     else if (iType == Types.VARCHAR)
       o = super.getString(columnIndex);
     else if (iType == Types.OTHER)
-    {
-      o = super.getObject(columnIndex);
-      if (o instanceof PGInterval)
-        o = getDuration((PGInterval)o);
-      else if (o instanceof PGobject)
-      {
-        PGobject po = (PGobject)o;
-        PostgresType pt = PostgresType.getByKeyword(po.getType());
-        if (pt == PostgresType.VARBIT)
-          o = getBytes(columnIndex);
-        else if ((pt == PostgresType.MACADDR) || 
-          (pt == PostgresType.MACADDR8))
-          o = po.getValue();
-      }
-      else if (!(o instanceof UUID))
-        o = getBytes(columnIndex);
-    }
+      o = getDuration(columnIndex);
+    else if (iType == Types.ARRAY)
+      o = getArray(columnIndex);
     else if (iType == Types.STRUCT)
     {
       o = super.getObject(columnIndex);
@@ -405,12 +434,6 @@ implements ResultSet
         o = pobj.getObject(0, iType);
       }
       catch(ParseException pe) { throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!"); }
-    }
-    else if (iType == Types.ARRAY)
-    {
-      o = super.getObject(columnIndex);
-      PgArray pa = (PgArray)o;
-      o = new PostgresArray(pa,(PostgresConnection)getStatement().getConnection());
     }
     else if (iType == Types.DISTINCT)
     {
@@ -453,5 +476,28 @@ implements ResultSet
     T o = (T)getObject(columnIndex);
     return o;
   } /* getObject */
+  
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public void updateObject(int columnIndex, Object x)
+    throws SQLException
+  {
+    if (x instanceof Struct)
+    {
+      try
+      {
+        Struct struct = (Struct)x;
+        PGobject pgo = new PGobject();
+        PostgresObject po = new PostgresObject(struct.getAttributes(),Types.STRUCT,struct.getSQLTypeName(),(PostgresConnection)getStatement().getConnection());
+        pgo.setType(((Struct) x).getSQLTypeName());
+        pgo.setValue(po.getValue());
+        updateObject(columnIndex,pgo);
+      }
+      catch(ParseException pe) { throw new SQLException("PostgresObject could not be constructed ("+EU.getExceptionMessage(pe)+")!"); } 
+    }
+    else
+      throw new SQLException("updateObject is only available for Struct!");
+  } /* updateObject */
 
 } /* class PostgresResultSet */

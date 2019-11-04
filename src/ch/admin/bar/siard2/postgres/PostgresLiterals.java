@@ -11,12 +11,14 @@ package ch.admin.bar.siard2.postgres;
 
 import java.math.*;
 import java.nio.*;
+import java.sql.Date;
 import java.text.*;
 import java.time.*;
 import java.util.*;
 
 import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.enums.*;
+import ch.enterag.sqlparser.expression.enums.BooleanLiteral;
 import ch.enterag.utils.*;
 
 /* =============================================================================== */
@@ -461,6 +463,193 @@ public abstract class PostgresLiterals extends SqlLiterals
   }
   
   /*------------------------------------------------------------------*/
+  /** parse a boolean literal.
+   * @param sBooleanLiteral boolean literal.
+   * @return parsed boolean value.
+   * @throws ParseException if the input is not a valid boolean literal.
+   */
+  public static BooleanLiteral parseBooleanLiteral(String sBooleanLiteral)
+    throws ParseException
+  {
+    BooleanLiteral blParsed = null;
+    blParsed = sBooleanLiteral.toLowerCase().startsWith("t")?BooleanLiteral.TRUE:BooleanLiteral.FALSE;
+    return blParsed;
+  } /* parseBooleanLiteral */
+
+  /*------------------------------------------------------------------*/
+  /** format a boolean literal value.
+   * N.B.: the tree-valued SQL booleans are also often rendered as JAVA 
+   * Boolean values with JAVA null for SQL UNKNOWN.
+   * @param blValue boolean value to be formatted.
+   * @return boolean literal.
+   */
+  public static String formatBooleanLiteral(BooleanLiteral blValue)
+  {
+    String sFormatted = blValue.getKeywords();
+    return sFormatted;
+  } /* formatBooleanLiteral */
+  
+  /*------------------------------------------------------------------*/
+  /** parse a date literal.
+   * @param sDateLiteral date literal.
+   * @return date value.
+   * @throws ParseException if the input is not a valid date literal.
+   */
+  public static java.sql.Date parseDateLiteral(String sDateLiteral)
+    throws ParseException
+  {
+    Date dateParsed = null;
+    if ((sDateLiteral != null) && (sDateLiteral.length() > 0)) 
+    {
+      java.util.Date date = sdfDATE.parse(sDateLiteral);
+      dateParsed = new Date(date.getTime());
+    }
+    return dateParsed;
+  } /* parseDateLiteral */
+
+  /*------------------------------------------------------------------*/
+  /** format a date value
+   * @param dateValue date value to be formatted.
+   * @return date literal.
+   */
+  public static String formatDateLiteral(java.sql.Date dateValue)
+  {
+    String sFormatted = sNULL;
+    if (dateValue != null)
+    {
+      java.util.Date date = new java.util.Date(dateValue.getTime());
+      sFormatted = sdfDATE.format(date);
+    }
+    return sFormatted;
+  } /* formatDateLiteral */
+  
+  /*------------------------------------------------------------------*/
+  /** parse a time literal.
+   * @param sTimeLiteral time literal.
+   * @return time value.
+   * @throws ParseException if the input is not a valid time literal.
+   */
+  public static java.sql.Time parseTimeLiteral(String sTimeLiteral)
+    throws ParseException
+  {
+    java.sql.Time timeParsed = null;
+    if ((sTimeLiteral != null) && (sTimeLiteral.length() > 0)) 
+    {
+      String sMillis = null;
+      int iDecimal = sTimeLiteral.lastIndexOf('.');
+      if (iDecimal >= 0)
+      {
+        sMillis = sTimeLiteral.substring(iDecimal+1);
+        if (sMillis.length() > 3)
+          sMillis = sMillis.substring(0,3);
+        while (sMillis.length() < 3)
+          sMillis = sMillis + "0";
+        sTimeLiteral = sTimeLiteral.substring(0,iDecimal);
+      }
+      /* must have structure hh:mm:ss */
+      try 
+      { 
+        timeParsed = new java.sql.Time(sdfTIME.parse(sTimeLiteral).getTime());
+        if (sMillis != null)
+          timeParsed.setTime(timeParsed.getTime()+Integer.parseInt(sMillis));
+      }
+      catch (ParseException pe) { throw new ParseException("Time format must conform to hh:mm:ss.fff!",pe.getErrorOffset()); }
+    }
+    else
+      throw new ParseException("Time character string literal must start with "+sTIME_LITERAL_PREFIX+"!",0);
+    return timeParsed;
+  } /* parseTimeLiteral */
+
+  /*------------------------------------------------------------------*/
+  /** format a time value
+   * @param timeValue time value to be formatted.
+   * @return time literal.
+   */
+  public static String formatTimeLiteral(java.sql.Time timeValue)
+  {
+    String sFormatted = sNULL;
+    if (timeValue != null)
+    {
+      java.util.Date time = new java.util.Date(timeValue.getTime());
+      sFormatted = sdfTIME.format(time);
+      long lMillis = time.getTime() % 1000;
+      if (lMillis != 0)
+      {
+        String sMillis = String.valueOf(lMillis);
+        while (sMillis.length() < 3)
+          sMillis = "0"+sMillis;
+        while (sMillis.endsWith("0"))
+          sMillis = sMillis.substring(0,sMillis.length()-1);
+        sFormatted = sFormatted + sDOT + sMillis;
+      }
+    }
+    return sFormatted;
+  } /* formatTimeLiteral */
+  
+  /*------------------------------------------------------------------*/
+  /** parse a timestamp literal.
+   * @param sTimestampLiteral timestamp literal.
+   * @return timestamp value.
+   * @throws ParseException if the input is not a valid timestamp literal.
+   */
+  public static java.sql.Timestamp parseTimestampLiteral(String sTimestampLiteral)
+    throws ParseException
+  {
+    java.sql.Timestamp tsParsed = null;
+    if ((sTimestampLiteral != null) && (sTimestampLiteral.length() > 0)) 
+    {
+      String sNanos = null;
+      int iDecimal = sTimestampLiteral.lastIndexOf('.');
+      if (iDecimal >= 0)
+      {
+        sNanos = sTimestampLiteral.substring(iDecimal+1);
+        if (sNanos.length() > 9)
+          sNanos = sNanos.substring(0,9);
+        while (sNanos.length() < 9)
+          sNanos = sNanos + "0";
+        sTimestampLiteral = sTimestampLiteral.substring(0,iDecimal);
+      }
+      /* must have structure yyyy-MM-dd hh:mm:dd */
+      try 
+      {
+        tsParsed = new java.sql.Timestamp(sdfTIMESTAMP.parse(sTimestampLiteral).getTime());
+        if (sNanos != null)
+          tsParsed.setNanos(Integer.parseInt(sNanos));
+      }
+      catch (ParseException pe) { throw new ParseException("Timestamp format must conform to yyyy-mm-dd hh-mm-ss.fffffffff!",pe.getErrorOffset()); }
+    }
+    else
+      throw new ParseException("Timestamp character string literal must start with "+sTIMESTAMP_LITERAL_PREFIX+"!",0);
+    return tsParsed;
+  } /* parseTimestampLiteral */
+
+  /*------------------------------------------------------------------*/
+  /** format a timestamp value
+   * @param tsValue timestamp value to be formatted.
+   * @return timestamp literal.
+   */
+  public static String formatTimestampLiteral(java.sql.Timestamp tsValue)
+  {
+    String sFormatted = sNULL;
+    if (tsValue != null)
+    {
+      sFormatted = sdfTIMESTAMP.format(tsValue);
+      int iNanos = tsValue.getNanos();
+      if (iNanos > 0)
+      {
+        String sNanos = String.valueOf(iNanos);
+        while (sNanos.length() < 9)
+          sNanos = "0" + sNanos;
+        while (sNanos.endsWith("0"))
+          sNanos = sNanos.substring(0,sNanos.length()-1);
+        sFormatted = sFormatted + sDOT + sNanos;
+      }
+      sFormatted = sTIMESTAMP_LITERAL_PREFIX + formatStringLiteral(sFormatted);
+    }
+    return sFormatted;
+  } /* formatTimestampLiteral */
+
+  /*------------------------------------------------------------------*/
   /** convert a big-endian byte buffer into a UUID.
    * taking the first 4 bytes as a little-endian integer,
    * the next 2 bytes as a little-endian word,
@@ -497,5 +686,15 @@ public abstract class PostgresLiterals extends SqlLiterals
       as[i] = BU.toHex(buffer[i]);
     return String.join(":", as);
   } /* formatMacAddr */
+  
+  /*------------------------------------------------------------------*/
+  /** parse the string representation of a MAC address.
+   * @param s string representation of the MAC address
+   * @return binary MAC address.
+   */
+  public static byte[] parseMacAddr(String s)
+  {
+    return BU.fromHex(s.replace(":", ""));
+  }
   
 } /* class PostgresLiterals */

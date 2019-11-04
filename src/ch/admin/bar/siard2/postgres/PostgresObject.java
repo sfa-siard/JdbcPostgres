@@ -4,19 +4,22 @@ import java.math.*;
 import java.sql.*;
 import java.sql.Date;
 import java.text.*;
-import java.time.*;
 import java.util.*;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
 import org.postgresql.core.*;
 
 import ch.enterag.utils.database.*;
+import ch.enterag.sqlparser.*;
+import ch.enterag.sqlparser.expression.enums.*;
 import ch.admin.bar.siard2.jdbc.*;
 import ch.admin.bar.siard2.postgres.identifier.*;
 
 public class PostgresObject
 {
   private static char cCOMMA = ',';
+  private String _sValue = null;
+  public String getValue() { return _sValue; }
   private PGtokenizer _pt = null;
   private PostgresQualifiedId _qiType = null;
   private PostgresConnection _pconn = null;
@@ -41,35 +44,68 @@ public class PostgresObject
     {
       if (s.length() > 1)
       {
-        if (((s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"')) ||
-          ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\'')))
+        if ((s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"'))
         {
           s = s.substring(1,s.length()-1).
-            replace("\"\"", "\"").
-            replace("\\t","\t"). // TAB
-            replace("\\b","\b"). // BACKSPACE
-            replace("\\n","\n"). // NEW LINE
-            replace("\\r","\r"). // CARRIAGE RETURN
-            replace("\\f","\f"). // FORM FEED
-            replace("\\'","'"). // escaped single quotes
-            replace("\\\"","\""). // escaped double quotes
-            replace("\\\\","\\"); // escaped escape
+            replace("\"\"", "\""); // escaped double quotes
         }
+        else if ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\''))
+        {
+          s = s.substring(1,s.length()-1).
+            replace("''", "'"); // escaped single quotes
+        }
+        s = s.
+          replace("\\t","\t"). // TAB
+          replace("\\b","\b"). // BACKSPACE
+          replace("\\n","\n"). // NEW LINE
+          replace("\\r","\r"). // CARRIAGE RETURN
+          replace("\\f","\f"). // FORM FEED
+          replace("\\'","'"). // escaped single quotes
+          replace("\\\"","\""). // escaped double quotes
+          replace("\\\\","\\"); // escaped escape
       }
     }
     return s;
   } /* stripQuotes */
   
+  public static String addQuotes(String s, String sQuote)
+  {
+    if (s != null)
+    {
+      s = s.
+        replace("\t","\\t"). // TAB
+        replace("\b","\\b"). // BACKSPACE
+        replace("\n","\\n"). // NEW LINE
+        replace("\r","\\r"). // CARRIAGE RETURN
+        replace("\\f","\f"). // FORM FEED
+        replace("\'","\\'"). // escaped single quotes
+        replace("\"","\\\""). // escaped double quotes
+        replace("\\","\\\\"); // escaped escape
+      if (sQuote.equals("\""))
+        s = s.replace("\"", "\"\"");
+      s = sQuote + s + sQuote;
+    }
+    return s;
+  } /* addQuotes */
+  
   public PostgresObject(String sValue, int iDataType, String sTypeName, PostgresConnection pconn)
     throws ParseException
   {
+    _sValue = sValue; 
     _pt = new PGtokenizer(sValue, cCOMMA);
     if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT) || (iDataType == Types.ARRAY))
-    {
       _qiType = new PostgresQualifiedId(sTypeName);
-    }
     _pconn = pconn;
   } /* constructor */
+  
+  public PostgresObject(Object o, int iDataType, String sTypeName, PostgresConnection pconn)
+    throws ParseException, SQLException
+  {
+    _qiType = new PostgresQualifiedId(sTypeName);
+    _pconn = pconn;
+    putObject(o,iDataType);
+    _pt = new PGtokenizer(_sValue, cCOMMA);
+  }
   
   private List<AttributeDescription> getAttributeDescriptions()
     throws SQLException
@@ -102,6 +138,120 @@ public class PostgresObject
     rsAttributes.close();
     return listAttributeDescription;
   } /* getAttributeDescriptions */
+
+  private String formatStruct(Struct struct)
+    throws SQLException, ParseException
+  {
+    StringBuilder sb = new StringBuilder();
+    List<AttributeDescription> listAttributeDescriptions = getAttributeDescriptions();
+    for (int iAttribute = 0; iAttribute < struct.getAttributes().length; iAttribute++)
+    {
+      Object o = struct.getAttributes()[iAttribute];
+      AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
+      PostgresObject po = new PostgresObject(o,ad.getDataType(),ad.getTypeName(),_pconn);
+      if (iAttribute > 0)
+        sb.append(",");
+      sb.append(po.getValue());
+    }
+    // add parentheses
+    sb.insert(0, "(");
+    sb.append(")");
+    return sb.toString();
+  } /* formatStruct */
+  
+  private void putObject(Object o, int iDataType)
+    throws SQLException, ParseException
+  {
+    switch(iDataType)
+    {
+      case Types.CHAR:
+      case Types.VARCHAR:
+      case Types.NCHAR:
+      case Types.NVARCHAR:
+        String s = (String)o;
+        _sValue = addQuotes(s,"'");
+        break;
+      case Types.CLOB:
+        PostgresClob clob = (PostgresClob)o;
+        _sValue = String.valueOf(clob.getOid());
+        break;
+      case Types.NCLOB:
+        PostgresNClob nclob = (PostgresNClob)o;
+        _sValue = String.valueOf(nclob.getOid());
+        break;
+      case Types.SQLXML:
+        PgSQLXML sqlxml = (PgSQLXML)o;
+        _sValue = addQuotes(sqlxml.getString(),"'");
+        break;
+      case Types.BINARY:
+      case Types.VARBINARY:
+        byte[] buf = (byte[])o;
+        _sValue = addQuotes(PostgresLiterals.formatBytesLiteral(buf),"\"");
+        break;
+      case Types.BLOB:
+        PostgresBlob blob = (PostgresBlob)o;
+        _sValue = String.valueOf(blob.getOid());
+        break;
+      case Types.NUMERIC:
+      case Types.DECIMAL:
+        BigDecimal bd = (BigDecimal)o;
+        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        break;
+      case Types.SMALLINT:
+        Short sh = (Short)o;
+        bd = BigDecimal.valueOf(sh);
+        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        break;
+      case Types.INTEGER:
+        Integer i = (Integer)o;
+        bd = BigDecimal.valueOf(i);
+        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        break;
+      case Types.BIGINT:
+        Long l = (Long)o;
+        bd = BigDecimal.valueOf(l);
+        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        break;
+      case Types.DOUBLE:
+        Double d = (Double)o;
+        bd = BigDecimal.valueOf(d);
+        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        break;
+      case Types.REAL:
+        Float f = (Float)o;
+        bd = BigDecimal.valueOf(f);
+        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        break;
+      case Types.BOOLEAN:
+        Boolean b = (Boolean)o;
+        BooleanLiteral bl = BooleanLiteral.UNKNOWN;
+        if (b != null)
+          bl = b.booleanValue()?BooleanLiteral.TRUE:BooleanLiteral.FALSE;
+        _sValue = PostgresLiterals.formatBooleanLiteral(bl);
+        break;
+      case Types.DATE:
+        Date date = (Date)o;
+        _sValue = PostgresLiterals.formatDateLiteral(date);
+        break;
+      case Types.TIME:
+        Time time = (Time)o;
+        _sValue = PostgresLiterals.formatTimeLiteral(time);
+        break;
+      case Types.TIMESTAMP:
+        Timestamp ts = (Timestamp)o;
+        _sValue = addQuotes(PostgresLiterals.formatTimestampLiteral(ts),"'");
+        break;
+      case Types.OTHER:
+        Interval iv = (Interval)o;
+        o = addQuotes(PostgresLiterals.formatIntervalLiteral(iv),"'");
+        break;
+      case Types.STRUCT:
+        Struct struct = (Struct)o;
+        o = formatStruct(struct);
+    }
+    if (o instanceof Struct)
+      _sValue = formatStruct((Struct)o);
+  }
   
   private Struct parseStruct(String sToken)
     throws ParseException, SQLException
@@ -181,7 +331,7 @@ public class PostgresObject
       case Types.CLOB:
       case Types.NCLOB: 
         lOid = Long.parseLong(sToken);
-        o = new PostgresClob(new PgClob(bc,lOid));
+        o = new PostgresClob(_pconn,lOid);
         break;
       case Types.SQLXML:
         o = new PgSQLXML(bc,stripQuotes(sToken)); 
@@ -192,7 +342,7 @@ public class PostgresObject
         break;
       case Types.BLOB:
         lOid = Long.parseLong(sToken);
-        o = new PostgresBlob(new PgBlob(bc,lOid));
+        o = new PostgresBlob(_pconn,lOid);
         break;
       case Types.NUMERIC:
       case Types.DECIMAL:
@@ -218,20 +368,21 @@ public class PostgresObject
         bd = PostgresLiterals.parseExactLiteral(sToken);
         o = Float.valueOf(bd.floatValue());
         break;
-      case Types.BOOLEAN: 
-        o = sToken.equals("t")?Boolean.TRUE:Boolean.FALSE; 
+      case Types.BOOLEAN:
+        BooleanLiteral bl = PostgresLiterals.parseBooleanLiteral(sToken);
+        Boolean b = null;
+        if (bl != BooleanLiteral.UNKNOWN)
+          b = (bl == BooleanLiteral.TRUE)?Boolean.TRUE:Boolean.FALSE;
+        o = b;
         break;
       case Types.DATE:
-        LocalDate ld = LocalDate.parse(sToken);
-        o = Date.valueOf(ld);
+        o = PostgresLiterals.parseDateLiteral(sToken);
         break;
       case Types.TIME:
-        LocalTime lt = LocalTime.parse(sToken);
-        o = Time.valueOf(lt);
+        o = PostgresLiterals.parseTimeLiteral(sToken);
         break;
       case Types.TIMESTAMP:
-        LocalDateTime ldt = LocalDateTime.parse(stripQuotes(sToken).replace(' ', 'T'));
-        o = Timestamp.valueOf(ldt);
+        o = PostgresLiterals.parseTimestampLiteral(stripQuotes(sToken));
         break;
       case Types.OTHER: 
         o = PostgresLiterals.parseInterval(stripQuotes(sToken)).toDuration();

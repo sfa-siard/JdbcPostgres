@@ -48,7 +48,7 @@ public enum PostgresType
   TSVECTOR(PreType.VARCHAR, "tsvector"), // // https://www.postgresql.org/docs/11/datatype-textsearch.html
   TSQUERY(PreType.VARCHAR, "tsquery"), // https://www.postgresql.org/docs/11/datatype-textsearch.html
   BIT(PreType.BINARY, "bit"),
-  VARBIT(PreType.VARBINARY, "bit varying", "varbit"),
+  VARBIT(PreType.VARBINARY, "varbit", "bit varying"),
   BYTEA(PreType.VARBINARY, "bytea"),
   UUID(PreType.BINARY, "uuid"), // length 16
   MACADDR(PreType.BINARY, "macaddr"), // length 6
