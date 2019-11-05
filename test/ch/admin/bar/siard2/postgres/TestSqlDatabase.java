@@ -53,7 +53,7 @@ public class TestSqlDatabase
     listCdSimple.add(new TestColumnDefinition("CBINARY_5","BINARY(5)",new byte[] {1,-2,3,-4, 0} ));
     listCdSimple.add(new TestColumnDefinition("CVARBINARY_255","VARBINARY(255)",TestUtils.getBytes(196) ));
     listCdSimple.add(new TestColumnDefinition("CBLOB","BLOB",TestUtils.getBytes(1000000)));
-    listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",BigInteger.valueOf(1234567890123456789l)));
+    listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",new BigDecimal(BigInteger.valueOf(1234567890123456789l),0)));
     listCdSimple.add(new TestColumnDefinition("CDECIMAL_15_5","DECIMAL(15,5)",new BigDecimal(BigInteger.valueOf(3141592653210l),5)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",Short.valueOf((short)-32000)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",Short.valueOf((short)-128)));

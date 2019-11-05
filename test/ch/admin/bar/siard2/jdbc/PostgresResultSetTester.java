@@ -21,6 +21,7 @@ import ch.enterag.utils.base.*;
 import ch.enterag.utils.database.*;
 import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.*;
+import ch.enterag.sqlparser.datatype.enums.PreType;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -62,6 +63,7 @@ public class PostgresResultSetTester
     List<TestColumnDefinition> listCdSimple = new ArrayList<TestColumnDefinition>();
     listCdSimple.add(new TestColumnDefinition("CCHAR_5","CHAR(5)","wxyZ"));
     listCdSimple.add(new TestColumnDefinition("CVARCHAR_255","VARCHAR(255)",TestUtils.getString(92)));
+    listCdSimple.add(new TestColumnDefinition("CNULL","VARCHAR(255)",TestUtils.getString(5)));
     listCdSimple.add(new TestColumnDefinition("CCLOB_2M","CLOB(2M)",TestUtils.getString(1000000)));
     listCdSimple.add(new TestColumnDefinition("CNCHAR_5","NCHAR(5)","Auää"));
     listCdSimple.add(new TestColumnDefinition("CNVARCHAR_127","NCHAR VARYING(127)",TestUtils.getNString(53)));
@@ -70,7 +72,7 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CBINARY_5","BINARY(5)",new byte[] {5,-4,3,-2} ));
     listCdSimple.add(new TestColumnDefinition("CVARBINARY_255","VARBINARY(255)",TestUtils.getBytes(76) ));
     listCdSimple.add(new TestColumnDefinition("CBLOB","BLOB",TestUtils.getBytes(500000)));
-    listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",BigInteger.valueOf(987654321098765432l)));
+    listCdSimple.add(new TestColumnDefinition("CNUMERIC_31","NUMERIC(31)",new BigDecimal(BigInteger.valueOf(987654321098765432l),0)));
     listCdSimple.add(new TestColumnDefinition("CDECIMAL_15_5","DECIMAL(15,5)",new BigDecimal(BigInteger.valueOf(9876543210987l),5)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",Short.valueOf((short)23000)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",Short.valueOf((short)23)));
@@ -2524,14 +2526,34 @@ public class PostgresResultSetTester
             String sExpected = (String)tad.getValue();
             o = s.substring(0,sExpected.length());
           }
-          if (o instanceof byte[])
+          else if (o instanceof byte[])
           {
             byte[] buf = (byte[])o;
             byte[] bufExpected = (byte[])tad.getValue();
             assertTrue("Invalid value for "+tad.getType()+"!",Arrays.equals(bufExpected,buf));
           }
+          else if (o instanceof Timestamp)
+          {
+            Timestamp ts = (Timestamp)o;
+            Timestamp tsExpected = truncateToMicros((Timestamp)tad.getValue());
+            assertEquals("Invalid value for "+tad.getType()+"!",tsExpected,ts);
+          }
           else
             assertEquals("Invalid value for "+tad.getType()+"!",tad.getValue(),o);
+        }
+        else if ((o instanceof Duration) && (tad.getValue() instanceof Interval))
+        {
+          Duration duration = (Duration)o;
+          Interval ivExpected = (Interval)tad.getValue();
+          Duration durationExpected = ivExpected.toDuration();
+          assertEquals("Invalid value for "+tad.getType()+"!",durationExpected,duration);
+        }
+        else if ((o instanceof Double) && (tad.getValue() instanceof Float))
+        {
+          Double d = (Double)o;
+          Float fExpected = (Float)tad.getValue();
+          Double dExpected = Double.valueOf(fExpected.doubleValue());
+          assertEquals("Invalid value for "+tad.getType()+"!",dExpected,d);
         }
         else if ((o instanceof BigDecimal) && (tad.getValue() instanceof Integer))
         {
@@ -2541,7 +2563,8 @@ public class PostgresResultSetTester
         else if ((o instanceof Struct) && (tad.getValue() instanceof List<?>))
         {
           Struct structSub = (Struct)o;
-          QualifiedId qiTypeExpected = new QualifiedId(tad.getType());
+          PostgresQualifiedId pqiTypeExpected = new PostgresQualifiedId(tad.getType());
+          QualifiedId qiTypeExpected = new QualifiedId(pqiTypeExpected.format());
           QualifiedId qiType = new QualifiedId(structSub.getSQLTypeName());
           assertEquals("Invalid value for Struct!",qiTypeExpected,qiType);
           @SuppressWarnings("unchecked")
@@ -2556,7 +2579,7 @@ public class PostgresResultSetTester
   } /* equalsStructValue */
   
   private Struct createStruct(TestColumnDefinition tcd)
-    throws SQLException
+    throws SQLException, ParseException
   {
     Struct struct = null;
     @SuppressWarnings("unchecked")
@@ -2568,11 +2591,84 @@ public class PostgresResultSetTester
       if (tad.getValue() instanceof List<?>)
         aoAttribute[i] = createStruct(tad);
       else
-        aoAttribute[i] = tad.getValue();
+      {
+        Connection conn = getResultSet().getStatement().getConnection();
+        if (tad.getType().startsWith(PreType.BLOB.getKeyword()))
+        {
+          Blob blob = conn.createBlob();
+          blob.setBytes(1, (byte[])tad.getValue());
+          aoAttribute[i] = blob;
+        }
+        else if (tad.getType().startsWith(PreType.CLOB.getKeyword()))
+        {
+          Clob clob = conn.createClob();
+          clob.setString(1, (String)tad.getValue());
+          aoAttribute[i] = clob;
+        }
+        else if (tad.getType().startsWith(PreType.NCLOB.getKeyword()))
+        {
+          NClob nclob = conn.createNClob();
+          nclob.setString(1, (String)tad.getValue());
+          aoAttribute[i] = nclob;
+        }
+        else if (tad.getType().startsWith(PreType.XML.getKeyword()))
+        {
+          SQLXML sqlxml = conn.createSQLXML();
+          sqlxml.setString((String)tad.getValueLiteral());
+          aoAttribute[i] = sqlxml;
+        }
+        else
+         aoAttribute[i] = tad.getValue();
+      }
     }
-    struct = getResultSet().getStatement().getConnection().createStruct(tcd.getType(), aoAttribute);
+    PostgresQualifiedId pqiType = new PostgresQualifiedId(tcd.getType());
+    struct = getResultSet().getStatement().getConnection().createStruct(pqiType.format(), aoAttribute);
     return struct;
   } /* createStruct */
+
+@Test
+public void testStruct() throws SQLException
+{
+  enter();
+  try 
+  {
+    openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+    Connection conn = getResultSet().getStatement().getConnection();
+    DatabaseMetaData dmd = conn.getMetaData();
+    PostgresQualifiedId pqiTable = new PostgresQualifiedId(TestSqlDatabase.getQualifiedComplexTable().format());
+    ResultSet rsColumn = dmd.getColumns(
+      pqiTable.getCatalog(), 
+      pqiTable.getSchema(),
+      pqiTable.getName(),
+      "cudt");
+    if (rsColumn.next())
+    {
+      String sColumnName = rsColumn.getString("COLUMN_NAME");
+      int iDataType = rsColumn.getInt("DATA_TYPE");
+      String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
+      String sTypeName = rsColumn.getString("TYPE_NAME");
+      System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CUDT");
+      if (tcd.getName().toLowerCase().equals(sColumnName))
+      {
+        Object o = getResultSet().getObject(sColumnName);
+        if (o instanceof PostgresStruct)
+        {
+          PostgresStruct pstruct = (PostgresStruct)o;
+          Struct struct = conn.createStruct(pstruct.getSQLTypeName(), pstruct.getAttributes());
+          getResultSet().updateObject(sColumnName, struct);
+        }
+        else
+          fail("Expected Struct not found!");
+      }
+      else
+        fail("Invalid column found: "+tcd.getName());
+      
+    }
+  }
+  catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
+}
   
 @Test
 public void testInsertRowComplex() throws SQLException
@@ -2594,8 +2690,12 @@ public void testInsertRowComplex() throws SQLException
     tcd = findColumnDefinition(_listCdComplex,"CID");
     getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
 
-    tcd = findColumnDefinition(_listCdComplex,"CUDT");
+    tcd = findColumnDefinition(_listCdComplex,"COMPLETE");
     Struct struct = createStruct(tcd); 
+    getResultSet().updateObject(tcd.getName(), struct);
+    
+    tcd = findColumnDefinition(_listCdComplex,"CUDT");
+    struct = createStruct(tcd); 
     getResultSet().updateObject(tcd.getName(), struct);
     
     getResultSet().insertRow();
@@ -2611,6 +2711,11 @@ public void testInsertRowComplex() throws SQLException
       ((Integer)tcd.getValue()).intValue(),
       getResultSet().getInt(tcd.getName()));
     
+    tcd = findColumnDefinition(_listCdComplex,"COMPLETE");
+    struct = (Struct)getResultSet().getObject(tcd.getName()); 
+    assertTrue("Insert of "+tcd.getType()+" failed!",
+      equalsStructValue(struct, _listCdSimple));
+
     tcd = findColumnDefinition(_listCdComplex,"CUDT");
     struct = (Struct)getResultSet().getObject(tcd.getName()); 
     assertTrue("Insert of "+tcd.getType()+" failed!",

@@ -416,7 +416,7 @@ public class PostgresDatabaseMetaData
 
   /*------------------------------------------------------------------*/
   private String getAttributesFrom(String sPgTypeParent, String sPgTypeNamespace, String sPgClass, 
-    String sPgAttribute, String sPgTypeAttribute, String sPgTypeAttributeBase, String sPgDescription,
+    String sPgAttribute, String sPgTypeAttribute, String sPgTypeNamespaceAttribute, String sPgTypeAttributeBase, String sPgDescription,
     String sPgRange, String sPgTypeRange, String sPgTypeRangeBase, String sPgValues )
   {
     StringBuilder sb = new StringBuilder();
@@ -446,6 +446,13 @@ public class PostgresDatabaseMetaData
     sb.append(sPgAttribute);
     sb.append(".atttypid = ");
     sb.append(sPgTypeAttribute);
+    sb.append(".oid");
+    sb.append("\r\n    JOIN pg_namespace ");
+    sb.append(sPgTypeNamespaceAttribute);
+    sb.append(" ON ");
+    sb.append(sPgTypeAttribute);
+    sb.append(".typnamespace = ");
+    sb.append(sPgTypeNamespaceAttribute);
     sb.append(".oid");
     sb.append("\r\n    LEFT JOIN pg_type ");
     sb.append(sPgTypeAttributeBase);
@@ -562,7 +569,7 @@ public class PostgresDatabaseMetaData
   } /* getCaseAttributeName */
   
   /*------------------------------------------------------------------*/
-  private String getCaseTypeName(String sPgTypeAttribute, String sPgTypeRange, String sPgValues)
+  private String getCaseTypeName(String sPgTypeAttribute, String sPgTypeNamespaceAttribute, String sPgTypeRange, String sPgValues)
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
@@ -580,8 +587,18 @@ public class PostgresDatabaseMetaData
     sb.append(".typname");
     sb.append("\r\n      END");
     sb.append("\r\n    ELSE ");
+    sb.append("\r\n      CASE ");
+    sb.append("\r\n        WHEN ");
+    sb.append(sPgTypeNamespaceAttribute);
+    sb.append(".nspname = 'pg_catalog' THEN ");
     sb.append(sPgTypeAttribute);
     sb.append(".typname");
+    sb.append("\r\n        ELSE ");
+    sb.append(sPgTypeNamespaceAttribute);
+    sb.append(".nspname || '.' ||");
+    sb.append(sPgTypeAttribute);
+    sb.append(".typname");
+    sb.append("\r\n      END");
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseTypeName */
@@ -759,7 +776,8 @@ public class PostgresDatabaseMetaData
     String sPgTypeNamespace = "npt";
     String sPgClass = "c"; 
     String sPgAttribute = "a"; 
-    String sPgTypeAttribute = "at"; 
+    String sPgTypeAttribute = "at";
+    String sPgTypeNamespaceAttribute = "nat";
     String sPgTypeAttributeBase = "abt";
     String sPgRange = "r"; 
     String sPgTypeRange = "rt"; 
@@ -780,10 +798,10 @@ public class PostgresDatabaseMetaData
     sb.append(getCaseAttributeName(sPgAttribute,sPgValues));
     sb.append(" AS ATTR_NAME,");
     sb.append("\r\n  ");
-    sb.append(getCaseDataType(getCaseTypeName(sPgTypeAttribute,sPgTypeRange,sPgValues)));
+    sb.append(getCaseDataType(getCaseTypeName(sPgTypeAttribute,sPgTypeNamespaceAttribute,sPgTypeRange,sPgValues)));
     sb.append(" AS DATA_TYPE,");
     sb.append("\r\n  ");
-    sb.append(getCaseTypeName(sPgTypeAttribute,sPgTypeRange,sPgValues));
+    sb.append(getCaseTypeName(sPgTypeAttribute,sPgTypeNamespaceAttribute,sPgTypeRange,sPgValues));
     sb.append(" AS ATTR_TYPE_NAME,");
     sb.append("\r\n  ");
     sb.append(getCaseAttrSize(sPgTypeAttribute,sPgTypeRange,sPgValues));
@@ -816,7 +834,7 @@ public class PostgresDatabaseMetaData
     sb.append(" AS SOURCE_DATA_TYPE");
     sb.append("\r\nFROM\r\n  ");
     sb.append(getAttributesFrom(sPgTypeParent, sPgTypeNamespace, sPgClass,
-      sPgAttribute, sPgTypeAttribute, sPgTypeAttributeBase, sPgDescription,
+      sPgAttribute, sPgTypeAttribute, sPgTypeNamespaceAttribute, sPgTypeAttributeBase, sPgDescription,
       sPgRange, sPgTypeRange, sPgTypeRangeBase, sPgValues));
     sb.append("\r\nWHERE\r\n  ");
     sb.append(getAttributesCondition(sPgTypeParent, sPgTypeNamespace, sPgClass, sPgAttribute, sPgValues,

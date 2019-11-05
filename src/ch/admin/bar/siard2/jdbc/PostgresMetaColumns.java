@@ -18,6 +18,7 @@ import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
+import ch.admin.bar.siard2.postgres.identifier.PostgresQualifiedId;
 
 /*====================================================================*/
 /** PostgresMetaColumns implements data type mapping from Postgres to ISO SQL.
@@ -155,6 +156,30 @@ public class PostgresMetaColumns
       }
       sTypeName = sTypeName + " ARRAY["+String.valueOf(Integer.MAX_VALUE)+"]";
     }
+    else if ((iType == Types.STRUCT) || (iType == Types.DISTINCT))
+    {
+      try
+      { 
+        PostgresQualifiedId pqiType = new PostgresQualifiedId(sTypeName); 
+        QualifiedId qiType = new QualifiedId(pqiType.getCatalog(),pqiType.getSchema(),pqiType.getName());
+        sTypeName = qiType.format();
+      }
+      catch (ParseException pe) 
+      { 
+        // failed because of keyword?
+        StringBuilder sb = new StringBuilder();
+        String[] as = sTypeName.split("\\.");
+        for (int i = 0; i < as.length; i++)
+        {
+          if (sb.length() > 0)
+            sb.append(".");
+          if (!(as[i].startsWith("\"") && as[i].endsWith("\"")))
+            as[i] = "\""+as[i]+"\"";
+          sb.append(as[i]);
+        }
+        sTypeName = sb.toString();
+      }
+    }
     return sTypeName;
   } /* getTypeName */
   
@@ -187,15 +212,23 @@ public class PostgresMetaColumns
         {
           try
           {
-            QualifiedId qiType = new QualifiedId(sTypeName);
-            BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
-            ResultSet  rs = bdmd.getUDTs(qiType.getCatalog(),
-              bdmd.toPattern(qiType.getSchema()),
-              bdmd.toPattern(qiType.getName()), 
-              null);
-            if (rs.next())
-              iType = rs.getInt("DATA_TYPE");
-            rs.close();
+            if (sTypeName.equals("public.clob"))
+              iType = Types.CLOB;
+            else if (sTypeName.equals("public.blob"))
+              iType = Types.BLOB;
+            else
+            {
+              QualifiedId qiType = new QualifiedId(sTypeName);
+              PostgresQualifiedId pqiType = new PostgresQualifiedId(qiType.format());
+              BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
+              ResultSet  rs = bdmd.getUDTs(pqiType.getCatalog(),
+                bdmd.toPattern(pqiType.getSchema()),
+                bdmd.toPattern(pqiType.getName()), 
+                null);
+              if (rs.next())
+                iType = rs.getInt("DATA_TYPE");
+              rs.close();
+            }
           }
           catch(ParseException pe) { throw new SQLException("Type "+sTypeName+" could not be parsed ("+EU.getExceptionMessage(pe)+")!"); }
         }

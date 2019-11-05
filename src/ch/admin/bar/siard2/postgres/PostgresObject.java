@@ -5,6 +5,7 @@ import java.sql.*;
 import java.sql.Date;
 import java.text.*;
 import java.util.*;
+import javax.xml.datatype.*;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
 import org.postgresql.core.*;
@@ -19,10 +20,13 @@ public class PostgresObject
 {
   private static char cCOMMA = ',';
   private String _sValue = null;
+  private Object _o = null;
+  public Object getObject() { return _o; }
+  public void setObject(Object o) { _o = o; }
   public String getValue() { return _sValue; }
-  private PGtokenizer _pt = null;
   private PostgresQualifiedId _qiType = null;
   private PostgresConnection _pconn = null;
+  private String _sIndent = null;
   
   private class AttributeDescription
   {
@@ -60,8 +64,6 @@ public class PostgresObject
           replace("\\n","\n"). // NEW LINE
           replace("\\r","\r"). // CARRIAGE RETURN
           replace("\\f","\f"). // FORM FEED
-          replace("\\'","'"). // escaped single quotes
-          replace("\\\"","\""). // escaped double quotes
           replace("\\\\","\\"); // escaped escape
       }
     }
@@ -77,38 +79,43 @@ public class PostgresObject
         replace("\b","\\b"). // BACKSPACE
         replace("\n","\\n"). // NEW LINE
         replace("\r","\\r"). // CARRIAGE RETURN
-        replace("\\f","\f"). // FORM FEED
-        replace("\'","\\'"). // escaped single quotes
-        replace("\"","\\\""). // escaped double quotes
+        replace("\f","\\f"). // FORM FEED
         replace("\\","\\\\"); // escaped escape
       if (sQuote.equals("\""))
         s = s.replace("\"", "\"\"");
+      else if (sQuote.equals("'"))
+        s = s.replace("'", "''");
       s = sQuote + s + sQuote;
     }
     return s;
   } /* addQuotes */
   
-  public PostgresObject(String sValue, int iDataType, String sTypeName, PostgresConnection pconn)
-    throws ParseException
+  public PostgresObject(String sValue, int iDataType, String sTypeName, PostgresConnection pconn, String sIndent)
+    throws ParseException, SQLException
   {
     _sValue = sValue; 
-    _pt = new PGtokenizer(sValue, cCOMMA);
+    _sIndent = sIndent;
+    // System.out.println(sIndent + _sValue);
     if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT) || (iDataType == Types.ARRAY))
       _qiType = new PostgresQualifiedId(sTypeName);
     _pconn = pconn;
+    _o = fromString(sValue,iDataType);
   } /* constructor */
   
-  public PostgresObject(Object o, int iDataType, String sTypeName, PostgresConnection pconn)
+  public PostgresObject(Object o, int iDataType, String sTypeName, PostgresConnection pconn, String sIndent)
     throws ParseException, SQLException
   {
-    _qiType = new PostgresQualifiedId(sTypeName);
+    _o = o;
+    _sIndent = sIndent;
+    if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT) || (iDataType == Types.ARRAY))
+      _qiType = new PostgresQualifiedId(sTypeName);
     _pconn = pconn;
-    putObject(o,iDataType);
-    _pt = new PGtokenizer(_sValue, cCOMMA);
+    _sValue = fromObject(o,iDataType);
+    // System.out.println(sIndent + _sValue);
   }
   
   private List<AttributeDescription> getAttributeDescriptions()
-    throws SQLException
+    throws SQLException, ParseException
   {
     PostgresDatabaseMetaData pdmd = (PostgresDatabaseMetaData)_pconn.getMetaData();
     List<AttributeDescription> listAttributeDescription = new ArrayList<AttributeDescription>();
@@ -146,12 +153,19 @@ public class PostgresObject
     List<AttributeDescription> listAttributeDescriptions = getAttributeDescriptions();
     for (int iAttribute = 0; iAttribute < struct.getAttributes().length; iAttribute++)
     {
-      Object o = struct.getAttributes()[iAttribute];
-      AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
-      PostgresObject po = new PostgresObject(o,ad.getDataType(),ad.getTypeName(),_pconn);
       if (iAttribute > 0)
         sb.append(",");
-      sb.append(po.getValue());
+      Object o = struct.getAttributes()[iAttribute];
+      if (o != null)
+      {
+        AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
+        PostgresObject po = new PostgresObject(o,ad.getDataType(),ad.getTypeName(),_pconn, _sIndent+"  ");
+        if (ad.getDataType() == Types.STRUCT)
+          sb.append("\"");
+        sb.append(po.getValue());
+        if (ad.getDataType() == Types.STRUCT)
+          sb.append("\"");
+      }
     }
     // add parentheses
     sb.insert(0, "(");
@@ -159,9 +173,10 @@ public class PostgresObject
     return sb.toString();
   } /* formatStruct */
   
-  private void putObject(Object o, int iDataType)
+  private String fromObject(Object o, int iDataType)
     throws SQLException, ParseException
   {
+    String sValue = null;
     switch(iDataType)
     {
       case Types.CHAR:
@@ -169,88 +184,147 @@ public class PostgresObject
       case Types.NCHAR:
       case Types.NVARCHAR:
         String s = (String)o;
-        _sValue = addQuotes(s,"'");
+        sValue = addQuotes(s,"\"");
         break;
       case Types.CLOB:
         PostgresClob clob = (PostgresClob)o;
-        _sValue = String.valueOf(clob.getOid());
+        sValue = String.valueOf(clob.getOid());
         break;
       case Types.NCLOB:
         PostgresNClob nclob = (PostgresNClob)o;
-        _sValue = String.valueOf(nclob.getOid());
+        sValue = String.valueOf(nclob.getOid());
         break;
       case Types.SQLXML:
         PgSQLXML sqlxml = (PgSQLXML)o;
-        _sValue = addQuotes(sqlxml.getString(),"'");
+        sValue = addQuotes(sqlxml.getString(),"\"");
         break;
       case Types.BINARY:
       case Types.VARBINARY:
         byte[] buf = (byte[])o;
-        _sValue = addQuotes(PostgresLiterals.formatBytesLiteral(buf),"\"");
+        sValue = addQuotes(stripQuotes(PostgresLiterals.formatBytesLiteral(buf)),"\"");
         break;
       case Types.BLOB:
         PostgresBlob blob = (PostgresBlob)o;
-        _sValue = String.valueOf(blob.getOid());
+        sValue = String.valueOf(blob.getOid());
         break;
       case Types.NUMERIC:
       case Types.DECIMAL:
         BigDecimal bd = (BigDecimal)o;
-        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
       case Types.SMALLINT:
         Short sh = (Short)o;
         bd = BigDecimal.valueOf(sh);
-        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
       case Types.INTEGER:
         Integer i = (Integer)o;
         bd = BigDecimal.valueOf(i);
-        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
       case Types.BIGINT:
         Long l = (Long)o;
         bd = BigDecimal.valueOf(l);
-        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
       case Types.DOUBLE:
-        Double d = (Double)o;
-        bd = BigDecimal.valueOf(d);
-        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        if (o instanceof Float)
+        {
+          Float f = (Float)o;
+          sValue = String.valueOf(f.doubleValue());
+        }
+        else
+        {
+          Double d = (Double)o;
+          sValue = String.valueOf(d.doubleValue());
+        }
         break;
       case Types.REAL:
         Float f = (Float)o;
-        bd = BigDecimal.valueOf(f);
-        _sValue = PostgresLiterals.formatExactLiteral(bd);
+        sValue = String.valueOf(f.floatValue());
         break;
       case Types.BOOLEAN:
         Boolean b = (Boolean)o;
-        BooleanLiteral bl = BooleanLiteral.UNKNOWN;
-        if (b != null)
-          bl = b.booleanValue()?BooleanLiteral.TRUE:BooleanLiteral.FALSE;
-        _sValue = PostgresLiterals.formatBooleanLiteral(bl);
+        sValue = b.booleanValue()?"t":"f";
         break;
       case Types.DATE:
         Date date = (Date)o;
-        _sValue = PostgresLiterals.formatDateLiteral(date);
+        sValue = stripQuotes(PostgresLiterals.formatDateLiteral(date).substring(PostgresLiterals.sDATE_LITERAL_PREFIX.length()));
         break;
       case Types.TIME:
         Time time = (Time)o;
-        _sValue = PostgresLiterals.formatTimeLiteral(time);
+        sValue = stripQuotes(PostgresLiterals.formatTimeLiteral(time).substring(PostgresLiterals.sTIME_LITERAL_PREFIX.length()));
         break;
       case Types.TIMESTAMP:
         Timestamp ts = (Timestamp)o;
-        _sValue = addQuotes(PostgresLiterals.formatTimestampLiteral(ts),"'");
+        sValue = PostgresLiterals.formatTimestampLiteral(ts).substring(PostgresLiterals.sTIMESTAMP_LITERAL_PREFIX.length()).replace("'","\"");
         break;
       case Types.OTHER:
-        Interval iv = (Interval)o;
-        o = addQuotes(PostgresLiterals.formatIntervalLiteral(iv),"'");
+        Interval iv = null;
+        if (o instanceof Interval)
+          iv = (Interval)o;
+        else
+        {
+          Duration duration = (Duration)o;
+          iv = Interval.fromDuration(duration);
+        }
+        StringBuilder sb = new StringBuilder();
+        if (iv.getYears() > 0)
+        {
+          sb.append(String.valueOf(iv.getYears()));
+          sb.append(" year");
+          if (iv.getYears() > 1)
+            sb.append("s");
+        }
+        if (iv.getMonths() > 0)
+        {
+          if (sb.length() > 0)
+            sb.append(" ");
+          sb.append(String.valueOf(iv.getMonths()));
+          sb.append(" mon");
+          if (iv.getMonths() > 1)
+            sb.append("s");
+        }
+        if (iv.getDays() > 0)
+        {
+          if (sb.length() > 0)
+            sb.append(" ");
+          sb.append(String.valueOf(iv.getDays()));
+          sb.append(" day");
+          if (iv.getDays() > 1)
+            sb.append("s");
+        }
+        if ((iv.getHours() > 0) || (iv.getMinutes() > 0) || (iv.getSeconds() > 0) || (iv.getNanoSeconds() > 0))
+        {
+          if (sb.length() > 0)
+            sb.append(" ");
+          s = String.valueOf(iv.getHours());
+          if (s.length() == 1)
+            sb.append(0);
+          sb.append(s);
+          sb.append(":");
+          s = String.valueOf(iv.getMinutes());
+          if (s.length() == 1)
+            sb.append("0");
+          sb.append(s);
+          sb.append(":");
+          s = String.valueOf(iv.getSeconds());
+          if (s.length() == 1)
+            sb.append("0");
+          sb.append(s);
+          sb.append(".");
+          s = String.valueOf(iv.getNanoSeconds()/1000);
+          for (i = s.length(); i < 6; i++)
+            sb.append("0");
+          sb.append(s);
+        }
+        sValue = addQuotes(sb.toString(),"\"");
         break;
       case Types.STRUCT:
         Struct struct = (Struct)o;
-        o = formatStruct(struct);
+        sValue = formatStruct(struct);
     }
-    if (o instanceof Struct)
-      _sValue = formatStruct((Struct)o);
+    return sValue;
   }
   
   private Struct parseStruct(String sToken)
@@ -278,10 +352,10 @@ public class PostgresObject
         {
           String sAttribute = ptAttributes.getToken(iAttribute);
           AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
-          if (sAttribute.length() > 0) // zero length strings cannot be tokenized
+          if (sAttribute.length() > 0) // zero length strings cannot be tokenized - they represent NULL
           {
-            PostgresObject po = new PostgresObject(sAttribute,ad.getDataType(),ad.getTypeName(),_pconn);
-            ao[iAttribute] = po.getObject(0, ad.getDataType());
+            PostgresObject po = new PostgresObject(sAttribute,ad.getDataType(),ad.getTypeName(),_pconn, _sIndent + "  ");
+            ao[iAttribute] = po.getObject();
           }
           else
             ao[iAttribute] = null;
@@ -293,18 +367,18 @@ public class PostgresObject
         
         String sAttributeStart = ptAttributes.getToken(0);
         AttributeDescription adStart = listAttributeDescriptions.get(0);
-        PostgresObject poStart = new PostgresObject(sAttributeStart,adStart.getDataType(),adStart.getTypeName(),_pconn);
-        ao[0] = poStart.getObject(0, adStart.getDataType());
+        PostgresObject poStart = new PostgresObject(sAttributeStart,adStart.getDataType(),adStart.getTypeName(),_pconn, _sIndent + "  ");
+        ao[0] = poStart.getObject();
         
         String sAttributeEnd = ptAttributes.getToken(1);
         AttributeDescription adEnd = listAttributeDescriptions.get(1);
-        PostgresObject poEnd = new PostgresObject(sAttributeEnd,adEnd.getDataType(),adEnd.getTypeName(),_pconn);
-        ao[1] = poEnd.getObject(0, adEnd.getDataType());
+        PostgresObject poEnd = new PostgresObject(sAttributeEnd,adEnd.getDataType(),adEnd.getTypeName(),_pconn, _sIndent + "  ");
+        ao[1] = poEnd.getObject();
         
         ao[2] = sStartMark+sEndMark;
       }
       else
-        throw new ParseException("Number of attributes does not match number of tokens when parsing "+_pt.toString()+"!",0);
+        throw new ParseException("Number of attributes does not match number of tokens when parsing "+sToken+"!",0);
       struct = new PostgresStruct(_qiType.format(), ao); 
     }
     else
@@ -312,11 +386,11 @@ public class PostgresObject
     return struct;
   } /* parseStruct */
   
-  public Object getObject(int iToken, int iDataType)
+  private Object fromString(String sValue, int iDataType)
     throws SQLException, ParseException
   {
     Object o = null;
-    String sToken = _pt.getToken(iToken); 
+    String sToken = sValue; 
     BaseConnection bc = (BaseConnection)_pconn.unwrap(Connection.class);
     long lOid = -1;
     BigDecimal bd = null;
@@ -361,12 +435,11 @@ public class PostgresObject
         o = Long.valueOf(bd.longValue());
         break;
       case Types.DOUBLE:
-        bd = PostgresLiterals.parseExactLiteral(sToken);
-        o = Double.valueOf(bd.doubleValue());
+        o = Double.valueOf(sToken);
         break;
       case Types.REAL:
         bd = PostgresLiterals.parseExactLiteral(sToken);
-        o = Float.valueOf(bd.floatValue());
+        o = Float.valueOf(sToken);
         break;
       case Types.BOOLEAN:
         BooleanLiteral bl = PostgresLiterals.parseBooleanLiteral(sToken);
@@ -394,6 +467,6 @@ public class PostgresObject
         throw new SQLException("Invalid data type found: "+String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")!");
     }
     return o;
-  } /* getObject */
+  } /* fromString */
 
 } /* class PostgresObject */

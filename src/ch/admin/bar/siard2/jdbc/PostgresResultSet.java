@@ -430,8 +430,8 @@ implements ResultSet
       try
       {
         PostgresObject pobj = new PostgresObject(po.getValue(), iType, po.getType(),
-          (PostgresConnection)getStatement().getConnection());
-        o = pobj.getObject(0, iType);
+          (PostgresConnection)getStatement().getConnection(),"");
+        o = pobj.getObject();
       }
       catch(ParseException pe) { throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!"); }
     }
@@ -445,8 +445,8 @@ implements ResultSet
         {
           
           PostgresObject pobj = new PostgresObject(po.getValue(), iType, po.getType(),
-            (PostgresConnection)getStatement().getConnection());
-          o = pobj.getObject(0, iType);
+            (PostgresConnection)getStatement().getConnection(),"");
+          o = pobj.getObject();
         }
         catch(ParseException pe) { throw new SQLException("Parsing of DISTINCT failed ("+EU.getExceptionMessage(pe)+")!"); }
       }
@@ -488,11 +488,11 @@ implements ResultSet
       try
       {
         Struct struct = (Struct)x;
+        PostgresObject po = new PostgresObject(struct,Types.STRUCT,struct.getSQLTypeName(),(PostgresConnection)getStatement().getConnection(),"");
         PGobject pgo = new PGobject();
-        PostgresObject po = new PostgresObject(struct.getAttributes(),Types.STRUCT,struct.getSQLTypeName(),(PostgresConnection)getStatement().getConnection());
-        pgo.setType(((Struct) x).getSQLTypeName());
+        pgo.setType(struct.getSQLTypeName());
         pgo.setValue(po.getValue());
-        updateObject(columnIndex,pgo);
+        super.updateObject(columnIndex,pgo);
       }
       catch(ParseException pe) { throw new SQLException("PostgresObject could not be constructed ("+EU.getExceptionMessage(pe)+")!"); } 
     }

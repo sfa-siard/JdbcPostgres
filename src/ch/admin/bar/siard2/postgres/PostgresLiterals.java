@@ -519,6 +519,7 @@ public abstract class PostgresLiterals extends SqlLiterals
     {
       java.util.Date date = new java.util.Date(dateValue.getTime());
       sFormatted = sdfDATE.format(date);
+      sFormatted = sDATE_LITERAL_PREFIX + formatStringLiteral(sFormatted);
     }
     return sFormatted;
   } /* formatDateLiteral */
@@ -582,6 +583,7 @@ public abstract class PostgresLiterals extends SqlLiterals
           sMillis = sMillis.substring(0,sMillis.length()-1);
         sFormatted = sFormatted + sDOT + sMillis;
       }
+      sFormatted = sTIME_LITERAL_PREFIX + formatStringLiteral(sFormatted);
     }
     return sFormatted;
   } /* formatTimeLiteral */
