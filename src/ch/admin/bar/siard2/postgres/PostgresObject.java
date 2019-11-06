@@ -12,6 +12,7 @@ import org.postgresql.core.*;
 
 import ch.enterag.utils.database.*;
 import ch.enterag.sqlparser.*;
+import ch.enterag.sqlparser.datatype.enums.PreType;
 import ch.enterag.sqlparser.expression.enums.*;
 import ch.admin.bar.siard2.jdbc.*;
 import ch.admin.bar.siard2.postgres.identifier.*;
@@ -25,6 +26,7 @@ public class PostgresObject
   public void setObject(Object o) { _o = o; }
   public String getValue() { return _sValue; }
   private PostgresQualifiedId _qiType = null;
+  private String _sBaseType = null;
   private PostgresConnection _pconn = null;
   private String _sIndent = null;
   
@@ -48,56 +50,65 @@ public class PostgresObject
     {
       if (s.length() > 1)
       {
-        if ((s.charAt(0) == '"') && (s.charAt(s.length()-1) == '"'))
+        int l = s.length();
+        String sQuote = s.substring(l-1,l);
+        if (sQuote.equals("\"") && sQuote.equals(s.substring(0,1)))
         {
           s = s.substring(1,s.length()-1).
-            replace("\"\"", "\""); // escaped double quotes
+            replace("\"\"","\""); // doubled double quotes
+          s = s.
+            replace("\\t","\t"). // TAB
+            replace("\\b","\b"). // BACKSPACE
+            replace("\\n","\n"). // NEW LINE
+            replace("\\r","\r"). // CARRIAGE RETURN
+            replace("\\f","\f"). // FORM FEED
+            replace("\\\\","\\"); // escaped escape
         }
-        else if ((s.charAt(0) == '\'') && (s.charAt(s.length()-1) == '\''))
-        {
-          s = s.substring(1,s.length()-1).
-            replace("''", "'"); // escaped single quotes
-        }
-        s = s.
-          replace("\\t","\t"). // TAB
-          replace("\\b","\b"). // BACKSPACE
-          replace("\\n","\n"). // NEW LINE
-          replace("\\r","\r"). // CARRIAGE RETURN
-          replace("\\f","\f"). // FORM FEED
-          replace("\\\\","\\"); // escaped escape
       }
     }
     return s;
   } /* stripQuotes */
   
-  public static String addQuotes(String s, String sQuote)
+  public static String addQuotes(String s)
   {
+    String sQuote = "\"";
     if (s != null)
     {
       s = s.
+        replace("\\","\\\\"). // espace escape
         replace("\t","\\t"). // TAB
         replace("\b","\\b"). // BACKSPACE
         replace("\n","\\n"). // NEW LINE
         replace("\r","\\r"). // CARRIAGE RETURN
-        replace("\f","\\f"). // FORM FEED
-        replace("\\","\\\\"); // escaped escape
+        replace("\f","\\f"); // FORM FEED
       if (sQuote.equals("\""))
-        s = s.replace("\"", "\"\"");
-      else if (sQuote.equals("'"))
-        s = s.replace("'", "''");
+        s = s.replace("\"", "\\\""); // escape double quotes
       s = sQuote + s + sQuote;
     }
     return s;
   } /* addQuotes */
+  
+  private String getBaseType(String sTypeName)
+  {
+    int iArray = sTypeName.lastIndexOf("ARRAY");
+    if (iArray >= 0)
+      sTypeName = sTypeName.substring(0,iArray).trim();
+    int iParen = sTypeName.indexOf("(");
+    if (iParen >= 0)
+      sTypeName = sTypeName.substring(0,iParen).trim();
+    return sTypeName;
+  }
   
   public PostgresObject(String sValue, int iDataType, String sTypeName, PostgresConnection pconn, String sIndent)
     throws ParseException, SQLException
   {
     _sValue = sValue; 
     _sIndent = sIndent;
-    // System.out.println(sIndent + _sValue);
-    if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT) || (iDataType == Types.ARRAY))
+    //System.out.println(sIndent + _sValue);
+    if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT))
       _qiType = new PostgresQualifiedId(sTypeName);
+    else if (iDataType == Types.ARRAY)
+      _sBaseType = getBaseType(sTypeName);
     _pconn = pconn;
     _o = fromString(sValue,iDataType);
   } /* constructor */
@@ -107,11 +118,13 @@ public class PostgresObject
   {
     _o = o;
     _sIndent = sIndent;
-    if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT) || (iDataType == Types.ARRAY))
+    if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT))
       _qiType = new PostgresQualifiedId(sTypeName);
+    else if (iDataType == Types.ARRAY)
+      _sBaseType = getBaseType(sTypeName);
     _pconn = pconn;
     _sValue = fromObject(o,iDataType);
-    // System.out.println(sIndent + _sValue);
+    //System.out.println(sIndent + _sValue);
   }
   
   private List<AttributeDescription> getAttributeDescriptions()
@@ -160,11 +173,10 @@ public class PostgresObject
       {
         AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
         PostgresObject po = new PostgresObject(o,ad.getDataType(),ad.getTypeName(),_pconn, _sIndent+"  ");
+        String s = po.getValue();
         if (ad.getDataType() == Types.STRUCT)
-          sb.append("\"");
-        sb.append(po.getValue());
-        if (ad.getDataType() == Types.STRUCT)
-          sb.append("\"");
+          s = addQuotes(s);
+        sb.append(s);
       }
     }
     // add parentheses
@@ -172,6 +184,32 @@ public class PostgresObject
     sb.append(")");
     return sb.toString();
   } /* formatStruct */
+  
+  private String formatArray(Array array)
+    throws SQLException, ParseException
+  {
+    StringBuilder sb = new StringBuilder();
+    PreType pt = PreType.getByKeyword(_sBaseType);
+    int iDataType = Types.NULL;
+    if (pt != null)
+      iDataType = pt.getSqlType();
+    Object[] aoElement = (Object[])array.getArray();
+    for (int iElement = 0; iElement < aoElement.length; iElement++)
+    {
+      if (iElement > 0)
+        sb.append(",");
+      Object oElement = aoElement[iElement];
+      if (oElement != null)
+      {
+        PostgresObject po = new PostgresObject(oElement, iDataType, _sBaseType, _pconn, _sIndent+"  ");
+        sb.append(po.getValue());
+      }
+    }
+    // add parentheses
+    sb.insert(0, "{");
+    sb.append("}");
+    return sb.toString();
+  }
   
   private String fromObject(Object o, int iDataType)
     throws SQLException, ParseException
@@ -184,7 +222,7 @@ public class PostgresObject
       case Types.NCHAR:
       case Types.NVARCHAR:
         String s = (String)o;
-        sValue = addQuotes(s,"\"");
+        sValue = addQuotes(s);
         break;
       case Types.CLOB:
         PostgresClob clob = (PostgresClob)o;
@@ -196,12 +234,13 @@ public class PostgresObject
         break;
       case Types.SQLXML:
         PgSQLXML sqlxml = (PgSQLXML)o;
-        sValue = addQuotes(sqlxml.getString(),"\"");
+        sValue = addQuotes(sqlxml.getString());
         break;
       case Types.BINARY:
       case Types.VARBINARY:
         byte[] buf = (byte[])o;
-        sValue = addQuotes(stripQuotes(PostgresLiterals.formatBytesLiteral(buf)),"\"");
+        sValue = PostgresLiterals.formatBytesLiteral(buf);
+        sValue = addQuotes(sValue.substring(1,sValue.length()-1));
         break;
       case Types.BLOB:
         PostgresBlob blob = (PostgresBlob)o;
@@ -318,11 +357,16 @@ public class PostgresObject
             sb.append("0");
           sb.append(s);
         }
-        sValue = addQuotes(sb.toString(),"\"");
+        sValue = addQuotes(sb.toString());
         break;
       case Types.STRUCT:
         Struct struct = (Struct)o;
         sValue = formatStruct(struct);
+        break;
+      case Types.ARRAY:
+        Array array = (Array)o;
+        sValue = formatArray(array);
+        break;
     }
     return sValue;
   }
@@ -332,8 +376,7 @@ public class PostgresObject
   {
     Struct struct = null;
     // strip quotes
-    if (sToken.startsWith("\"") && sToken.endsWith("\""))
-      sToken = sToken.substring(1,sToken.length()-1);
+    sToken = stripQuotes(sToken);
     // strip parentheses
     String sStartMark = sToken.substring(0,1);
     String sEndMark = sToken.substring(sToken.length()-1,sToken.length());

@@ -19,7 +19,7 @@ public class PostgresArray
   private int _iFinalBaseType = Types.NULL;
   private String _sFinalBaseTypeName = null;
   
-  private Object getElement(Object oElement, PostgresConnection conn)
+  private Object getElement(Object oElement)
     throws SQLException
   {
     try
@@ -28,7 +28,7 @@ public class PostgresArray
       {
         if (oElement.getClass().isArray())
         {
-          oElement = (Object)new PostgresArray((Object[])oElement, _iFinalBaseType, _sFinalBaseTypeName, conn);
+          oElement = (Object)new PostgresArray((Object[])oElement, _iFinalBaseType, _sFinalBaseTypeName);
           _iBaseType = Types.ARRAY;
           _sBaseTypeName = "array";
         }
@@ -42,6 +42,7 @@ public class PostgresArray
             case Types.NVARCHAR:
               oElement = (Object)PostgresObject.stripQuotes((String)oElement); 
               break;
+            // TODO: maybe other types need special treatment!
           }
         }
       }
@@ -67,7 +68,7 @@ public class PostgresArray
     }
   } /* addElements */
   
-  public PostgresArray(PgArray array, PostgresConnection conn)
+  public PostgresArray(PgArray array)
     throws SQLException
   {
     super(array);
@@ -78,11 +79,11 @@ public class PostgresArray
     _sBaseTypeName = _sFinalBaseTypeName;
     Object[] ao = new Object[_ao.length];
     for (int iElement = 0; iElement < _ao.length; iElement++)
-      ao[iElement] = getElement(_ao[iElement],conn);
+      ao[iElement] = getElement(_ao[iElement]);
     _ao = ao;
   } /* constructor */
   
-  public PostgresArray(Object[] ao, int iFinalBaseType, String sFinalBaseTypeName, PostgresConnection conn)
+  public PostgresArray(Object[] ao, int iFinalBaseType, String sFinalBaseTypeName)
     throws SQLException
   {
     super(null);
@@ -92,7 +93,7 @@ public class PostgresArray
     _sFinalBaseTypeName = sFinalBaseTypeName;
     _sBaseTypeName = _sFinalBaseTypeName;
     for (int iElement = 0; iElement < _ao.length; iElement++)
-      _ao[iElement] = getElement(_ao[iElement],conn);
+      _ao[iElement] = getElement(_ao[iElement]);
   }
   
   /*------------------------------------------------------------------*/
@@ -123,11 +124,22 @@ public class PostgresArray
     return ao;
   } /* getArray */
   
-  public String getFieldString()
+  public String getFieldString(PostgresConnection conn)
+    throws SQLException
   {
-    StringBuilder sbFields = new StringBuilder();
+    PgArray pgarray = (PgArray)super.unwrap(Array.class);
+    String sFieldString = String.valueOf(pgarray);
+    /*
+    String sFieldString = null;
     // create PostgresObject and get its field string
-    return sbFields.toString();
+    try 
+    {
+      PostgresObject po = new PostgresObject(this,Types.ARRAY,getBaseTypeName()+" ARRAY[]", conn, ""); 
+      sFieldString = po.getValue();
+    }
+    catch(ParseException pe) { throw new SQLException("Array field string could not be formatted!"); }
+    */
+    return sFieldString;
   }
 
 }

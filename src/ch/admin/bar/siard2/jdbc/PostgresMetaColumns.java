@@ -131,7 +131,36 @@ public class PostgresMetaColumns
   private String getTypeName(String sTypeName, int iType)
     throws SQLException
   {
-    if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
+    if ((iType == Types.STRUCT) || (iType == Types.DISTINCT))
+    {
+      PostgresQualifiedId pqiType = null;
+      try { pqiType = new PostgresQualifiedId(sTypeName); }
+      catch (ParseException pe) 
+      { 
+        // failed because of keyword?
+        StringBuilder sb = new StringBuilder();
+        String[] as = sTypeName.split("\\.");
+        for (int i = 0; i < as.length; i++)
+        {
+          if (sb.length() > 0)
+            sb.append(".");
+          if (!(as[i].startsWith("\"") && as[i].endsWith("\"")))
+            as[i] = "\""+as[i]+"\"";
+          sb.append(as[i]);
+        }
+        try { pqiType = new PostgresQualifiedId(sb.toString()); }
+        catch(ParseException pe1) { throw new SQLException("Unexpected problem parsing type name ("+EU.getExceptionMessage(pe1)+")!"); }
+      }
+      if ((pqiType.getName().equals("blob") || pqiType.getName().equals("clob")) && 
+          ((pqiType.getSchema() == null) || pqiType.getSchema().equals("public")))
+        sTypeName = pqiType.getName();
+      else
+      {
+        QualifiedId qiType = new QualifiedId(pqiType.getCatalog(),pqiType.getSchema(),pqiType.getName());
+        sTypeName = qiType.format();
+      }
+    }
+    else if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
     {
       QualifiedId qiType = new QualifiedId(null,"pg_catalog",sTypeName);
       sTypeName = qiType.format();
@@ -156,30 +185,7 @@ public class PostgresMetaColumns
       }
       sTypeName = sTypeName + " ARRAY["+String.valueOf(Integer.MAX_VALUE)+"]";
     }
-    else if ((iType == Types.STRUCT) || (iType == Types.DISTINCT))
-    {
-      try
-      { 
-        PostgresQualifiedId pqiType = new PostgresQualifiedId(sTypeName); 
-        QualifiedId qiType = new QualifiedId(pqiType.getCatalog(),pqiType.getSchema(),pqiType.getName());
-        sTypeName = qiType.format();
-      }
-      catch (ParseException pe) 
-      { 
-        // failed because of keyword?
-        StringBuilder sb = new StringBuilder();
-        String[] as = sTypeName.split("\\.");
-        for (int i = 0; i < as.length; i++)
-        {
-          if (sb.length() > 0)
-            sb.append(".");
-          if (!(as[i].startsWith("\"") && as[i].endsWith("\"")))
-            as[i] = "\""+as[i]+"\"";
-          sb.append(as[i]);
-        }
-        sTypeName = sb.toString();
-      }
-    }
+    
     return sTypeName;
   } /* getTypeName */
   
@@ -212,9 +218,9 @@ public class PostgresMetaColumns
         {
           try
           {
-            if (sTypeName.equals("public.clob"))
+            if (sTypeName.equals("public.clob") || sTypeName.equals("clob"))
               iType = Types.CLOB;
-            else if (sTypeName.equals("public.blob"))
+            else if (sTypeName.equals("public.blob") || sTypeName.equals("blob"))
               iType = Types.BLOB;
             else
             {

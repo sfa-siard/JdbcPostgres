@@ -18,7 +18,6 @@ import java.util.*;
 import javax.xml.datatype.*;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
-
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -230,23 +229,19 @@ implements ResultSet
   @Override
   public Array getArray(int columnIndex) throws SQLException
   {
-    PostgresConnection conn = (PostgresConnection)_stmt.getConnection();
-    Array array = new PostgresArray((PgArray)super.getArray(columnIndex), conn);
+    PgArray pgarray = (PgArray)super.getArray(columnIndex);
+    Array array = new PostgresArray(pgarray);
     return array;
   } /* getArray */
 
   /*------------------------------------------------------------------*/
-  /** {@inheritDoc}
+  /** {@inheritDoc} */
   @Override
   public void updateArray(int columnIndex, Array x) throws SQLException
   {
     PostgresArray pa = (PostgresArray)x;
-    int iOid = 0;
-    String sFields = pa.getFieldString();
-    PostgresConnection conn = (PostgresConnection)_stmt.getConnection();
-    org.postgresql.core.BaseConnection bconn = (org.postgresql.core.BaseConnection)conn.unwrap(Connection.class);
-    PgArray parray = new PgArray(bconn,iOid,sFields);
-    super.updateArray(columnIndex, parray);
+    PgArray pga = (PgArray)pa.unwrap(Array.class);
+    super.updateArray(columnIndex, pga);
   } /* updateArray */
 
   /*------------------------------------------------------------------*/
@@ -483,7 +478,28 @@ implements ResultSet
   public void updateObject(int columnIndex, Object x)
     throws SQLException
   {
-    if (x instanceof Struct)
+    int iType = getMetaData().getColumnType(columnIndex);
+    if (iType == Types.CLOB)
+      updateClob(columnIndex,(Clob)x);
+    else if (iType == Types.BLOB)
+      updateBlob(columnIndex,(Blob)x);
+    else if ((iType == Types.BINARY) ||
+      (iType == Types.VARBINARY))
+      updateBytes(columnIndex,(byte[])x);
+    else if (iType == Types.SMALLINT)
+      updateShort(columnIndex,(Short)x);
+    else if ((iType == Types.DECIMAL) ||
+      (iType == Types.NUMERIC))
+      updateBigDecimal(columnIndex,(BigDecimal)x);
+    else if (iType == Types.TIME)
+      updateTime(columnIndex,(Time)x);
+    else if (iType == Types.VARCHAR)
+      updateString(columnIndex,(String)x);
+    else if (iType == Types.OTHER)
+      updateDuration(columnIndex,(Duration)x);
+    else if (iType == Types.ARRAY)
+      updateArray(columnIndex,(Array)x);
+    else if (iType == Types.STRUCT)
     {
       try
       {
@@ -496,8 +512,18 @@ implements ResultSet
       }
       catch(ParseException pe) { throw new SQLException("PostgresObject could not be constructed ("+EU.getExceptionMessage(pe)+")!"); } 
     }
-    else
-      throw new SQLException("updateObject is only available for Struct!");
+    else if (iType == Types.DISTINCT)
+    {
+      // TODO: get base type of this DISTINCT type
+      String sBaseType = getMetaData().getColumnTypeName(columnIndex);
+      try
+      {
+        PostgresObject po = new PostgresObject(x,Types.DISTINCT,sBaseType,(PostgresConnection)getStatement().getConnection(),"");
+        super.updateObject(columnIndex,po.getObject());
+      }
+      catch(ParseException pe) { throw new SQLException("PostgresObject could not be constructed ("+EU.getExceptionMessage(pe)+")!"); }
+    }
+    
   } /* updateObject */
 
 } /* class PostgresResultSet */

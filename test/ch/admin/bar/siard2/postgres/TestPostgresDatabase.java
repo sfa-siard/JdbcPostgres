@@ -133,8 +133,10 @@ public class TestPostgresDatabase
           {
             ColumnDefinition cd = listCd.get(iElement);
             if (iElement > 0)
-              sb.append(", ");
-            sb.append(cd.getValueLiteral());
+              sb.append(",");
+            sb.append("\"");
+            sb.append(cd.getValue());
+            sb.append("\"");
           }
           sb.append("}");
           sValueLiteral = PostgresLiterals.formatStringLiteral(sb.toString());

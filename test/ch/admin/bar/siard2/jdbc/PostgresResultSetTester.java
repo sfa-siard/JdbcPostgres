@@ -2339,7 +2339,7 @@ public class PostgresResultSetTester
       blob.setBytes(1l, (byte[])tcd.getValue());
       getResultSet().updateBlob(tcd.getName(), blob);
       tcd = findColumnDefinition(_listCdSimple,"CNUMERIC_31");
-      getResultSet().updateBigDecimal(tcd.getName(),new BigDecimal((BigInteger)tcd.getValue()));
+      getResultSet().updateBigDecimal(tcd.getName(),(BigDecimal)tcd.getValue());
       tcd = findColumnDefinition(_listCdSimple,"CDECIMAL_15_5");
       getResultSet().updateBigDecimal(tcd.getName(),(BigDecimal)tcd.getValue());
       tcd = findColumnDefinition(_listCdSimple,"CSMALLINT");
@@ -2429,8 +2429,8 @@ public class PostgresResultSetTester
           blob.getBytes(1l,(int)blob.length())));
       tcd = findColumnDefinition(_listCdSimple,"CNUMERIC_31");
       assertEquals("Insert of "+tcd.getType()+" failed!",
-        (BigInteger)tcd.getValue(),
-        getResultSet().getBigDecimal(tcd.getName()).toBigInteger());
+        (BigDecimal)tcd.getValue(),
+        getResultSet().getBigDecimal(tcd.getName()));
       tcd = findColumnDefinition(_listCdSimple,"CDECIMAL_15_5");
       assertEquals("Insert of "+tcd.getType()+" failed!",
         (BigDecimal)tcd.getValue(),
@@ -2490,6 +2490,54 @@ public class PostgresResultSetTester
       setUp();
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+  
+  /** Permits comparison of object syntax from Postgres.
+   * Mainly useful when print statements in PostgresObject are activated.
+   * @throws SQLException
+   */
+  @Test
+  public void testStruct() throws SQLException
+  {
+    enter();
+    try 
+    {
+      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      Connection conn = getResultSet().getStatement().getConnection();
+      DatabaseMetaData dmd = conn.getMetaData();
+      PostgresQualifiedId pqiTable = new PostgresQualifiedId(TestSqlDatabase.getQualifiedComplexTable().format());
+      ResultSet rsColumn = dmd.getColumns(
+        pqiTable.getCatalog(), 
+        pqiTable.getSchema(),
+        pqiTable.getName(),
+        "complete");
+      if (rsColumn.next())
+      {
+        String sColumnName = rsColumn.getString("COLUMN_NAME");
+        int iDataType = rsColumn.getInt("DATA_TYPE");
+        String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
+        String sTypeName = rsColumn.getString("TYPE_NAME");
+        System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
+        TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"COMPLETE");
+        if (tcd.getName().toLowerCase().equals(sColumnName))
+        {
+          Object o = getResultSet().getObject(sColumnName);
+          if (o instanceof PostgresStruct)
+          {
+            PostgresStruct pstruct = (PostgresStruct)o;
+            Struct struct = conn.createStruct(pstruct.getSQLTypeName(), pstruct.getAttributes());
+            getResultSet().updateObject(sColumnName, struct);
+          }
+          else
+            fail("Expected Struct not found!");
+        }
+        else
+          fail("Invalid column found: "+tcd.getName());
+        
+      }
+    }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
   }
   
   private boolean equalsStructValue(Struct struct,List<TestColumnDefinition> listAd)
@@ -2578,10 +2626,31 @@ public class PostgresResultSetTester
     return bEqual;
   } /* equalsStructValue */
   
+  private boolean equalsArrayValue(Array array,List<TestColumnDefinition> listCd)
+    throws SQLException, ParseException
+  {
+    boolean bEqual = false;
+    Object[] aoElements = (Object[])array.getArray();
+    if (listCd.size() == aoElements.length)
+    {
+      bEqual = true;
+      for (int iElement = 0; iElement < listCd.size(); iElement++)
+      {
+        Object oElement = aoElements[iElement];
+        TestColumnDefinition tcdElement = listCd.get(iElement);
+        assertEquals("Invalid value for "+tcdElement.getType()+"!",tcdElement.getValue(),oElement);
+      }
+    }
+    else
+      fail("Array has unexpected length!");
+    return bEqual;
+  } /* equalsArrayValue */
+  
   private Struct createStruct(TestColumnDefinition tcd)
     throws SQLException, ParseException
   {
     Struct struct = null;
+    Connection conn = getResultSet().getStatement().getConnection();
     @SuppressWarnings("unchecked")
     List<TestColumnDefinition> listAttributes = (List<TestColumnDefinition>)tcd.getValue();
     Object[] aoAttribute = new Object[listAttributes.size()];
@@ -2592,7 +2661,6 @@ public class PostgresResultSetTester
         aoAttribute[i] = createStruct(tad);
       else
       {
-        Connection conn = getResultSet().getStatement().getConnection();
         if (tad.getType().startsWith(PreType.BLOB.getKeyword()))
         {
           Blob blob = conn.createBlob();
@@ -2622,53 +2690,31 @@ public class PostgresResultSetTester
       }
     }
     PostgresQualifiedId pqiType = new PostgresQualifiedId(tcd.getType());
-    struct = getResultSet().getStatement().getConnection().createStruct(pqiType.format(), aoAttribute);
+    struct = conn.createStruct(pqiType.format(), aoAttribute);
     return struct;
   } /* createStruct */
 
-@Test
-public void testStruct() throws SQLException
-{
-  enter();
-  try 
+  private Array createArray(TestColumnDefinition tcd)
+    throws SQLException
   {
-    openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+    Array array = null;
     Connection conn = getResultSet().getStatement().getConnection();
-    DatabaseMetaData dmd = conn.getMetaData();
-    PostgresQualifiedId pqiTable = new PostgresQualifiedId(TestSqlDatabase.getQualifiedComplexTable().format());
-    ResultSet rsColumn = dmd.getColumns(
-      pqiTable.getCatalog(), 
-      pqiTable.getSchema(),
-      pqiTable.getName(),
-      "cudt");
-    if (rsColumn.next())
+    @SuppressWarnings("unchecked")
+    List<TestColumnDefinition> listElements = (List<TestColumnDefinition>)tcd.getValue();
+    Object[] aoElement = new Object[listElements.size()];
+    String sBaseTypeName = tcd.getType();
+    int iArray = sBaseTypeName.lastIndexOf("ARRAY[");
+    sBaseTypeName = sBaseTypeName.substring(0,iArray).trim();
+    for (int iElement = 0; iElement < aoElement.length; iElement++)
     {
-      String sColumnName = rsColumn.getString("COLUMN_NAME");
-      int iDataType = rsColumn.getInt("DATA_TYPE");
-      String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
-      String sTypeName = rsColumn.getString("TYPE_NAME");
-      System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
-      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CUDT");
-      if (tcd.getName().toLowerCase().equals(sColumnName))
-      {
-        Object o = getResultSet().getObject(sColumnName);
-        if (o instanceof PostgresStruct)
-        {
-          PostgresStruct pstruct = (PostgresStruct)o;
-          Struct struct = conn.createStruct(pstruct.getSQLTypeName(), pstruct.getAttributes());
-          getResultSet().updateObject(sColumnName, struct);
-        }
-        else
-          fail("Expected Struct not found!");
-      }
-      else
-        fail("Invalid column found: "+tcd.getName());
-      
+      TestColumnDefinition tcdElement = listElements.get(iElement);
+      if (!sBaseTypeName.equals(tcdElement.getType()))
+        throw new SQLException("Types of elements of array do not agree!");
+      aoElement[iElement] = tcdElement.getValue();
     }
-  }
-  catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
-}
+    array = conn.createArrayOf(sBaseTypeName, aoElement);
+    return array;
+  } /* createArray */
   
 @Test
 public void testInsertRowComplex() throws SQLException
@@ -2698,6 +2744,16 @@ public void testInsertRowComplex() throws SQLException
     struct = createStruct(tcd); 
     getResultSet().updateObject(tcd.getName(), struct);
     
+    tcd = findColumnDefinition(_listCdComplex,"CDISTINCT");
+    @SuppressWarnings("unchecked")
+    List<TestColumnDefinition> listDistinct = (List<TestColumnDefinition>)tcd.getValue();
+    TestColumnDefinition tcdBase = listDistinct.get(0);
+    getResultSet().updateObject(tcd.getName(),(String)tcdBase.getValue());
+    
+    tcd = findColumnDefinition(_listCdComplex,"CARRAY");
+    Array array = createArray(tcd); 
+    getResultSet().updateArray(tcd.getName(), array);
+    
     getResultSet().insertRow();
     getResultSet().moveToCurrentRow();
     
@@ -2720,6 +2776,17 @@ public void testInsertRowComplex() throws SQLException
     struct = (Struct)getResultSet().getObject(tcd.getName()); 
     assertTrue("Insert of "+tcd.getType()+" failed!",
       equalsStructValue(struct, _listAdComplex));
+    
+    tcd = findColumnDefinition(_listCdComplex,"CDISTINCT");
+    Object o = getResultSet().getObject(tcd.getName());
+    assertEquals("Insert of "+tcd.getType()+" failed!",
+      tcdBase.getValue(),o);
+
+    tcd = findColumnDefinition(_listCdComplex,"CARRAY");
+    array = (Array)getResultSet().getObject(tcd.getName()); 
+    assertTrue("Insert of "+tcd.getType()+" failed!",
+      equalsArrayValue(array, _listCdArray));
+    
     // restore the database
     tearDown();
     setUpClass();

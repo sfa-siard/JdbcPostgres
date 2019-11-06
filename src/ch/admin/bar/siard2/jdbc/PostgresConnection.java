@@ -283,5 +283,20 @@ implements Connection
   {
     return new PostgresStruct(typeName,attributes);
   } /* createStruct */
+  
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc} */
+  @Override
+  public Array createArrayOf(String typeName, Object[] elements)
+    throws SQLException
+  {
+    int iParen = typeName.indexOf("(");
+    if (iParen >= 0)
+      typeName = typeName.substring(0,iParen).trim();
+    PreType pt = PreType.getByKeyword(typeName);
+    PostgresType pgt = PostgresType.getByPreType(pt);
+    PgArray pgarray = (PgArray)super.createArrayOf(pgt.getKeyword(), elements);
+    return new PostgresArray(pgarray);
+  } /* createArrayOf */
 
 } /* class PostgresConnection */
