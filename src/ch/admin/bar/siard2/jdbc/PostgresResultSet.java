@@ -523,7 +523,8 @@ implements ResultSet
       }
       catch(ParseException pe) { throw new SQLException("PostgresObject could not be constructed ("+EU.getExceptionMessage(pe)+")!"); }
     }
-    
+    else
+      super.updateObject(columnIndex,x);
   } /* updateObject */
 
 } /* class PostgresResultSet */

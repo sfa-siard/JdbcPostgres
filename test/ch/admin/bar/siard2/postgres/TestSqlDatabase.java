@@ -365,7 +365,7 @@ public class TestSqlDatabase
     for (int iColumn = 0; iColumn < listCd.size(); iColumn++)
     {
       TestColumnDefinition tcd = listCd.get(iColumn);
-      listTableElements.add(getTableElement(tcd, listPrimary.contains(tcd.getName())));
+      listTableElements.add(getTableElement(tcd, (tcd.getName().equals("CCHAR_5")) || listPrimary.contains(tcd.getName())));
     }
     if (listPrimary != null)
       listTableElements.add(getPrimaryTableElement("PK"+qiTable.getName(), listPrimary));

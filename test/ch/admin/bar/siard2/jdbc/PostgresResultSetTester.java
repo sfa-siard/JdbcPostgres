@@ -61,7 +61,7 @@ public class PostgresResultSetTester
   private static List<TestColumnDefinition> getListCdSimple()
   {
     List<TestColumnDefinition> listCdSimple = new ArrayList<TestColumnDefinition>();
-    listCdSimple.add(new TestColumnDefinition("CCHAR_5","CHAR(5)","wxyZ"));
+    listCdSimple.add(new TestColumnDefinition("CCHAR_5","CHAR(5)","!"));
     listCdSimple.add(new TestColumnDefinition("CVARCHAR_255","VARCHAR(255)",TestUtils.getString(92)));
     listCdSimple.add(new TestColumnDefinition("CNULL","VARCHAR(255)",TestUtils.getString(5)));
     listCdSimple.add(new TestColumnDefinition("CCLOB_2M","CLOB(2M)",TestUtils.getString(1000000)));
