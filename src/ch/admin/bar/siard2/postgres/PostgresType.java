@@ -107,10 +107,10 @@ public enum PostgresType
     switch(pt)
     {
       case CHAR: pgt = CHAR; break;
-      case VARCHAR: pgt = VARCHAR; break;
+      case VARCHAR: pgt = TEXT; break;
       case CLOB: pgt = CLOB; break;
       case NCHAR: pgt = CHAR; break;
-      case NVARCHAR: pgt = VARCHAR; break;
+      case NVARCHAR: pgt = TEXT; break;
       case NCLOB: pgt = CLOB; break;
       case XML: pgt = XML; break;
       case BINARY: pgt = BYTEA; break;
