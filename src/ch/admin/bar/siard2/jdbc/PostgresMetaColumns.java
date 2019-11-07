@@ -261,7 +261,7 @@ public class PostgresMetaColumns
         iPrecision = 8;
       else if ((pgt == PostgresType.NUMERIC) || (pgt == PostgresType.MONEY))
         if ((iPrecision == 0) || (iPrecision > iMAX_NUMERIC_PRECISION))
-        iPrecision = iMAX_NUMERIC_PRECISION;
+        iPrecision = -1;
     }
     else if (sPOSTGRES_SCHEMA_PUBLIC.equals(sSchemaName))
     {
