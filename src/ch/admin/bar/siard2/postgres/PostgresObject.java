@@ -252,19 +252,31 @@ public class PostgresObject
         sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
       case Types.SMALLINT:
-        Short sh = (Short)o;
-        bd = BigDecimal.valueOf(sh);
-        sValue = PostgresLiterals.formatExactLiteral(bd);
-        break;
       case Types.INTEGER:
-        Integer i = (Integer)o;
-        bd = BigDecimal.valueOf(i);
-        sValue = PostgresLiterals.formatExactLiteral(bd);
-        break;
       case Types.BIGINT:
-        Long l = (Long)o;
-        bd = BigDecimal.valueOf(l);
-        sValue = PostgresLiterals.formatExactLiteral(bd);
+        bd = null;
+        if (o instanceof Short)
+        {
+          Short sh = (Short)o;
+          bd = BigDecimal.valueOf(sh);
+        }
+        else if (o instanceof Integer)
+        {
+          Integer i = (Integer)o;
+          bd = BigDecimal.valueOf(i);
+        }
+        else if (o instanceof Long)
+        {
+          Long l = (Long)o;
+          bd = BigDecimal.valueOf(l);
+        }
+        else if (o instanceof BigInteger)
+        {
+          BigInteger bi = (BigInteger)o;
+          bd = new BigDecimal(bi);
+        }
+        if (o != null)
+          sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
       case Types.DOUBLE:
         if (o instanceof Float)
@@ -353,7 +365,7 @@ public class PostgresObject
           sb.append(s);
           sb.append(".");
           s = String.valueOf(iv.getNanoSeconds()/1000);
-          for (i = s.length(); i < 6; i++)
+          for (int i = s.length(); i < 6; i++)
             sb.append("0");
           sb.append(s);
         }
