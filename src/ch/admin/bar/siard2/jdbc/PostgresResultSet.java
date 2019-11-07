@@ -486,8 +486,15 @@ implements ResultSet
     else if ((iType == Types.BINARY) ||
       (iType == Types.VARBINARY))
       updateBytes(columnIndex,(byte[])x);
-    else if (iType == Types.SMALLINT)
-      updateShort(columnIndex,(Short)x);
+    else if ((iType == Types.SMALLINT) || (iType == Types.INTEGER) || (iType == Types.BIGINT))
+    {
+      if (x instanceof Short)
+        updateShort(columnIndex,(Short)x);
+      else if (x instanceof Integer)
+        updateInt(columnIndex,(Integer)x);
+      else if (x instanceof BigInteger)
+        updateBigDecimal(columnIndex,new BigDecimal((BigInteger)x));
+    }
     else if ((iType == Types.DECIMAL) ||
       (iType == Types.NUMERIC))
       updateBigDecimal(columnIndex,(BigDecimal)x);
