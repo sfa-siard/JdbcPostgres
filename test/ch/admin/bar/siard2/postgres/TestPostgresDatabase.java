@@ -566,7 +566,9 @@ public class TestPostgresDatabase
     createTable(getQualifiedSimpleTable(),_listCdSimple,
       Arrays.asList(new String[] {_listCdSimple.get(_iPrimarySimple).getName()}),
       Arrays.asList(new String[] {_listCdSimple.get(_iCandidateSimple).getName()}));
-    createTable(getQualifiedComplexTable(),_listCdComplex,null,null);
+    createTable(getQualifiedComplexTable(),_listCdComplex,
+      Arrays.asList(new String[] {_listCdComplex.get(_iPrimaryComplex).getName()}),
+      null);
   } /* createTables */
   
   private void createTable(QualifiedId qiTable, List<TestColumnDefinition> listCd,
