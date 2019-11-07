@@ -239,7 +239,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     if (pgt != null)
     {
       if (pgt == PostgresType.MONEY)
-        iPrecision = PostgresMetaColumns.iMAX_NUMERIC_PRECISION;
+        iPrecision = 0; // PostgresMetaColumns.iMAX_NUMERIC_PRECISION;
       // we have mapped oid to bigint but currently it is just an int 
       else if (pgt == PostgresType.OID)
         iPrecision = sizeFromMax(Integer.MAX_VALUE);
