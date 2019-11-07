@@ -352,7 +352,7 @@ public class PostgresMetaColumns
    * Original java.sql.Types type can be retrieved by using unwrap. 
    */
   @Override
-  public int getInt(int columnIndex) throws SQLException
+  public long getLong(int columnIndex) throws SQLException
   {
     int iResult = super.getInt(columnIndex);
     if (columnIndex == _iDataType)
@@ -394,6 +394,18 @@ public class PostgresMetaColumns
         super.getInt(_iDataType),
         super.getString(_iTypeName));
     }
+    return iResult;
+  } /* getLong */
+
+  /*------------------------------------------------------------------*/
+  /** {@inheritDoc}
+   * Mapped java.sql.Types type is returned in DATA_TYPE.
+   * Original java.sql.Types type can be retrieved by using unwrap. 
+   */
+  @Override
+  public int getInt(int columnIndex) throws SQLException
+  {
+    int iResult = (int)getLong(columnIndex);
     return iResult;
   } /* getInt */
 
