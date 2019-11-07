@@ -492,6 +492,8 @@ implements ResultSet
         updateShort(columnIndex,(Short)x);
       else if (x instanceof Integer)
         updateInt(columnIndex,(Integer)x);
+      else if (x instanceof Long)
+        updateLong(columnIndex,(Long)x);
       else if (x instanceof BigInteger)
         updateBigDecimal(columnIndex,new BigDecimal((BigInteger)x));
       else if (x == null)
