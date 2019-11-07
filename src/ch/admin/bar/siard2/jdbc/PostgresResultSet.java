@@ -494,6 +494,8 @@ implements ResultSet
         updateInt(columnIndex,(Integer)x);
       else if (x instanceof BigInteger)
         updateBigDecimal(columnIndex,new BigDecimal((BigInteger)x));
+      else if (x == null)
+        super.updateObject(columnIndex,x);
     }
     else if ((iType == Types.DECIMAL) ||
       (iType == Types.NUMERIC))
