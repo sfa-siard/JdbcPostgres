@@ -374,6 +374,8 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getCdComplex() 
   {
     List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();
+    _iPrimaryComplex = listCdComplex.size(); // next column will be primary key column 
+    listCdComplex.add(new ColumnDefinition("CID","INT",Integer.valueOf(987654321)));
     listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
     listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
     listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));
