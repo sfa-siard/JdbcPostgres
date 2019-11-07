@@ -40,7 +40,11 @@ public class PostgresCreateTypeStatement
       sStatement = sStatement + sSP + K.AS.getKeyword() + sSP + getDistinctBaseType().format();
     }
     else
+    {
+      setInstantiability(null);
+      setFinality(null);
       sStatement = super.format();
+    }
     return sStatement;
   } /* format */
 
