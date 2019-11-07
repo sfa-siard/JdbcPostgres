@@ -66,7 +66,7 @@ public class PostgresPredefinedType
     {
       PostgresType pgt = PostgresType.getByPreType(getType());
       sType = pgt.getKeyword();
-      if ((pgt != PostgresType.TEXT) || (pgt != PostgresType.BYTEA))
+      if ((pgt != PostgresType.TEXT) && (pgt != PostgresType.BYTEA))
       {
         if ((getType() == PreType.CHAR) ||
             (getType() == PreType.VARCHAR) ||
