@@ -66,20 +66,23 @@ public class PostgresPredefinedType
     {
       PostgresType pgt = PostgresType.getByPreType(getType());
       sType = pgt.getKeyword();
-      if ((getType() == PreType.CHAR) ||
-          (getType() == PreType.VARCHAR) ||
-          (getType() == PreType.NCHAR) ||
-          (getType() == PreType.NVARCHAR))
-        sType = sType + formatLength();
-      else if ((getType() == PreType.NUMERIC) ||
-          (getType() == PreType.DECIMAL))
-        sType = sType + formatPrecisionScale();
-      else if (getType() == PreType.TIME)
-        sType = sType + formatSecondsDecimals(iTIME_DECIMALS_DEFAULT) + formatTimeZone();
-      else if (getType() == PreType.TIMESTAMP)
-        sType = sType + formatSecondsDecimals(iTIMESTAMP_DECIMALS_DEFAULT) + formatTimeZone();
-      else if (getType() == PreType.INTERVAL)
-        sType = sType + sSP + getIntervalQualifier().format();
+      if ((pgt != PostgresType.TEXT) || (pgt != PostgresType.BYTEA))
+      {
+        if ((getType() == PreType.CHAR) ||
+            (getType() == PreType.VARCHAR) ||
+            (getType() == PreType.NCHAR) ||
+            (getType() == PreType.NVARCHAR))
+          sType = sType + formatLength();
+        else if ((getType() == PreType.NUMERIC) ||
+            (getType() == PreType.DECIMAL))
+          sType = sType + formatPrecisionScale();
+        else if (getType() == PreType.TIME)
+          sType = sType + formatSecondsDecimals(iTIME_DECIMALS_DEFAULT) + formatTimeZone();
+        else if (getType() == PreType.TIMESTAMP)
+          sType = sType + formatSecondsDecimals(iTIMESTAMP_DECIMALS_DEFAULT) + formatTimeZone();
+        else if (getType() == PreType.INTERVAL)
+          sType = sType + sSP + getIntervalQualifier().format();
+      }
    }
     return sType;
   } /* format */
