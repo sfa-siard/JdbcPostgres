@@ -260,7 +260,9 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
                (pgt == PostgresType.PATH) ||
                (pgt == PostgresType.POLYGON) ||
                (pgt == PostgresType.CIRCLE))
-        iPrecision = Integer.MAX_VALUE;
+        iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;
+      else if ((pgt == PostgresType.BYTEA) || (pgt == PostgresType.TEXT))
+        iPrecision = PostgresMetaColumns.iMAX_TEXT_LENGTH;;
     }
     if (iPrecision == 0)
     {
@@ -283,7 +285,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       else if (pt == PreType.NCLOB)
         iPrecision = Integer.MAX_VALUE;
       else if (pt == PreType.XML)
-        iPrecision = Integer.MAX_VALUE;
+        iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;
       else if (pt == PreType.BLOB)
         iPrecision = Integer.MAX_VALUE;
       else if (pt == PreType.DATE)
@@ -317,16 +319,18 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           sPrecision = sPrecision.substring(0,sPrecision.length()-1);
         }
         iPrecision = iMult*Integer.valueOf(sPrecision);
-        if ((pgt != null) && ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT)))
+        if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
           iPrecision = (iPrecision + 7)/8;
+        else if ((pt == PreType.BINARY) || (pt == PreType.VARBINARY))
+          iPrecision = PostgresMetaColumns.iMAX_TEXT_LENGTH;
       }
     }
     if (iPrecision == 0)
     {
       if (pt == PreType.VARCHAR)
-        iPrecision = Integer.MAX_VALUE;
+        iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;
       else if (pt == PreType.VARBINARY)
-        iPrecision = Integer.MAX_VALUE;
+        iPrecision = PostgresMetaColumns.iMAX_TEXT_LENGTH;
     }
     
     return iPrecision;
@@ -561,8 +565,6 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
                 sNullable = "";
               if (pt == PreType.BINARY)
                 iRadix = 2;
-              if (pt == PreType.VARBINARY)
-                iPrecision = Integer.MAX_VALUE;
             }
           }
           assertEquals("Unexpected data type for "+sColumnName,iType,iDataType);

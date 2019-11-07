@@ -29,6 +29,8 @@ public class PostgresMetaColumns
 {
   private static final String sPOSTGRES_SCHEMA_PUBLIC = "public";
   static final int iMAX_NUMERIC_PRECISION = 1000;
+  static final int iMAX_VAR_LENGTH = 10485760;
+  static final int iMAX_TEXT_LENGTH = 1024*1024*1024;
   private int _iCatalog = -1;
   private int _iSchema = -1;
   private int _iDataType = -1;
@@ -260,8 +262,27 @@ public class PostgresMetaColumns
       else if (pgt == PostgresType.MACADDR8)
         iPrecision = 8;
       else if ((pgt == PostgresType.NUMERIC) || (pgt == PostgresType.MONEY))
+      {
         if (iPrecision > iMAX_NUMERIC_PRECISION)
         iPrecision = 0;
+      }
+      else if ((pgt == PostgresType.BYTEA) || (pgt == PostgresType.TEXT))
+        iPrecision = iMAX_TEXT_LENGTH;
+      else if ((pgt.getPreType() == PreType.CLOB) ||
+        (pgt.getPreType() == PreType.NCLOB) ||
+        (pgt.getPreType() == PreType.BLOB))
+        iPrecision = Integer.MAX_VALUE;
+      else if ((pgt.getPreType() == PreType.CHAR) || 
+          (pgt.getPreType() == PreType.NCHAR) ||
+          (pgt.getPreType() == PreType.VARCHAR) ||
+          (pgt.getPreType() == PreType.NVARCHAR) ||
+          (pgt.getPreType() == PreType.XML) ||
+          (pgt.getPreType() == PreType.BINARY) ||
+          (pgt.getPreType() == PreType.VARBINARY))
+      {
+        if (iPrecision > iMAX_VAR_LENGTH)
+          iPrecision = iMAX_VAR_LENGTH;
+      }
     }
     else if (sPOSTGRES_SCHEMA_PUBLIC.equals(sSchemaName))
     {
