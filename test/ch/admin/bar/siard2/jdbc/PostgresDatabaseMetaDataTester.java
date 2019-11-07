@@ -239,7 +239,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     if (pgt != null)
     {
       if (pgt == PostgresType.MONEY)
-        iPrecision = Integer.MAX_VALUE;
+        iPrecision = PostgresMetaColumns.iMAX_NUMERIC_PRECISION;
       // we have mapped oid to bigint but currently it is just an int 
       else if (pgt == PostgresType.OID)
         iPrecision = sizeFromMax(Integer.MAX_VALUE);
@@ -519,7 +519,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleTable().getName()))
             {
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
-              if (iPosition == TestSqlDatabase._iPrimarySimple)
+              if ((iPosition == TestSqlDatabase._iPrimarySimple) || (tcd.getName().equals("CCHAR_5")))
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
             else if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedComplexTable().getName()))

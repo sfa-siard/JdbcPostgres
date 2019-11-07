@@ -28,6 +28,7 @@ public class PostgresMetaColumns
   extends PostgresResultSet
 {
   private static final String sPOSTGRES_SCHEMA_PUBLIC = "public";
+  static final int iMAX_NUMERIC_PRECISION = 1000;
   private int _iCatalog = -1;
   private int _iSchema = -1;
   private int _iDataType = -1;
@@ -258,6 +259,9 @@ public class PostgresMetaColumns
         iPrecision = 6;
       else if (pgt == PostgresType.MACADDR8)
         iPrecision = 8;
+      else if ((pgt == PostgresType.NUMERIC) || (pgt == PostgresType.MONEY))
+        if ((iPrecision == 0) || (iPrecision > iMAX_NUMERIC_PRECISION))
+        iPrecision = iMAX_NUMERIC_PRECISION;
     }
     else if (sPOSTGRES_SCHEMA_PUBLIC.equals(sSchemaName))
     {
