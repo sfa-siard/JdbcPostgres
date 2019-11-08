@@ -1155,8 +1155,9 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      TestColumnDefinition tcd = findColumnDefinition(_listCdSimple,"CDATE");
-      getResultSet().updateObject(tcd.getName(),tcd.getValue());
+      openResultSet(_sNativeQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      TestColumnDefinition tcd = findColumnDefinition(TestPostgresDatabase._listCdComplex,"CENUM_SUIT");
+      getResultSet().updateObject(tcd.getName(),"diamonds");
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateObject */
@@ -1515,11 +1516,14 @@ public class PostgresResultSetTester
     enter();
     try 
     {
-      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      openResultSet(_sNativeQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
       getResultSet().moveToInsertRow();
       TestColumnDefinition tcd = findColumnDefinition(
-        _listCdSimple,"CINTEGER");
-      getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+        TestPostgresDatabase._listCdComplex,"CID");
+      getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue()+1);
+      tcd = findColumnDefinition(
+        TestPostgresDatabase._listCdComplex,"CENUM_SUIT");
+      getResultSet().updateObject(tcd.getName(),"spades");
       getResultSet().insertRow();
       // restore the database
       tearDown();

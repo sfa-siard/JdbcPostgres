@@ -525,7 +525,6 @@ implements ResultSet
     }
     else if (iType == Types.DISTINCT)
     {
-      // TODO: get base type of this DISTINCT type
       String sBaseType = getMetaData().getColumnTypeName(columnIndex);
       try
       {

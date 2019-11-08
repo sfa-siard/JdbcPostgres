@@ -81,11 +81,7 @@ public class PostgresResultSetMetaData
           String sName = pdmd.toPattern(qiType.getName());
           ResultSet rsUdt = pdmd.getUDTs(sCatalog, sSchema, sName, null);
           if (rsUdt.next())
-          {
             iType = rsUdt.getInt("DATA_TYPE");
-            if (iType == Types.DISTINCT)
-              iType = rsUdt.getInt("BASE_TYPE");
-          }
           rsUdt.close();
         }
         catch(ParseException pe) { throw new SQLException("Type name "+sTypeName+" could not be parsed ("+EU.getExceptionMessage(pe)+")!"); }
