@@ -525,11 +525,14 @@ implements ResultSet
     }
     else if (iType == Types.DISTINCT)
     {
-      String sBaseType = getMetaData().getColumnTypeName(columnIndex);
+      String sTypeName = getMetaData().getColumnTypeName(columnIndex);
       try
       {
-        PostgresObject po = new PostgresObject(x,Types.DISTINCT,sBaseType,(PostgresConnection)getStatement().getConnection(),"");
-        super.updateObject(columnIndex,po.getObject());
+        PostgresObject po = new PostgresObject(x,Types.DISTINCT,sTypeName,(PostgresConnection)getStatement().getConnection(),"");
+        PGobject pgo = new PGobject();
+        pgo.setType(sTypeName);
+        pgo.setValue(po.getValue());
+        super.updateObject(columnIndex,pgo);
       }
       catch(ParseException pe) { throw new SQLException("PostgresObject could not be constructed ("+EU.getExceptionMessage(pe)+")!"); }
     }

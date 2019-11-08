@@ -30,13 +30,13 @@ public class PostgresObject
   private PostgresConnection _pconn = null;
   private String _sIndent = null;
   
-  private class AttributeDescription
+  private class TypeDescription
   {
     private int _iDataType;
     public int getDataType() { return _iDataType; }
     private String _sTypeName;
     public String getTypeName() { return _sTypeName; } 
-    public AttributeDescription(int iDataType, String sTypeName)
+    public TypeDescription(int iDataType, String sTypeName)
     {
       _iDataType = iDataType;
       _sTypeName = sTypeName;
@@ -127,11 +127,11 @@ public class PostgresObject
     //System.out.println(sIndent + _sValue);
   }
   
-  private List<AttributeDescription> getAttributeDescriptions()
+  private List<TypeDescription> getAttributeDescriptions()
     throws SQLException, ParseException
   {
     PostgresDatabaseMetaData pdmd = (PostgresDatabaseMetaData)_pconn.getMetaData();
-    List<AttributeDescription> listAttributeDescription = new ArrayList<AttributeDescription>();
+    List<TypeDescription> listAttributeDescription = new ArrayList<TypeDescription>();
     ResultSet rsAttributes = pdmd.getAttributes(
       pdmd.toPattern(_qiType.getCatalog()),
       pdmd.toPattern(_qiType.getSchema()),
@@ -148,7 +148,7 @@ public class PostgresObject
         String sAttributeName = rsAttributes.getString("ATTR_NAME");
         sAttributeTypeName = PostgresMetaColumns.getIntervalTypeName(_pconn, sSchemaName, sTypeName, sAttributeName, sAttributeTypeName);
       }
-      AttributeDescription ad = new AttributeDescription(
+      TypeDescription ad = new TypeDescription(
         iDataType,
         sAttributeTypeName);
       // String sAttributeName = rsAttributes.getString("ATTR_NAME");
@@ -158,12 +158,34 @@ public class PostgresObject
     rsAttributes.close();
     return listAttributeDescription;
   } /* getAttributeDescriptions */
+  
+  private TypeDescription getBaseTypeDescription()
+    throws SQLException
+  {
+    TypeDescription tdBase = null; 
+    PostgresDatabaseMetaData pdmd = (PostgresDatabaseMetaData)_pconn.getMetaData();
+    ResultSet rsUdt = pdmd.getUDTs(
+      pdmd.toPattern(_qiType.getCatalog()),
+      pdmd.toPattern(_qiType.getSchema()),
+      pdmd.toPattern(_qiType.getName()),
+      new int[] {Types.DISTINCT});
+    if (rsUdt.next())
+    {
+      int iBaseType = rsUdt.getInt("BASE_TYPE");
+      String sBaseType = null;
+      PreType pt = PreType.getBySqlType(iBaseType);
+      if (pt != null)
+        sBaseType = pt.getKeyword();
+      tdBase = new TypeDescription(iBaseType,sBaseType);
+    }
+    return tdBase;
+  }
 
   private String formatStruct(Struct struct)
     throws SQLException, ParseException
   {
     StringBuilder sb = new StringBuilder();
-    List<AttributeDescription> listAttributeDescriptions = getAttributeDescriptions();
+    List<TypeDescription> listAttributeDescriptions = getAttributeDescriptions();
     for (int iAttribute = 0; iAttribute < struct.getAttributes().length; iAttribute++)
     {
       if (iAttribute > 0)
@@ -171,7 +193,7 @@ public class PostgresObject
       Object o = struct.getAttributes()[iAttribute];
       if (o != null)
       {
-        AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
+        TypeDescription ad = listAttributeDescriptions.get(iAttribute);
         PostgresObject po = new PostgresObject(o,ad.getDataType(),ad.getTypeName(),_pconn, _sIndent+"  ");
         String s = po.getValue();
         if (ad.getDataType() == Types.STRUCT)
@@ -375,6 +397,11 @@ public class PostgresObject
         Struct struct = (Struct)o;
         sValue = formatStruct(struct);
         break;
+      case Types.DISTINCT:
+        TypeDescription tdBase = getBaseTypeDescription();
+        PostgresObject poBase = new PostgresObject(o,tdBase.getDataType(), tdBase.getTypeName(),_pconn, _sIndent + "  ");
+        sValue = stripQuotes(poBase.getValue());
+        break;
       case Types.ARRAY:
         Array array = (Array)o;
         sValue = formatArray(array);
@@ -397,7 +424,7 @@ public class PostgresObject
         (sEndMark.equals(")") || sEndMark.equals("]")))
     {
       Object[] ao = null;
-      List<AttributeDescription> listAttributeDescriptions = getAttributeDescriptions();
+      List<TypeDescription> listAttributeDescriptions = getAttributeDescriptions();
       sToken = sToken.substring(1,sToken.length()-1);
       PGtokenizer ptAttributes = new PGtokenizer(sToken, cCOMMA);
       if (ptAttributes.getSize() == listAttributeDescriptions.size())
@@ -406,7 +433,7 @@ public class PostgresObject
         for (int iAttribute = 0; iAttribute < ptAttributes.getSize(); iAttribute++)
         {
           String sAttribute = ptAttributes.getToken(iAttribute);
-          AttributeDescription ad = listAttributeDescriptions.get(iAttribute);
+          TypeDescription ad = listAttributeDescriptions.get(iAttribute);
           if (sAttribute.length() > 0) // zero length strings cannot be tokenized - they represent NULL
           {
             PostgresObject po = new PostgresObject(sAttribute,ad.getDataType(),ad.getTypeName(),_pconn, _sIndent + "  ");
@@ -421,15 +448,15 @@ public class PostgresObject
         ao = new Object[3];
         
         String sAttributeStart = ptAttributes.getToken(0);
-        AttributeDescription adStart = listAttributeDescriptions.get(0);
+        TypeDescription adStart = listAttributeDescriptions.get(0);
         PostgresObject poStart = new PostgresObject(sAttributeStart,adStart.getDataType(),adStart.getTypeName(),_pconn, _sIndent + "  ");
         ao[0] = poStart.getObject();
         
         String sAttributeEnd = ptAttributes.getToken(1);
-        AttributeDescription adEnd = listAttributeDescriptions.get(1);
+        TypeDescription adEnd = listAttributeDescriptions.get(1);
         PostgresObject poEnd = new PostgresObject(sAttributeEnd,adEnd.getDataType(),adEnd.getTypeName(),_pconn, _sIndent + "  ");
         ao[1] = poEnd.getObject();
-        
+
         ao[2] = sStartMark+sEndMark;
       }
       else
@@ -517,6 +544,12 @@ public class PostgresObject
         break;
       case Types.STRUCT:
           o = parseStruct(sToken);
+        break;
+      case Types.DISTINCT:
+        sToken = stripQuotes(sToken);
+        TypeDescription tdBase = getBaseTypeDescription();
+        PostgresObject poBase = new PostgresObject(sToken,tdBase.getDataType(), tdBase.getTypeName(),_pconn, _sIndent + "  ");
+        o = poBase.getObject();
         break;
       default:
         throw new SQLException("Invalid data type found: "+String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")!");

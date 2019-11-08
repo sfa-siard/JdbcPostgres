@@ -2720,84 +2720,88 @@ public class PostgresResultSetTester
     return array;
   } /* createArray */
   
-@Test
-public void testInsertRowComplex() throws SQLException
-{
-  enter();
-  try 
+  @Test
+  public void testInsertRowComplex() throws SQLException
   {
-    openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
-    // needed for foreign key constraint ...
-    getResultSet().moveToInsertRow();
-    TestColumnDefinition tcd = findColumnDefinition(
-      _listCdSimple,"CINTEGER");
-    getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
-    getResultSet().insertRow();
-    getResultSet().moveToCurrentRow();
-
-    openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
-    getResultSet().moveToInsertRow();
-    tcd = findColumnDefinition(_listCdComplex,"CID");
-    getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
-
-    tcd = findColumnDefinition(_listCdComplex,"COMPLETE");
-    Struct struct = createStruct(tcd); 
-    getResultSet().updateObject(tcd.getName(), struct);
-    
-    tcd = findColumnDefinition(_listCdComplex,"CUDT");
-    struct = createStruct(tcd); 
-    getResultSet().updateObject(tcd.getName(), struct);
-    
-    tcd = findColumnDefinition(_listCdComplex,"CDISTINCT");
-    @SuppressWarnings("unchecked")
-    List<TestColumnDefinition> listDistinct = (List<TestColumnDefinition>)tcd.getValue();
-    TestColumnDefinition tcdBase = listDistinct.get(0);
-    getResultSet().updateObject(tcd.getName(),(String)tcdBase.getValue());
-    
-    tcd = findColumnDefinition(_listCdComplex,"CARRAY");
-    Array array = createArray(tcd); 
-    getResultSet().updateArray(tcd.getName(), array);
-    
-    getResultSet().insertRow();
-    getResultSet().moveToCurrentRow();
-    
-    openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
-    tcd = findColumnDefinition(_listCdComplex,"CID");
-    while ((getResultSet().getInt(tcd.getName()) != ((Integer)tcd.getValue()).intValue()) && 
-      getResultSet().next()) {}
-
-    tcd = findColumnDefinition(_listCdComplex,"CID");
-    assertEquals("Insert of "+tcd.getType()+" failed!",
-      ((Integer)tcd.getValue()).intValue(),
-      getResultSet().getInt(tcd.getName()));
-    
-    tcd = findColumnDefinition(_listCdComplex,"COMPLETE");
-    struct = (Struct)getResultSet().getObject(tcd.getName()); 
-    assertTrue("Insert of "+tcd.getType()+" failed!",
-      equalsStructValue(struct, _listCdSimple));
-
-    tcd = findColumnDefinition(_listCdComplex,"CUDT");
-    struct = (Struct)getResultSet().getObject(tcd.getName()); 
-    assertTrue("Insert of "+tcd.getType()+" failed!",
-      equalsStructValue(struct, _listAdComplex));
-    
-    tcd = findColumnDefinition(_listCdComplex,"CDISTINCT");
-    Object o = getResultSet().getObject(tcd.getName());
-    assertEquals("Insert of "+tcd.getType()+" failed!",
-      tcdBase.getValue(),o);
-
-    tcd = findColumnDefinition(_listCdComplex,"CARRAY");
-    array = (Array)getResultSet().getObject(tcd.getName()); 
-    assertTrue("Insert of "+tcd.getType()+" failed!",
-      equalsArrayValue(array, _listCdArray));
-    
-    // restore the database
-    tearDown();
-    setUpClass();
-    setUp();
-  }
-  catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
-} /* testInsertRowSqlComplex */
+    enter();
+    try 
+    {
+      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      // needed for foreign key constraint ...
+      getResultSet().moveToInsertRow();
+      TestColumnDefinition tcd = findColumnDefinition(
+        _listCdSimple,"CINTEGER");
+      getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+      tcd = findColumnDefinition(
+        _listCdSimple,"CCHAR_5");
+      getResultSet().updateString(tcd.getName(),(String)tcd.getValue());
+      
+      getResultSet().insertRow();
+      getResultSet().moveToCurrentRow();
   
+      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      getResultSet().moveToInsertRow();
+      tcd = findColumnDefinition(_listCdComplex,"CID");
+      getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
+  
+      tcd = findColumnDefinition(_listCdComplex,"COMPLETE");
+      Struct struct = createStruct(tcd); 
+      getResultSet().updateObject(tcd.getName(), struct);
+      
+      tcd = findColumnDefinition(_listCdComplex,"CUDT");
+      struct = createStruct(tcd); 
+      getResultSet().updateObject(tcd.getName(), struct);
+      
+      tcd = findColumnDefinition(_listCdComplex,"CDISTINCT");
+      @SuppressWarnings("unchecked")
+      List<TestColumnDefinition> listDistinct = (List<TestColumnDefinition>)tcd.getValue();
+      TestColumnDefinition tcdBase = listDistinct.get(0);
+      getResultSet().updateObject(tcd.getName(),(String)tcdBase.getValue());
+      
+      tcd = findColumnDefinition(_listCdComplex,"CARRAY");
+      Array array = createArray(tcd); 
+      getResultSet().updateArray(tcd.getName(), array);
+      
+      getResultSet().insertRow();
+      getResultSet().moveToCurrentRow();
+      
+      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      tcd = findColumnDefinition(_listCdComplex,"CID");
+      while ((getResultSet().getInt(tcd.getName()) != ((Integer)tcd.getValue()).intValue()) && 
+        getResultSet().next()) {}
+
+      tcd = findColumnDefinition(_listCdComplex,"CID");
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        ((Integer)tcd.getValue()).intValue(),
+        getResultSet().getInt(tcd.getName()));
+      
+      tcd = findColumnDefinition(_listCdComplex,"COMPLETE");
+      struct = (Struct)getResultSet().getObject(tcd.getName()); 
+      assertTrue("Insert of "+tcd.getType()+" failed!",
+        equalsStructValue(struct, _listCdSimple));
+  
+      tcd = findColumnDefinition(_listCdComplex,"CUDT");
+      struct = (Struct)getResultSet().getObject(tcd.getName()); 
+      assertTrue("Insert of "+tcd.getType()+" failed!",
+        equalsStructValue(struct, _listAdComplex));
+      
+      tcd = findColumnDefinition(_listCdComplex,"CDISTINCT");
+      Object o = getResultSet().getObject(tcd.getName());
+      assertEquals("Insert of "+tcd.getType()+" failed!",
+        tcdBase.getValue(),o);
+  
+      tcd = findColumnDefinition(_listCdComplex,"CARRAY");
+      array = (Array)getResultSet().getObject(tcd.getName()); 
+      assertTrue("Insert of "+tcd.getType()+" failed!",
+        equalsArrayValue(array, _listCdArray));
+ 
+      // restore the database
+      tearDown();
+      setUpClass();
+      setUp();
+    }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
+  } /* testInsertRowSqlComplex */
+    
 }
