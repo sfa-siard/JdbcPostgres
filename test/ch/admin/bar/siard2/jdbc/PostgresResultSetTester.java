@@ -621,10 +621,16 @@ public class PostgresResultSetTester
     enter();
     try
     {
+      /**
       openResultSet(_sNativeQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
       TestColumnDefinition tcd = findColumnDefinition(TestPostgresDatabase._listCdSimple,"CMONEY");
       BigDecimal bd = getResultSet().getBigDecimal(tcd.getName());
       assertTrue("Invalid BigDecimal!",bd.compareTo((BigDecimal)tcd.getValue()) == 0);
+      **/
+      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CBIGINT");
+      BigDecimal bd = getResultSet().getBigDecimal(tcd.getName());
+      assertEquals("Invalid BigDecimal!",new BigDecimal(((Long)tcd.getValue()).longValue()),bd);
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetBigDecimal */
@@ -1141,13 +1147,18 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CBIGINT");
+      Object o = getResultSet().getObject(tcd.getName());
+      assertEquals("Invalid BIGINT!",(Long)tcd.getValue(),(Long)o);
+      /**
       TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CDISTINCT");
       @SuppressWarnings("unchecked")
       List<TestColumnDefinition> list = (List<TestColumnDefinition>)tcd.getValue();
       TestColumnDefinition tcdValue = list.get(0);
       Object o = getResultSet().getObject(tcd.getName());
       assertEquals("Invalid DISTINCT!",(String)tcdValue.getValue(),(String)o);
+      **/
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetObject */
@@ -1164,9 +1175,14 @@ public class PostgresResultSetTester
       TestColumnDefinition tcd = findColumnDefinition(TestPostgresDatabase._listCdComplex,"CENUM_SUIT");
       getResultSet().updateObject(tcd.getName(),"diamonds");
       */
+      /*
       openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
       TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CDISTINCT");
       getResultSet().updateObject(tcd.getName(),"hello");
+      */
+      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CBIGINT");
+      getResultSet().updateObject(tcd.getName(),BigDecimal.valueOf(5l));
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateObject */
@@ -2360,7 +2376,7 @@ public class PostgresResultSetTester
       tcd = findColumnDefinition(_listCdSimple,"CINTEGER");
       getResultSet().updateInt(tcd.getName(),((Integer)tcd.getValue()).intValue());
       tcd = findColumnDefinition(_listCdSimple,"CBIGINT");
-      getResultSet().updateLong(tcd.getName(),((Long)tcd.getValue()).longValue());
+      getResultSet().updateBigDecimal(tcd.getName(),new BigDecimal(((Long)tcd.getValue()).longValue()));
       tcd = findColumnDefinition(_listCdSimple,"CFLOAT_10");
       getResultSet().updateDouble(tcd.getName(),((Float)tcd.getValue()).doubleValue());
       tcd = findColumnDefinition(_listCdSimple,"CREAL");
@@ -2458,8 +2474,8 @@ public class PostgresResultSetTester
         getResultSet().getInt(tcd.getName()));
       tcd = findColumnDefinition(_listCdSimple,"CBIGINT");
       assertEquals("Insert of "+tcd.getType()+" failed!",
-        ((Long)tcd.getValue()).longValue(),
-        getResultSet().getLong(tcd.getName()));
+        new BigDecimal(((Long)tcd.getValue()).longValue()),
+        getResultSet().getBigDecimal(tcd.getName()));
       tcd = findColumnDefinition(_listCdSimple,"CFLOAT_10");
       assertEquals("Insert of "+tcd.getType()+" failed!",
         (Float)tcd.getValue(),
