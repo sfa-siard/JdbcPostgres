@@ -50,20 +50,19 @@ public class PostgresMetaColumns
       sTypeName = "\"" + String.join("\".\"", as) + "\"";
     }
     qiType = new QualifiedId(sTypeName);
+    if (qiType.getSchema() == null)
+      qiType.setSchema("pg_catalog");
     sTypeName = qiType.format();
-    if (sTypeName.equals("\"public\".\"clob\"") || sTypeName.equals("\"public\".\"blob\""))
-      qiType.setSchema(null);
     return qiType;
   }
   
   private static String formatTypeName(QualifiedId qiType)
   {
-    String sTypeName = null;
+    String sTypeName = qiType.format();
     /* we want qualified types to be quoted and simple types to be unquoted */
-    if ((qiType.getSchema() == null) || qiType.getSchema().equals("pg_catalog"))
-      sTypeName = qiType.getName();
-    else
-      sTypeName = qiType.format();
+    if (qiType.getSchema().equals("pg_catalog"))
+      if (!PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
+        sTypeName = qiType.getName();
     return sTypeName;
   }
 
@@ -221,11 +220,12 @@ public class PostgresMetaColumns
     {
       if (!sTypeName.startsWith("_"))
       {
-        if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
+        if ((qiType.getSchema().equals("pg_catalog")) &&
+          PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
           iType = Types.STRUCT;
-        else if (sTypeName.equals("clob"))
+        else if (qiType.getSchema().equals("public") && qiType.getName().equals("clob"))
           iType = Types.CLOB;
-        else if (sTypeName.equals("blob"))
+        else if (qiType.getSchema().equals("public") && qiType.getName().equals("blob"))
           iType = Types.BLOB;
         else
         {

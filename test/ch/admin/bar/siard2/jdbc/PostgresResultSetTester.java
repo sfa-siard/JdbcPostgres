@@ -2000,8 +2000,6 @@ public class PostgresResultSetTester
           List<TestColumnDefinition> listAttributes = (List<TestColumnDefinition>)tcd.getValue();
           // sTypeName holds name of type
           PostgresQualifiedId qiType = new PostgresQualifiedId(sTypeName);
-          if (qiType.getSchema() == null)
-            qiType.setSchema("pg_catalog");;
           DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
           ResultSet rsAttribute = dmd.getAttributes(
             qiType.getCatalog(), 

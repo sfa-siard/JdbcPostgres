@@ -779,7 +779,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     enter();
     try 
     { 
-      print(getDatabaseMetaData().getAttributes(null,null,"int4range", null));
+      print(getDatabaseMetaData().getAttributes(null,"pg_catalog","int4range", null));
     } 
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   }

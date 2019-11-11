@@ -108,7 +108,7 @@ public class PostgresObject
     if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT))
     {
       _qiType = new PostgresQualifiedId(sTypeName);
-      if (_qiType.getSchema() == null) // builtin ranges
+      if (_qiType.getSchema() == null)
         _qiType.setSchema("pg_catalog");
     }
     else if (iDataType == Types.ARRAY)
@@ -123,7 +123,11 @@ public class PostgresObject
     _o = o;
     _sIndent = sIndent;
     if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT))
+    {
       _qiType = new PostgresQualifiedId(sTypeName);
+      if (_qiType.getSchema() == null)
+        _qiType.setSchema("pg_catalog");
+    }
     else if (iDataType == Types.ARRAY)
       _sBaseType = getBaseType(sTypeName);
     _pconn = pconn;
