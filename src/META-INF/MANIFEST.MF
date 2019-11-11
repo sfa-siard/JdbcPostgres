@@ -4,10 +4,10 @@ Specification-Title: JDBC
 Specification-Version: 4
 Specification-Vendor: Enter AG, Rüti ZH, Switzerland
 Implementation-Title: Postgres JDBC Wrapper
-Implementation-Version: 2.1.31
+Implementation-Version: 2.1.32
 Implementation-Vendor: Enter AG, Rüti ZH, Switzerland
 Main-Class: ch.admin.bar.siard2.jdbc.OracleDriver
-Built-Date: 08. Nov 2019
+Built-Date: 11. Nov 2019
 Class-Path: postgresql.42.2.5.jar
   jdbcbase.jar
   sqlparser.jar
