@@ -327,15 +327,16 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
         iPrecision = 6;
       else if (pgt == PostgresType.MACADDR8)
         iPrecision = 8;
-      else if ((pgt == PostgresType.POINT) ||
-               (pgt == PostgresType.LINE) ||
-               (pgt == PostgresType.LSEG) ||
-               (pgt == PostgresType.BOX) ||
-               (pgt == PostgresType.PATH) ||
-               (pgt == PostgresType.POLYGON) ||
-               (pgt == PostgresType.CIRCLE))
+      else if ((pgt == PostgresType.TEXT) ||
+        (pgt == PostgresType.POINT) ||
+        (pgt == PostgresType.LINE) ||
+        (pgt == PostgresType.LSEG) ||
+        (pgt == PostgresType.BOX) ||
+        (pgt == PostgresType.PATH) ||
+        (pgt == PostgresType.POLYGON) ||
+        (pgt == PostgresType.CIRCLE))
         iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;
-      else if ((pgt == PostgresType.BYTEA) || (pgt == PostgresType.TEXT))
+      else if (pgt == PostgresType.BYTEA)
         iPrecision = PostgresMetaColumns.iMAX_TEXT_LENGTH;;
     }
     if (iPrecision == 0)
@@ -530,6 +531,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             else if (sColumnName.equalsIgnoreCase("CENUM_SUIT"))
             {
               iType = Types.DISTINCT;
+              iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;
               System.out.println("  ENUM "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CCOMPOSITE"))
@@ -757,6 +759,18 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     try 
     { 
       print(getDatabaseMetaData().getAttributes(null,"testsqlschema","typsqlall", null));
+    } 
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+  }
+
+  @Test
+  public void testGetAttributesComposite()
+  {
+    enter();
+    try 
+    { 
+      QualifiedId qiType = TestPostgresDatabase.getQualifiedCompositeType();
+      print(getDatabaseMetaData().getAttributes(null,qiType.getSchema().toLowerCase(),qiType.getName().toLowerCase(), null));
     } 
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   }

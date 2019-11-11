@@ -375,14 +375,14 @@ public class PostgresDatabaseMetaData
     sb.append("CASE");
     sb.append("\r\n    WHEN "+sPgTypeRange+".typlen IS NULL THEN");
     sb.append("\r\n      CASE "+sPgTypeAttribute+".typlen");
-    sb.append("\r\n        WHEN -1 THEN 0"); // String.valueOf(iMAX_VAR_SIZE) ??
+    sb.append("\r\n        WHEN -1 THEN "+String.valueOf(Integer.MAX_VALUE));
     sb.append("\r\n        ELSE "+sPgTypeAttribute+".typlen");
     sb.append("\r\n      END");
     sb.append("\r\n    ELSE");
     sb.append("\r\n      CASE");
     sb.append("\r\n        WHEN "+sPgValues+".typlen IS NULL THEN");
     sb.append("\r\n          CASE "+sPgTypeRange+".typlen");
-    sb.append("\r\n            WHEN -1 THEN 0"); // String.valueOf(iMAX_VAR_SIZE)
+    sb.append("\r\n            WHEN -1 THEN "+String.valueOf(Integer.MAX_VALUE));
     sb.append("\r\n            ELSE "+sPgTypeRange+".typlen");
     sb.append("\r\n          END");
     sb.append("\r\n        ELSE "+sPgValues+".typlen");

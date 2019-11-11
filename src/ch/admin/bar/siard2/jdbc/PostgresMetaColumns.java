@@ -254,7 +254,10 @@ public class PostgresMetaColumns
      sTypeName = formatTypeName(qiType);
     }
     catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
+    PreType pt = PreType.getBySqlType(iType);
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+    if ((pgt == null) && (pt != null) && (iType != Types.OTHER))
+      pgt = PostgresType.getByPreType(pt);
     if (pgt != null)
     {
       switch (pgt)
@@ -306,6 +309,7 @@ public class PostgresMetaColumns
           iPrecision = 49; break;
         case CHAR: 
         case VARCHAR:
+        case TEXT:
         case JSON:
         case JSONB:
         case XML:
@@ -321,7 +325,6 @@ public class PostgresMetaColumns
           if (iPrecision > iMAX_VAR_LENGTH)
             iPrecision = iMAX_VAR_LENGTH;
           break;
-        case TEXT:
         case BYTEA: 
           iPrecision = iMAX_TEXT_LENGTH; 
           break;
@@ -351,17 +354,20 @@ public class PostgresMetaColumns
           break;
       }
     }
+    else if ((qiType.getSchema().equals("pg_catalog")) &&
+      PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
+      iPrecision = 0;
     else if (iType == Types.DISTINCT)
     {
       iPrecision = Integer.MAX_VALUE;
       if (_iSourceDataType > 0)  // for columns/attributes
       {
         int iSourceDataType = getInt(_iSourceDataType);
-        PreType pt = PreType.getBySqlType(iSourceDataType);
-        if (pt != null)
+        PreType ptSource = PreType.getBySqlType(iSourceDataType);
+        if (ptSource != null)
         {
-          pgt = PostgresType.getByPreType(pt);
-          iPrecision = getPrecision(iPrecision, iSourceDataType, pgt.getKeyword());
+          PostgresType pgtSource = PostgresType.getByPreType(ptSource);
+          iPrecision = getPrecision(iPrecision, iSourceDataType, pgtSource.getKeyword());
         }
       }
     }
