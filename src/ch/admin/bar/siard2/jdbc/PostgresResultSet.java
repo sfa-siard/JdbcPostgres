@@ -496,6 +496,8 @@ implements ResultSet
         updateLong(columnIndex,(Long)x);
       else if (x instanceof BigInteger)
         updateBigDecimal(columnIndex,new BigDecimal((BigInteger)x));
+      else if (x instanceof BigDecimal)
+        updateBigDecimal(columnIndex,(BigDecimal)x);
       else if (x == null)
         super.updateObject(columnIndex,x);
     }
