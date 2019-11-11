@@ -107,10 +107,10 @@ public enum PostgresType
     switch(pt)
     {
       case CHAR: pgt = CHAR; break;
-      case VARCHAR: pgt = TEXT; break;
+      case VARCHAR: pgt = VARCHAR; break;
       case CLOB: pgt = CLOB; break;
       case NCHAR: pgt = CHAR; break;
-      case NVARCHAR: pgt = TEXT; break;
+      case NVARCHAR: pgt = VARCHAR; break;
       case NCLOB: pgt = CLOB; break;
       case XML: pgt = XML; break;
       case BINARY: pgt = BYTEA; break;
@@ -129,7 +129,6 @@ public enum PostgresType
       case TIME: pgt = TIME; break;
       case TIMESTAMP: pgt = TIMESTAMP; break;
       case INTERVAL: pgt = INTERVAL; break;
-      default:
     }
     return pgt;
   } /* getByPreType */

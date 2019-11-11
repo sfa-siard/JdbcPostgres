@@ -2,6 +2,7 @@ package ch.admin.bar.siard2.jdbc;
 
 import java.io.*;
 import java.sql.*;
+import java.text.*;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -11,9 +12,11 @@ import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.sqlparser.identifier.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.base.*;
+import ch.enterag.utils.database.SqlTypes;
 import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
+import ch.admin.bar.siard2.postgres.identifier.PostgresQualifiedId;
 
 public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
 {
@@ -23,17 +26,83 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   private static final String _sDB_PASSWORD = _cp.getPassword();
   private static final String _sDBA_USER = _cp.getDbaUser();
   private static final String _sDBA_PASSWORD = _cp.getDbaPassword();
-  private static Set<String> _setTestSchemas = new HashSet<String>(Arrays.asList(new String[] {
-    TestPostgresDatabase._sTEST_SCHEMA.toLowerCase(), // irritating lower case for identifiers ...
-    TestSqlDatabase._sTEST_SCHEMA.toLowerCase()}));
-  private static Set<String> _setTestTables = new HashSet<String>(Arrays.asList(new String[] {
-    TestPostgresDatabase.getQualifiedSimpleTable().getName().toLowerCase(), // irritating lower case for identifiers ...
-    TestPostgresDatabase.getQualifiedComplexTable().getName().toLowerCase(),
-    TestSqlDatabase.getQualifiedSimpleTable().getName().toLowerCase(),
-    TestSqlDatabase.getQualifiedComplexTable().getName().toLowerCase()}));
-  private static Set<String> _setTestViews = new HashSet<String>(Arrays.asList(new String[] {
-    TestSqlDatabase.getQualifiedSimpleView().getName().toLowerCase()}));
+  private static PostgresQualifiedId _pqiNativeSimpleTable = null;
+  private static PostgresQualifiedId _pqiNativeComplexTable = null;
+  private static PostgresQualifiedId _pqiSqlSimpleTable = null;
+  private static PostgresQualifiedId _pqiSqlComplexTable = null;
+  private static PostgresQualifiedId _pqiSqlSimpleView = null;
+  private static Set<PostgresQualifiedId> _setTestTables = null;
+  private static Set<PostgresQualifiedId> _setTestViews = null;
+  {
+    try
+    {
+      _pqiNativeSimpleTable = new PostgresQualifiedId(TestPostgresDatabase.getQualifiedSimpleTable().format());
+      _pqiNativeComplexTable = new PostgresQualifiedId(TestPostgresDatabase.getQualifiedComplexTable().format());
+      _pqiSqlSimpleTable = new PostgresQualifiedId(TestSqlDatabase.getQualifiedSimpleTable().format());
+      _pqiSqlComplexTable = new PostgresQualifiedId(TestSqlDatabase.getQualifiedComplexTable().format());
+      _pqiSqlSimpleView = new PostgresQualifiedId(TestSqlDatabase.getQualifiedSimpleView().format());
+      _setTestTables = new HashSet<PostgresQualifiedId>(
+        Arrays.asList(new PostgresQualifiedId[]{
+          _pqiNativeSimpleTable,
+          _pqiNativeComplexTable,
+          _pqiSqlSimpleTable,
+          _pqiSqlComplexTable}));
+      _setTestViews = new HashSet<PostgresQualifiedId>(
+        Arrays.asList(new PostgresQualifiedId[] {_pqiSqlSimpleView}));
+    }
+    catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
+  }
 
+  public static void print(ResultSet rs)
+    throws SQLException
+  {
+    if ((rs != null) && (!rs.isClosed()))
+    {
+      ResultSetMetaData rsmd = rs.getMetaData();
+      if (rsmd != null)
+      {
+        int iColumns = rsmd.getColumnCount();
+        List<String> listColumns = new ArrayList<String>();
+        StringBuilder sbLine = new StringBuilder();
+        for (int iColumn = 0; iColumn < iColumns; iColumn++)
+        {
+          if (iColumn > 0)
+            sbLine.append("\t");
+          String sColumnName = rsmd.getColumnLabel(iColumn+1);
+          sbLine.append(sColumnName);
+          listColumns.add(sColumnName);
+        }
+        System.out.println(sbLine.toString());
+        sbLine.setLength(0);
+        while (rs.next())
+        {
+          for (int iColumn = 0; iColumn < iColumns; iColumn++)
+          {
+            if (iColumn > 0)
+              sbLine.append("\t");
+            String sColumnName = listColumns.get(iColumn);
+            String sValue = String.valueOf(rs.getObject(iColumn+1));
+            if (!rs.wasNull())
+            {
+              if (sColumnName.equalsIgnoreCase("DATA_TYPE"))
+                sValue = sValue + " ("+SqlTypes.getTypeName(Integer.parseInt(sValue))+")";
+            }
+            else
+              sValue = "(null)";
+            sbLine.append(sValue);
+          }
+          System.out.println(sbLine.toString());
+          sbLine.setLength(0);
+        }
+        rs.close();
+      }
+    }
+    else if (rs.isClosed()) 
+      throw new SQLException("Empty meta data result set!");
+    else
+      fail("Invalid meta data result set");
+  } /* print */
+  
   @BeforeClass
   public static void setUpClass()
   {
@@ -116,10 +185,16 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     try 
     {
       print(getDatabaseMetaData().getTables(null,null,"%",new String[] {"TABLE"}));
-      Set<String>setTestTables = new HashSet<String>(_setTestTables);
+      Set<PostgresQualifiedId>setTestTables = new HashSet<PostgresQualifiedId>(_setTestTables);
       ResultSet rs = getDatabaseMetaData().getTables(null,null,"%",new String[] {"TABLE"});
       while (rs.next())
-        setTestTables.remove(rs.getString("TABLE_NAME"));
+      {
+        PostgresQualifiedId pqiTable = new PostgresQualifiedId(); 
+        pqiTable.setCatalog(rs.getString("TABLE_CAT"));
+        pqiTable.setSchema(rs.getString("TABLE_SCHEM"));
+        pqiTable.setName(rs.getString("TABLE_NAME"));
+        setTestTables.remove(pqiTable);
+      }
       rs.close();
       assertTrue("Some test tables not found!",setTestTables.isEmpty());
     } 
@@ -133,10 +208,16 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     try 
     { 
       print(getDatabaseMetaData().getTables(null,null,"%",new String[] {"VIEW"})); 
-      Set<String>setTestViews = new HashSet<String>(_setTestViews);
+      Set<PostgresQualifiedId>setTestViews = new HashSet<PostgresQualifiedId>(_setTestViews);
       ResultSet rs = getDatabaseMetaData().getTables(null,null,"%",new String[] {"VIEW"});
       while (rs.next())
-        setTestViews.remove(rs.getString("TABLE_NAME"));
+      {
+        PostgresQualifiedId pqiView = new PostgresQualifiedId(); 
+        pqiView.setCatalog(rs.getString("TABLE_CAT"));
+        pqiView.setSchema(rs.getString("TABLE_SCHEM"));
+        pqiView.setName(rs.getString("TABLE_NAME"));
+        setTestViews.remove(pqiView);
+      }
       rs.close();
       assertTrue("Some test views not found!",setTestViews.isEmpty());
     } 
@@ -147,19 +228,13 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
    * @return user tables.
    * @throws SQLException
    */
-  private Set<String> getUserTablesViews()
+  private Set<PostgresQualifiedId> getUserTablesViews()
     throws SQLException
   {
-    Set<String>setTables = new HashSet<String>();
-    ResultSet rsTable = getDatabaseMetaData().getTables(null,null,"%",new String[] {"TABLE","VIEW"});
-    while (rsTable.next())
-    {
-      String sSchema = rsTable.getString("TABLE_SCHEM");
-      if (_setTestSchemas.contains(sSchema))
-        setTables.add(rsTable.getString("TABLE_NAME"));
-    }
-    rsTable.close();
-    return setTables;
+    Set<PostgresQualifiedId> setTablesViews = new HashSet<PostgresQualifiedId>();
+    setTablesViews.addAll(_setTestTables);
+    setTablesViews.addAll(_setTestViews);
+    return setTablesViews;
   } /* getTablesUserViews */
   
   /** compute size in characters of the int type with the given maximum.
@@ -240,9 +315,8 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     {
       if (pgt == PostgresType.MONEY)
         iPrecision = 0; // PostgresMetaColumns.iMAX_NUMERIC_PRECISION;
-      // we have mapped oid to bigint but currently it is just an int 
       else if (pgt == PostgresType.OID)
-        iPrecision = sizeFromMax(Integer.MAX_VALUE);
+        iPrecision = sizeFromMax(Long.MAX_VALUE);
       else if (pgt == PostgresType.TIMETZ)
         iPrecision = 21;
       else if (pgt == PostgresType.TIMESTAMPTZ)
@@ -400,12 +474,13 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     enter();
     try
     {
-      Set<String> setUserTablesViews = getUserTablesViews();
-      for (Iterator<String> iterTableView = setUserTablesViews.iterator(); iterTableView.hasNext(); )
+      Set<PostgresQualifiedId> setUserTablesViews = getUserTablesViews();
+      for (Iterator<PostgresQualifiedId> iterTableView = setUserTablesViews.iterator(); iterTableView.hasNext(); )
       {
-        String sTableView = iterTableView.next();
-        System.out.println("\nTable/View: "+sTableView);
-        ResultSet rsColumns = getDatabaseMetaData().getColumns(null, null, sTableView, "%");
+        PostgresQualifiedId pqiTableView = iterTableView.next();
+        System.out.println("\nTable/View: "+pqiTableView.format());
+        ResultSet rsColumns = getDatabaseMetaData().getColumns(
+          pqiTableView.getCatalog(), pqiTableView.getSchema(), pqiTableView.getName(), "%");
         int iPosition = 0;
         while (rsColumns.next())
         {
@@ -430,17 +505,17 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           int iType = Types.NULL;
           String sType = sTypeName;
           // native 
-          if ((sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedSimpleTable().getName())) ||
-              (sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedComplexTable().getName())))
+          if (pqiTableView.equals(_pqiNativeSimpleTable) ||
+              pqiTableView.equals(_pqiNativeComplexTable))
           {
             TestColumnDefinition cd = null;
-            if (sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedSimpleTable().getName()))
+            if (pqiTableView.equals(_pqiNativeSimpleTable))
             {
               cd = findTestColumnDefinition(sColumnName,TestPostgresDatabase._listCdSimple);
               if (iPosition == TestPostgresDatabase._iPrimarySimple)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            else if (sTableView.equalsIgnoreCase(TestPostgresDatabase.getQualifiedComplexTable().getName()))
+            else if (pqiTableView.equals(_pqiNativeComplexTable))
             {
               cd = findTestColumnDefinition(sColumnName,TestPostgresDatabase._listCdComplex);
               if (iPosition == TestPostgresDatabase._iPrimaryComplex)
@@ -449,6 +524,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             if (sColumnName.equalsIgnoreCase("CINT_DOMAIN"))
             {
               iType = Types.DISTINCT;
+              iPrecision = sizeFromMax(Integer.MAX_VALUE);              
               System.out.println("  DISTINCT "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CENUM_SUIT"))
@@ -459,11 +535,13 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             else if (sColumnName.equalsIgnoreCase("CCOMPOSITE"))
             {
               iType = Types.STRUCT;
+              iPrecision = 0;              
               System.out.println("  STRUCT "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CINT_BUILTIN"))
             {
               iType = Types.STRUCT;
+              iPrecision = 0;              
               System.out.println("  BUILTIN "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CSTRING_RANGE"))
@@ -474,11 +552,13 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             else if (sColumnName.equalsIgnoreCase("CSTRING_ARRAY"))
             {
               iType = Types.ARRAY;
+              iPrecision = 0;              
               System.out.println("  ARRAY "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CDOUBLE_MATRIX"))
             {
               iType = Types.ARRAY;
+              iPrecision = 0;              
               System.out.println("  MATRIX "+sTypeName);
             }
             else
@@ -515,38 +595,42 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
             }
           }
           // SQL
-          else if ((sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleTable().getName())) ||
-            (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedComplexTable().getName())) ||
-            (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleView().getName())))
+          else if (pqiTableView.equals(_pqiSqlSimpleTable) ||
+            pqiTableView.equals(_pqiSqlComplexTable) ||
+            pqiTableView.equals(_pqiSqlSimpleView))
           {
             TestColumnDefinition tcd = null;
-            if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleTable().getName()))
+            if (pqiTableView.equals(_pqiSqlSimpleTable))
             {
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
-              if ((iPosition == TestSqlDatabase._iPrimarySimple) || (tcd.getName().equals("CCHAR_5")))
+              if ((iPosition == TestSqlDatabase._iPrimarySimple) ||
+                  (tcd.getName().equals("CCHAR_5")))
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            else if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedComplexTable().getName()))
+            else if (pqiTableView.equals(_pqiSqlComplexTable))
             {
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdComplex);
               if (iPosition == TestSqlDatabase._iPrimaryComplex)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            else if (sTableView.equalsIgnoreCase(TestSqlDatabase.getQualifiedSimpleView().getName()))
+            else if (pqiTableView.equals(_pqiSqlSimpleView))
               tcd = findTestColumnDefinition(sColumnName,TestSqlDatabase._listCdSimple);
             if (sColumnName.equalsIgnoreCase("CDISTINCT"))
             {
               iType = Types.DISTINCT;
+              iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;              
               System.out.println("  DISTINCT "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CUDT") || sColumnName.equalsIgnoreCase("COMPLETE"))
             {
               iType = Types.STRUCT;
+              iPrecision = 0;              
               System.out.println("  STRUCT "+sTypeName);
             }
             else if (sColumnName.equalsIgnoreCase("CARRAY"))
             {
               iType = Types.ARRAY;
+              iPrecision = 0;              
               System.out.println("  ARRAY "+sTypeName);
             }
             else
@@ -580,7 +664,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
           assertEquals("Unexpected is_autoincrement for "+sColumnName,sAutoIncrement,sIsAutoIncrement);
         }
         rsColumns.close();
-        print(getDatabaseMetaData().getColumns(null, null, sTableView, "%"));
+        print(getDatabaseMetaData().getColumns(pqiTableView.getCatalog(), pqiTableView.getSchema(), pqiTableView.getName(), "%"));
       }
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
@@ -594,10 +678,8 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     throws SQLException
   {
     Set<String>setSchemas = new HashSet<String>();
-    ResultSet rsTable = getDatabaseMetaData().getTables(null,null,"%",new String[] {"TABLE","VIEW"});
-    while (rsTable.next())
-      setSchemas.add(rsTable.getString("table_schem"));
-    rsTable.close();
+    setSchemas.add(TestPostgresDatabase._sTEST_SCHEMA.toLowerCase());
+    setSchemas.add(TestSqlDatabase._sTEST_SCHEMA.toLowerCase());
     return setSchemas;
   } /* getUserSchemas */
   

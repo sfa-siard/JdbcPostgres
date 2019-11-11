@@ -11,8 +11,6 @@ Created    : 25.07.2019, Hartwig Thomas, Enter AG, Rüti ZH, Switzerland
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
-import java.util.Iterator;
-
 import ch.admin.bar.siard2.postgres.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.utils.jdbc.*;
@@ -65,7 +63,7 @@ public class PostgresDatabaseMetaData
     DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
     ResultSet rs = dmd.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
     PostgresStatement stmt = new PostgresStatement(rs.getStatement(),_conn);
-    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,5,6,7,16,9,10);
+    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,5,6,7,16,9,10,22);
   } /* getColumns */
 
   /*------------------------------------------------------------------*/
@@ -78,7 +76,7 @@ public class PostgresDatabaseMetaData
     DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
     ResultSet rs = dmd.getProcedureColumns(catalog, schemaPattern, procedureNamePattern, columnNamePattern);
     PostgresStatement stmt = new PostgresStatement(rs.getStatement(),_conn);
-    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,6,7,8,9,10,-1);
+    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,6,7,8,9,10,-1,-1);
   } /* getProcedureColumns */
 
   /*------------------------------------------------------------------*/
@@ -91,39 +89,40 @@ public class PostgresDatabaseMetaData
     DatabaseMetaData dmd = unwrap(DatabaseMetaData.class);
     ResultSet rs = dmd.getFunctionColumns(catalog, schemaPattern, functionNamePattern, columnNamePattern);
     PostgresStatement stmt = new PostgresStatement(rs.getStatement(),_conn);
-    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,6,7,8,9,10,-1);
+    return new PostgresMetaColumns(new PostgresResultSet(rs,stmt),_conn,1,2,6,7,8,9,10,-1,-1);
   } /* getFunctionColumns */
   
   /*------------------------------------------------------------------*/
+  private String getTypeNamespace(String sPgType ,String sPgNamespace)
+  {
+    return "(pg_type "+ sPgType+" JOIN pg_namespace "+sPgNamespace+" ON "+sPgType+".typnamespace = "+sPgNamespace+".oid)";    
+  } /* getTypeNamespace */
+  
+  /*------------------------------------------------------------------*/
+  private String getQualifiedType(String sPgNamespace, String sPgType)
+  {
+    return "'\"' || " + sPgNamespace + ".nspname || '\".\"' || "+sPgType+".typname || '\"'";
+  } /* getQualifiedType */
+  
+  /*------------------------------------------------------------------*/
   /** return CASE statement evaluating predefined type of expression.
-   * @param sTypename expression.
-   * @return predefined type
    */
-  private String getCasePredefinedType(String sTypeName)
+  private String getCasePredefinedType(String sPgType)
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("\r\n    CASE ");
-    sb.append(sTypeName);
-    for (int iType = 0; iType < PostgresType.values().length; iType++)
+    sb.append("\r\n    CASE "+sPgType+".typname");
+    for (PostgresType pgt : PostgresType.values())
     {
-      PostgresType pgt = PostgresType.values()[iType];
       PreType pt = pgt.getPreType();
-      String sKeyword = pgt.getKeyword();
-      sb.append("\r\n      WHEN ");
-      sb.append(PostgresLiterals.formatStringLiteral(sKeyword));
-      sb.append(" THEN ");
-      sb.append(String.valueOf(pt.getSqlType()));
-      for (Iterator<String> iterAliases = pgt.getAliases().iterator(); iterAliases.hasNext(); )
+      sb.append("\r\n      WHEN "+PostgresLiterals.formatStringLiteral(pgt.getKeyword())+
+        " THEN "+String.valueOf(pt.getSqlType()));
+      for (String sAlias : pgt.getAliases())
       {
-        String sAlias = iterAliases.next();
-        sb.append("\r\n      WHEN ");
-        sb.append(PostgresLiterals.formatStringLiteral(sAlias));
-        sb.append(" THEN ");
-        sb.append(String.valueOf(pt.getSqlType()));
+        sb.append("\r\n      WHEN "+PostgresLiterals.formatStringLiteral(sAlias)+
+          " THEN "+String.valueOf(pt.getSqlType()));
       }
     }
-    sb.append("\r\n      ELSE ");
-    sb.append(String.valueOf(Types.NULL));
+    sb.append("\r\n      ELSE "+String.valueOf(Types.NULL));
     sb.append("\r\n    END");
     return sb.toString();
   } /* getCasePredefinedType */
@@ -132,22 +131,17 @@ public class PostgresDatabaseMetaData
   /** return the base type of domains, enums and ranges.
    * @return base type.
    */
-  private String getCaseBaseType(String sPgType, String sPgBaseType)
+  private String getCaseBaseType(String sPgType, String sPgTypeBase, String sPgNamespaceTypeBase)
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("\r\n  CASE ");
-    sb.append(sPgType);
-    sb.append(".typtype");
-    sb.append("\r\n   WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("e"));
-    sb.append(" THEN ");
-    sb.append(String.valueOf(Types.VARCHAR));
-    sb.append("\r\n   WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("d"));
-    sb.append(" THEN ");
-    sb.append(getCasePredefinedType(sPgBaseType+".typname"));
-    sb.append("\r\n  ELSE ");
-    sb.append(String.valueOf(Types.NULL));
+    sb.append("\r\n  CASE "+sPgType+".typtype");
+    sb.append("\r\n    WHEN "+PostgresLiterals.formatStringLiteral("e")+" THEN "+String.valueOf(Types.VARCHAR));
+    sb.append("\r\n    WHEN "+PostgresLiterals.formatStringLiteral("d")+" THEN ");
+    sb.append("\r\n      CASE "+sPgNamespaceTypeBase+".nspname");
+    sb.append("\r\n        WHEN 'pg_catalog' THEN "+getCasePredefinedType(sPgTypeBase));
+    sb.append("\r\n        ELSE "+String.valueOf(Types.NULL));
+    sb.append("\r\n      END");
+    sb.append("\r\n    ELSE "+String.valueOf(Types.NULL));
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseBaseType */
@@ -155,33 +149,28 @@ public class PostgresDatabaseMetaData
   /*------------------------------------------------------------------*/
   private String getCaseDataType(String sDataType)
   {
-    StringBuilder sbDataTypeCase = new StringBuilder("  CASE ");
-    sbDataTypeCase.append(sDataType);
-    sbDataTypeCase.append("\r\n");
-    for (int i = 0; i < PostgresType.values().length; i++)
+    StringBuilder sbDataTypeCase = new StringBuilder("  CASE "+sDataType);
+    for (PostgresType pgt : PostgresType.values())
     {
-      PostgresType pgt = PostgresType.values()[i];
-      sbDataTypeCase.append("    WHEN ");
-      sbDataTypeCase.append(PostgresLiterals.formatStringLiteral(pgt.getKeyword()));
-      sbDataTypeCase.append(" THEN ");
-      sbDataTypeCase.append(String.valueOf(pgt.getPreType().getSqlType()));
-      sbDataTypeCase.append("\r\n");
+      sbDataTypeCase.append("\r\n    WHEN "+PostgresLiterals.formatStringLiteral(pgt.getKeyword())+
+        " THEN "+String.valueOf(pgt.getPreType().getSqlType()));
       for (String sAlias : pgt.getAliases())
       {
-        sbDataTypeCase.append("    WHEN ");
-        sbDataTypeCase.append(PostgresLiterals.formatStringLiteral(sAlias));
-        sbDataTypeCase.append(" THEN ");
-        sbDataTypeCase.append(String.valueOf(pgt.getPreType().getSqlType()));
-        sbDataTypeCase.append("\r\n");
+        sbDataTypeCase.append("\r\n    WHEN "+PostgresLiterals.formatStringLiteral(sAlias)+
+          " THEN "+String.valueOf(pgt.getPreType().getSqlType()));
       }
     }
-    sbDataTypeCase.append("    ELSE ");
-    sbDataTypeCase.append(String.valueOf(Types.STRUCT));
-    sbDataTypeCase.append("\r\n");
-    sbDataTypeCase.append("END");
+    sbDataTypeCase.append("\r\n    ELSE "+String.valueOf(Types.STRUCT));
+    sbDataTypeCase.append("\r\n  END");
     return sbDataTypeCase.toString();
   } /* getCaseDataType */
   
+  /*------------------------------------------------------------------*/
+  private String getClassWhen(String sCategory, Class<?> cls)
+  {
+    return "\r\n    WHEN "+ PostgresLiterals.formatStringLiteral(sCategory) +
+      " THEN "+PostgresLiterals.formatStringLiteral(cls.getName());
+  }
   /*------------------------------------------------------------------*/
   /** return class name for UDT.
    * (Could be improved by basing it on the base type for DISTINCT ...)
@@ -190,59 +179,20 @@ public class PostgresDatabaseMetaData
   private String getCaseClassName(String sTypExpression)
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("\r\n  CASE ");
-    sb.append(sTypExpression);
-    sb.append(".typcategory");
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("A"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.sql.Array.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("B"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.lang.Boolean.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("C"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.sql.Struct.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("D"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.sql.Timestamp.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("E"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.lang.String.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("G"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.lang.String.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("I"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral((new byte[] {}).getClass().getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("N"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.math.BigDecimal.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("S"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.lang.String.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("T"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.time.Duration.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("U"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.sql.Struct.class.getName()));
-    sb.append("\r\n    WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("V"));
-    sb.append(" THEN ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.lang.String.class.getName()));
-    sb.append("\r\n    ELSE ");
-    sb.append(PostgresLiterals.formatStringLiteral(java.lang.Object.class.getName()));
+    sb.append("\r\n  CASE "+sTypExpression+".typcategory");
+    sb.append(getClassWhen("A",java.sql.Array.class));
+    sb.append(getClassWhen("B",java.lang.Boolean.class));
+    sb.append(getClassWhen("C",java.sql.Struct.class));
+    sb.append(getClassWhen("D",java.sql.Timestamp.class));
+    sb.append(getClassWhen("E",java.lang.String.class));
+    sb.append(getClassWhen("G",java.lang.String.class));
+    sb.append(getClassWhen("I",(new byte[] {}).getClass()));
+    sb.append(getClassWhen("N",java.math.BigDecimal.class));
+    sb.append(getClassWhen("S",java.lang.String.class));
+    sb.append(getClassWhen("T",java.time.Duration.class));
+    sb.append(getClassWhen("U",java.sql.Struct.class));
+    sb.append(getClassWhen("V",java.lang.String.class));
+    sb.append("\r\n    ELSE "+PostgresLiterals.formatStringLiteral(java.lang.Object.class.getName()));
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseClassName */
@@ -254,19 +204,10 @@ public class PostgresDatabaseMetaData
   private String getCaseUdtDataType(String sPgType)
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("\r\n  CASE ");
-    sb.append(sPgType);
-    sb.append(".typtype");
-    sb.append("\r\n   WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("c"));
-    sb.append(" THEN ");
-    sb.append(String.valueOf(Types.STRUCT));
-    sb.append("\r\n   WHEN ");
-    sb.append(PostgresLiterals.formatStringLiteral("r"));
-    sb.append(" THEN ");
-    sb.append(String.valueOf(Types.STRUCT));
-    sb.append("\r\n  ELSE ");
-    sb.append(String.valueOf(Types.DISTINCT));
+    sb.append("\r\n  CASE "+sPgType+".typtype");
+    sb.append("\r\n    WHEN "+PostgresLiterals.formatStringLiteral("c")+ " THEN "+String.valueOf(Types.STRUCT));
+    sb.append("\r\n    WHEN "+PostgresLiterals.formatStringLiteral("r")+" THEN "+String.valueOf(Types.STRUCT));
+    sb.append("\r\n    ELSE "+String.valueOf(Types.DISTINCT));
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseUdtDataType */
@@ -276,42 +217,13 @@ public class PostgresDatabaseMetaData
    * @return FROM tables.
    */
   private String getUdtFromTables(String sPgType, String sPgNamespaceType,
-    String sPgClass, String sPgBaseType, String sPgDescription)
+    String sPgClass, String sPgTypeBase, String sPgNamespaceTypeBase, String sPgDescription)
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("\r\n  (pg_type ");
-    sb.append(sPgType);
-    sb.append(" JOIN pg_namespace ");
-    sb.append(sPgNamespaceType);
-    sb.append(" ON (");
-    sb.append(sPgType);
-    sb.append(".typnamespace = ");
-    sb.append(sPgNamespaceType);
-    sb.append(".oid))");
-    
-    sb.append("\r\n  LEFT JOIN pg_class ");
-    sb.append(sPgClass);
-    sb.append(" ON (");
-    sb.append(sPgType);
-    sb.append(".oid = ");
-    sb.append(sPgClass);
-    sb.append(".reltype)");
-    
-    sb.append("\r\n  LEFT JOIN pg_type ");
-    sb.append(sPgBaseType);
-    sb.append(" ON (");
-    sb.append(sPgType);
-    sb.append(".typbasetype = ");
-    sb.append(sPgBaseType);
-    sb.append(".oid)");
-    
-    sb.append("\r\n  LEFT JOIN pg_description ");
-    sb.append(sPgDescription);
-    sb.append(" ON (");
-    sb.append(sPgType);
-    sb.append(".oid = ");
-    sb.append(sPgDescription);
-    sb.append(".objoid)");
+    sb.append("\r\n  "+getTypeNamespace(sPgType ,sPgNamespaceType));
+    sb.append("\r\n  LEFT JOIN pg_class "+sPgClass+" ON "+sPgType+".oid = "+sPgClass+".reltype");
+    sb.append("\r\n  LEFT JOIN "+getTypeNamespace(sPgTypeBase,sPgNamespaceTypeBase)+" ON "+sPgType+".typbasetype = "+sPgTypeBase+".oid");
+    sb.append("\r\n  LEFT JOIN pg_description "+sPgDescription+" ON "+sPgType+".oid = "+sPgDescription+".objoid");
     return sb.toString();
   } /* getUdtFromTables */
 
@@ -319,10 +231,6 @@ public class PostgresDatabaseMetaData
   private String getUdtCondition(String sPgType, String sPgNamespace, String sPgClass,
     String catalog, String schemaPattern, String typeNamePattern, int[] types)
   {
-    StringBuilder sb = new StringBuilder();
-    sb.append("\r\n  ");
-    sb.append(sPgType);
-    sb.append(".typisdefined");
     if (types == null)
       types = new int[] {Types.STRUCT, Types.DISTINCT};
     StringBuilder sbTypes = new StringBuilder();
@@ -342,33 +250,16 @@ public class PostgresDatabaseMetaData
         sbTypes.append(" OR ");
       sbTypes.append(sTypeCondition);
     }
+    StringBuilder sb = new StringBuilder();
+    sb.append(sPgType+".typisdefined");
     if (sbTypes.length() > 0)
-    {
-      sb.append(" AND\r\n  (");
-      sb.append(sbTypes.toString());
-      sb.append(")");
-    }
+      sb.append(" AND\r\n  ("+sbTypes.toString()+")");
     if (catalog != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(PostgresLiterals.formatStringLiteral("postgres"));
-      sb.append(" = ");
-      sb.append(PostgresLiterals.formatStringLiteral(catalog));
-    }
+      sb.append(" AND\r\n  'postgres' = " + PostgresLiterals.formatStringLiteral(catalog));
     if (schemaPattern != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(sPgNamespace);
-      sb.append(".nspname LIKE ");
-      sb.append(PostgresLiterals.formatStringLiteral(schemaPattern));
-    }
+      sb.append(" AND\r\n  "+sPgNamespace+".nspname LIKE "+PostgresLiterals.formatStringLiteral(schemaPattern));
     if (typeNamePattern != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(sPgType);
-      sb.append(".typname LIKE ");
-      sb.append(PostgresLiterals.formatStringLiteral(typeNamePattern));
-    }
+      sb.append(" AND\r\n  "+sPgType+".typname LIKE "+PostgresLiterals.formatStringLiteral(typeNamePattern));
     return sb.toString();
   } /* getUdtCondition */
   
@@ -381,33 +272,21 @@ public class PostgresDatabaseMetaData
     String sPgType = "t";
     String sPgNamespace = "nt";
     String sPgClass = "c";
-    String sPgBaseType = "bt";
+    String sPgTypeBase = "bt";
+    String sPgNamespaceTypeBase = "nbt";
     String sPgDescription = "d";
     
     StringBuilder sb = new StringBuilder();
     sb.append("SELECT");
-    sb.append("\r\n  ");
-    sb.append(PostgresLiterals.formatStringLiteral("postgres"));
-    sb.append(" AS TYPE_CAT,");
-    sb.append("\r\n  ");
-    sb.append(sPgNamespace);
-    sb.append(".nspname AS TYPE_SCHEM,");
-    sb.append("\r\n  ");
-    sb.append(sPgType);
-    sb.append(".typname AS TYPE_NAME,");
-    sb.append(getCaseClassName(sPgType));
-    sb.append(" AS CLASS_NAME,");
-    sb.append(getCaseUdtDataType(sPgType));
-    sb.append(" AS DATA_TYPE,");
-    sb.append("\r\n  ");
-    sb.append(sPgDescription);
-    sb.append(".description AS REMARKS,");
-    sb.append(getCaseBaseType(sPgType,sPgBaseType));
-    sb.append(" AS BASE_TYPE");
-    sb.append("\r\nFROM ");
-    sb.append(getUdtFromTables(sPgType,sPgNamespace,sPgClass,sPgBaseType,sPgDescription));
-    sb.append("\r\nWHERE");
-    sb.append(getUdtCondition(sPgType,sPgNamespace,sPgClass,catalog,schemaPattern,typeNamePattern, types));
+    sb.append("\r\n  NULL AS TYPE_CAT,");
+    sb.append("\r\n  "+sPgNamespace+".nspname AS TYPE_SCHEM,");
+    sb.append("\r\n  "+sPgType+".typname AS TYPE_NAME,");
+    sb.append("\r\n  "+getCaseClassName(sPgType)+" AS CLASS_NAME,");
+    sb.append("\r\n  "+getCaseUdtDataType(sPgType)+" AS DATA_TYPE,");
+    sb.append("\r\n  "+sPgDescription+".description AS REMARKS,");
+    sb.append("\r\n  "+getCaseBaseType(sPgType,sPgTypeBase,sPgNamespaceTypeBase)+" AS BASE_TYPE");
+    sb.append("\r\nFROM "+getUdtFromTables(sPgType,sPgNamespace,sPgClass,sPgTypeBase,sPgNamespaceTypeBase,sPgDescription));
+    sb.append("\r\nWHERE "+getUdtCondition(sPgType,sPgNamespace,sPgClass,catalog,schemaPattern,typeNamePattern, types));
     sb.append("\r\nORDER BY 1 ASC, 2 ASC, 3 ASC");
     Statement stmt = getConnection().createStatement().unwrap(Statement.class);
     ResultSet rsUdts = stmt.executeQuery(sb.toString());
@@ -415,95 +294,32 @@ public class PostgresDatabaseMetaData
   } /* getUDTs */
 
   /*------------------------------------------------------------------*/
-  private String getAttributesFrom(String sPgTypeParent, String sPgTypeNamespace, String sPgClass, 
-    String sPgAttribute, String sPgTypeAttribute, String sPgTypeNamespaceAttribute, String sPgTypeAttributeBase, String sPgDescription,
-    String sPgRange, String sPgTypeRange, String sPgTypeRangeBase, String sPgValues )
+  private String getAttributesFrom(String sPgTypeParent, String sPgNamespaceTypeParent, String sPgClass, 
+    String sPgAttribute, String sPgTypeAttribute, String sPgNamespaceTypeAttribute, 
+    String sPgTypeAttributeBase, String sPgNamespaceTypeAttributeBase, String sPgDescription,
+    String sPgRange, String sPgTypeRange, String sPgNamespaceTypeRange, 
+    String sPgTypeRangeBase, String sPgNamespaceTypeRangeBase, String sPgValues )
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("(pg_type ");
-    sb.append(sPgTypeParent);
-    sb.append(" JOIN pg_namespace ");
-    sb.append(sPgTypeNamespace);
-    sb.append(" ON ");
-    sb.append(sPgTypeParent);
-    sb.append(".typnamespace = ");
-    sb.append(sPgTypeNamespace);
-    sb.append(".oid)");
+    sb.append(getTypeNamespace(sPgTypeParent,sPgNamespaceTypeParent));
+    sb.append("\r\n  LEFT JOIN");
+    sb.append("\r\n  (pg_class "+sPgClass+" JOIN pg_attribute "+sPgAttribute+" ON "+sPgClass+".oid = "+sPgAttribute+".attrelid");
+    sb.append("\r\n    JOIN "+getTypeNamespace(sPgTypeAttribute,sPgNamespaceTypeAttribute)+ " ON "+sPgAttribute+".atttypid = "+sPgTypeAttribute+".oid");
+    sb.append("\r\n    LEFT JOIN "+getTypeNamespace(sPgTypeAttributeBase,sPgNamespaceTypeAttributeBase)+" ON "+sPgTypeAttribute+".typbasetype = "+sPgTypeAttributeBase+".oid");
+    sb.append("\r\n  ) ON " + sPgTypeParent+".oid = "+sPgClass+".reltype");
     
     sb.append("\r\n  LEFT JOIN");
-    sb.append("\r\n  (pg_class ");
-    sb.append(sPgClass);
-    sb.append("\r\n    JOIN pg_attribute ");
-    sb.append(sPgAttribute);
-    sb.append(" ON ");
-    sb.append(sPgClass);
-    sb.append(".oid = ");
-    sb.append(sPgAttribute);
-    sb.append(".attrelid");
-    sb.append("\r\n    JOIN pg_type ");
-    sb.append(sPgTypeAttribute);
-    sb.append(" ON ");
-    sb.append(sPgAttribute);
-    sb.append(".atttypid = ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".oid");
-    sb.append("\r\n    JOIN pg_namespace ");
-    sb.append(sPgTypeNamespaceAttribute);
-    sb.append(" ON ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typnamespace = ");
-    sb.append(sPgTypeNamespaceAttribute);
-    sb.append(".oid");
-    sb.append("\r\n    LEFT JOIN pg_type ");
-    sb.append(sPgTypeAttributeBase);
-    sb.append(" ON ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typbasetype = ");
-    sb.append(sPgTypeAttributeBase);
-    sb.append(".oid");
-    sb.append("\r\n    LEFT JOIN pg_description ");
-    sb.append(sPgDescription);
-    sb.append(" ON (");
-    sb.append(sPgClass);
-    sb.append(".oid = ");
-    sb.append(sPgDescription);
-    sb.append(".objoid)");
-    
-    sb.append("\r\n  ) ON ");
-    sb.append(sPgTypeParent);
-    sb.append(".oid = ");
-    sb.append(sPgClass);
-    sb.append(".reltype");
-    
-    sb.append("\r\n  LEFT JOIN");
-    sb.append("\r\n  (pg_range ");
-    sb.append(sPgRange);
-    sb.append("\r\n    JOIN pg_type ");
-    sb.append(sPgTypeRange);
-    sb.append(" ON ");
-    sb.append(sPgRange);
-    sb.append(".rngsubtype = ");
-    sb.append(sPgTypeRange);
-    sb.append(".oid");
-    sb.append("\r\n    LEFT JOIN pg_type ");
-    sb.append(sPgTypeRangeBase);
-    sb.append(" ON ");
-    sb.append(sPgTypeRange);
-    sb.append(".typbasetype = ");
-    sb.append(sPgTypeRangeBase);
-    sb.append("\r\n    .oid");
+    sb.append("\r\n  (pg_range "+sPgRange);
+    sb.append("\r\n    JOIN "+getTypeNamespace(sPgTypeRange, sPgNamespaceTypeRange) + " ON "+sPgRange+".rngsubtype = "+sPgTypeRange+".oid");
     sb.append("\r\n    JOIN (VALUES");
-    sb.append("\r\n      ('"+sRANGE_START+"',NULL,NULL,1,NULL,NULL),");
-    sb.append("\r\n      ('"+sRANGE_END+"',NULL,NULL,2,NULL,NULL),");
-    sb.append("\r\n      ('"+sRANGE_SIGNATURE+"','char',2,3,'NO','NULL')");
-    sb.append("\r\n   ) ");
-    sb.append(sPgValues);
-    sb.append(" (attname,typname,typlen,attnum,attnotnull,typbasetypename) ON TRUE");
-    sb.append("\r\n   ) ON ");
-    sb.append(sPgTypeParent);
-    sb.append(".oid = ");
-    sb.append(sPgRange);
-    sb.append(".rngtypid");
+    sb.append("\r\n      ('"+sRANGE_START+"',NULL,NULL,NULL,1,NULL,NULL),");
+    sb.append("\r\n      ('"+sRANGE_END+"',NULL,NULL,NULL,2,NULL,NULL),");
+    sb.append("\r\n      ('"+sRANGE_SIGNATURE+"','pg_catalog','char',2,3,'NO','NULL')");
+    sb.append("\r\n     ) " +sPgValues+" (attname,nspname,typname,typlen,attnum,attnotnull,typbasetypename) ON TRUE");
+    sb.append("\r\n    LEFT JOIN "+getTypeNamespace(sPgTypeRangeBase,sPgNamespaceTypeRangeBase)+" ON "+sPgTypeRange+".typbasetype = "+sPgTypeRangeBase+".oid");
+    sb.append("\r\n  ) ON "+sPgTypeParent+".oid = "+sPgRange+".rngtypid");
+
+    sb.append("\r\n    LEFT JOIN pg_description "+sPgDescription+" ON ("+sPgClass+".oid = "+sPgDescription+".objoid) OR ("+sPgRange+".rngsubtype = "+sPgDescription+".objoid)");
     return sb.toString();
   } /* getAttributesFrom */
 
@@ -512,93 +328,43 @@ public class PostgresDatabaseMetaData
     String sPgClass, String sPgAttribute, String sPgValues, 
     String catalog, String schemaPattern, String typeNamePattern, String attributeNamePattern)
   {
-    StringBuilder sb = new StringBuilder();
-    sb.append("\r\n  ");
-    sb.append(sPgTypeParent);
-    sb.append(".typisdefined");
     String sPgTypeType = sPgTypeParent + ".typtype";
-    sb.append(" AND ((");
-    sb.append(sPgTypeType);
-    sb.append(" = 'c' AND ");
-    sb.append(sPgClass);
-    sb.append(".relkind = 'c') OR (");
-    sb.append(sPgTypeType);
-    sb.append(" = 'r'))");
+    StringBuilder sb = new StringBuilder();
+    sb.append("\r\n  "+sPgTypeParent+".typisdefined");
+    sb.append(" AND (("+sPgTypeType+" = 'c' AND "+sPgClass+".relkind = 'c') OR ("+sPgTypeType+" = 'r'))");
     if (catalog != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(PostgresLiterals.formatStringLiteral("postgres"));
-      sb.append(" = ");
-      sb.append(PostgresLiterals.formatStringLiteral(catalog));
-    }
+      sb.append(" AND\r\n  "+PostgresLiterals.formatStringLiteral("postgres")+" = "+PostgresLiterals.formatStringLiteral(catalog));
     if (schemaPattern != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(sPgTypeNamespace);
-      sb.append(".nspname LIKE ");
-      sb.append(PostgresLiterals.formatStringLiteral(schemaPattern));
-    }
+      sb.append(" AND\r\n  "+sPgTypeNamespace+".nspname LIKE "+PostgresLiterals.formatStringLiteral(schemaPattern));
     if (typeNamePattern != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(sPgTypeParent);
-      sb.append(".typname LIKE ");
-      sb.append(PostgresLiterals.formatStringLiteral(typeNamePattern));
-    }
+      sb.append(" AND\r\n  "+sPgTypeParent+".typname LIKE "+PostgresLiterals.formatStringLiteral(typeNamePattern));
     if (attributeNamePattern != null)
-    {
-      sb.append(" AND\r\n  ");
-      sb.append(getCaseAttributeName(sPgAttribute,sPgValues));
-      sb.append(" LIKE ");
-      sb.append(PostgresLiterals.formatStringLiteral(attributeNamePattern));
-    }
+      sb.append(" AND\r\n  "+getCaseAttributeName(sPgAttribute,sPgValues)+" LIKE "+PostgresLiterals.formatStringLiteral(attributeNamePattern));
     return sb.toString();
   } /* getAttributesCondition */
   
   private String getCaseAttributeName(String sPgAttribute, String sPgValues)
   {
     StringBuilder sb = new StringBuilder();
-    sb.append("CASE WHEN ");
-    sb.append(sPgAttribute);
-    sb.append(".attname IS NULL THEN ");
-    sb.append(sPgValues);
-    sb.append(".attname ELSE ");
-    sb.append(sPgAttribute);
-    sb.append(".attname END");
+    sb.append("CASE");
+    sb.append("\r\n    WHEN "+sPgAttribute+".attname IS NULL THEN "+sPgValues+".attname");
+    sb.append("\r\n    ELSE "+sPgAttribute+".attname");
+    sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseAttributeName */
   
   /*------------------------------------------------------------------*/
-  private String getCaseTypeName(String sPgTypeAttribute, String sPgTypeNamespaceAttribute, String sPgTypeRange, String sPgValues)
+  private String getCaseTypeName(String sPgTypeAttribute, String sPgNamespaceTypeAttribute,
+    String sPgTypeRange, String sPgNamespaceTypeRange, String sPgValues)
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
-    sb.append("\r\n    WHEN ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typname IS NULL THEN ");
+    sb.append("\r\n    WHEN "+sPgTypeAttribute+".typname IS NULL THEN ");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN ");
-    sb.append(sPgValues);
-    sb.append(".typname IS NULL THEN ");
-    sb.append(sPgTypeRange);
-    sb.append(".typname");
-    sb.append("\r\n        ELSE ");
-    sb.append(sPgValues);
-    sb.append(".typname");
+    sb.append("\r\n        WHEN "+sPgValues+".typname IS NULL THEN "+getQualifiedType(sPgNamespaceTypeRange,sPgTypeRange));
+    sb.append("\r\n        ELSE '\"' || "+sPgValues+".nspname || '\".\"' || "+sPgValues+".typname || '\"'");
     sb.append("\r\n      END");
-    sb.append("\r\n    ELSE ");
-    sb.append("\r\n      CASE ");
-    sb.append("\r\n        WHEN ");
-    sb.append(sPgTypeNamespaceAttribute);
-    sb.append(".nspname = 'pg_catalog' THEN ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typname");
-    sb.append("\r\n        ELSE ");
-    sb.append(sPgTypeNamespaceAttribute);
-    sb.append(".nspname || '.' ||");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typname");
-    sb.append("\r\n      END");
+    sb.append("\r\n    ELSE "+getQualifiedType(sPgNamespaceTypeAttribute,sPgTypeAttribute));
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseTypeName */
@@ -607,35 +373,19 @@ public class PostgresDatabaseMetaData
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
-    sb.append("\r\n    WHEN ");
-    sb.append(sPgTypeRange);
-    sb.append(".typlen IS NULL THEN");
-    sb.append("\r\n      CASE ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typlen");
-    sb.append("\r\n        WHEN -1 THEN ");
-    sb.append(String.valueOf(iMAX_VAR_SIZE));
-    sb.append("\r\n        ELSE ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typlen");
+    sb.append("\r\n    WHEN "+sPgTypeRange+".typlen IS NULL THEN");
+    sb.append("\r\n      CASE "+sPgTypeAttribute+".typlen");
+    sb.append("\r\n        WHEN -1 THEN 0"); // String.valueOf(iMAX_VAR_SIZE) ??
+    sb.append("\r\n        ELSE "+sPgTypeAttribute+".typlen");
     sb.append("\r\n      END");
     sb.append("\r\n    ELSE");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN ");
-    sb.append(sPgValues);
-    sb.append(".typlen IS NULL THEN");
-    sb.append("\r\n          CASE ");
-    sb.append(sPgTypeRange);
-    sb.append(".typlen");
-    sb.append("\r\n            WHEN -1 THEN ");
-    sb.append(String.valueOf(iMAX_VAR_SIZE));
-    sb.append("\r\n            ELSE ");
-    sb.append(sPgTypeRange);
-    sb.append(".typlen");
+    sb.append("\r\n        WHEN "+sPgValues+".typlen IS NULL THEN");
+    sb.append("\r\n          CASE "+sPgTypeRange+".typlen");
+    sb.append("\r\n            WHEN -1 THEN 0"); // String.valueOf(iMAX_VAR_SIZE)
+    sb.append("\r\n            ELSE "+sPgTypeRange+".typlen");
     sb.append("\r\n          END");
-    sb.append("\r\n        ELSE ");
-    sb.append(sPgValues);
-    sb.append(".typlen");
+    sb.append("\r\n        ELSE "+sPgValues+".typlen");
     sb.append("\r\n      END");
     sb.append("\r\n  END");
     return sb.toString();
@@ -645,14 +395,8 @@ public class PostgresDatabaseMetaData
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
-    sb.append("\r\n    WHEN ");
-    sb.append(sPgValues);
-    sb.append(".attnum IS NULL THEN ");
-    sb.append(sPgAttribute);
-    sb.append(".attnum");
-    sb.append("\r\n    ELSE ");
-    sb.append(sPgValues);
-    sb.append(".attnum");
+    sb.append("\r\n    WHEN "+sPgValues+".attnum IS NULL THEN "+sPgAttribute+".attnum");
+    sb.append("\r\n    ELSE "+sPgValues+".attnum");
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseOrdinalPosition */
@@ -661,43 +405,23 @@ public class PostgresDatabaseMetaData
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
-    sb.append("\r\n    WHEN ");
-    sb.append(sPgClass);
-    sb.append(".oid IS NULL THEN ");
+    sb.append("\r\n    WHEN "+sPgClass+".oid IS NULL THEN");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN ");
-    sb.append(sPgValues);
-    sb.append(".attnotnull IS NULL THEN");
-    sb.append("\r\n          CASE ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typnotnull");
-    sb.append("\r\n            WHEN TRUE THEN ");
-    sb.append(String.valueOf(DatabaseMetaData.attributeNoNulls));
-    sb.append("\r\n            ELSE ");
-    sb.append(String.valueOf(DatabaseMetaData.attributeNullable));
+    sb.append("\r\n        WHEN "+sPgValues+".attnotnull IS NULL THEN");
+    sb.append("\r\n          CASE "+sPgTypeRange+".typnotnull");
+    sb.append("\r\n            WHEN TRUE THEN "+String.valueOf(DatabaseMetaData.attributeNoNulls));
+    sb.append("\r\n            ELSE "+String.valueOf(DatabaseMetaData.attributeNullable));
     sb.append("\r\n          END");
     sb.append("\r\n        ELSE");
-    sb.append("\r\n          CASE ");
-    sb.append(sPgValues);
-    sb.append(".attnotnull");
-    sb.append("                WHEN 'YES' THEN ");
-    sb.append(String.valueOf(DatabaseMetaData.attributeNoNulls));
-    sb.append("\r\n            ELSE ");
-    sb.append(String.valueOf(DatabaseMetaData.attributeNullable));
+    sb.append("\r\n          CASE "+sPgValues+".attnotnull");
+    sb.append("                WHEN 'YES' THEN "+String.valueOf(DatabaseMetaData.attributeNoNulls));
+    sb.append("\r\n            ELSE "+String.valueOf(DatabaseMetaData.attributeNullable));
     sb.append("\r\n          END");
     sb.append("\r\n      END");
     sb.append("\r\n    ELSE");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN (");
-    sb.append(sPgAttribute);
-    sb.append(".attnotnull OR ((");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typtype = 'd') AND ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typnotnull)) THEN ");
-    sb.append(String.valueOf(DatabaseMetaData.attributeNoNulls));
-    sb.append("\r\n        ELSE ");
-    sb.append(String.valueOf(DatabaseMetaData.attributeNullable));
+    sb.append("\r\n        WHEN ("+sPgAttribute+".attnotnull OR (("+sPgTypeAttribute+".typtype = 'd') AND "+sPgTypeAttribute+".typnotnull)) THEN "+String.valueOf(DatabaseMetaData.attributeNoNulls));
+    sb.append("\r\n        ELSE "+String.valueOf(DatabaseMetaData.attributeNullable));
     sb.append("\r\n      END");
     sb.append("\r\n  END");
     return sb.toString();    
@@ -707,32 +431,22 @@ public class PostgresDatabaseMetaData
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
-    sb.append("\r\n    WHEN ");
-    sb.append(sPgClass);
-    sb.append(".oid IS NULL THEN ");
+    sb.append("\r\n    WHEN "+sPgClass+".oid IS NULL THEN");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN ");
-    sb.append(sPgValues);
-    sb.append(".attnotnull IS NULL THEN");
-    sb.append("\r\n          CASE ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typnotnull");
+    sb.append("\r\n        WHEN "+sPgValues+".attnotnull IS NULL THEN");
+    sb.append("\r\n          CASE "+sPgTypeRange+".typnotnull");
     sb.append("\r\n            WHEN TRUE THEN 'NO'");
     sb.append("\r\n            ELSE 'YES'");
     sb.append("\r\n          END");
-    sb.append("\r\n        ELSE ");
-    sb.append(sPgValues);
-    sb.append(".attnotnull");
+    sb.append("\r\n        ELSE");
+    sb.append("\r\n          CASE "+sPgValues+".attnotnull");
+    sb.append("\r\n           WHEN 'YES' THEN 'NO'");
+    sb.append("\r\n           ELSE 'YES'");
+    sb.append("\r\n          END");
     sb.append("\r\n      END");
     sb.append("\r\n    ELSE");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN (");
-    sb.append(sPgAttribute);
-    sb.append(".attnotnull OR ((");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typtype = 'd') AND ");
-    sb.append(sPgTypeAttribute);
-    sb.append(".typnotnull)) THEN 'NO'");
+    sb.append("\r\n        WHEN ("+sPgAttribute+".attnotnull OR (("+sPgTypeAttribute+".typtype = 'd') AND "+sPgTypeAttribute+".typnotnull)) THEN 'NO'");
     sb.append("\r\n        ELSE 'YES'");
     sb.append("\r\n      END");
     sb.append("\r\n  END");
@@ -740,26 +454,17 @@ public class PostgresDatabaseMetaData
   } /* getCaseNullable */
   
   private String getCaseSourceTypeName(String sPgClass, String sPgValues,
-    String sPgTypeAttributeBase, String sPgTypeRangeBase)
+    String sPgTypeAttributeBase, String sPgNamespaceTypeAttributeBase,
+    String sPgTypeRangeBase, String sPgNamespaceTypeRangeBase)
   {
     StringBuilder sb = new StringBuilder();
     sb.append("CASE");
-    sb.append("\r\n    WHEN ");
-    sb.append(sPgClass);
-    sb.append(".oid IS NULL THEN");
+    sb.append("\r\n    WHEN "+sPgClass+".oid IS NULL THEN");
     sb.append("\r\n      CASE");
-    sb.append("\r\n        WHEN ");
-    sb.append(sPgValues);
-    sb.append(".typbasetypename IS NULL THEN ");
-    sb.append(sPgTypeRangeBase);
-    sb.append(".typname");
-    sb.append("\r\n        ELSE ");
-    sb.append(sPgValues);
-    sb.append(".typbasetypename");
+    sb.append("\r\n        WHEN "+sPgValues+".typbasetypename IS NULL THEN "+getQualifiedType(sPgNamespaceTypeRangeBase,sPgTypeRangeBase));
+    sb.append("\r\n        ELSE '\"' || "+sPgValues+".nspname || '\".\"' || "+sPgValues+".typbasetypename || '\"'");
     sb.append("\r\n      END");
-    sb.append("\r\n    ELSE ");
-    sb.append(sPgTypeAttributeBase);
-    sb.append(".typname");
+    sb.append("\r\n    ELSE "+getQualifiedType(sPgNamespaceTypeAttributeBase,sPgTypeAttributeBase));
     sb.append("\r\n  END");
     return sb.toString();
   } /* getCaseSourceTypeName */
@@ -773,77 +478,58 @@ public class PostgresDatabaseMetaData
   {
     _il.enter(catalog,schemaPattern,typeNamePattern,attributeNamePattern);
     String sPgTypeParent = "pt"; 
-    String sPgTypeNamespace = "npt";
+    String sPgNamespaceTypeParent = "npt";
     String sPgClass = "c"; 
     String sPgAttribute = "a"; 
     String sPgTypeAttribute = "at";
-    String sPgTypeNamespaceAttribute = "nat";
+    String sPgNamespaceTypeAttribute = "nat";
     String sPgTypeAttributeBase = "abt";
+    String sPgNamespaceTypeAttributeBase = "nabt";
     String sPgRange = "r"; 
-    String sPgTypeRange = "rt"; 
+    String sPgTypeRange = "rt";
+    String sPgNamespaceTypeRange = "nrt";
     String sPgTypeRangeBase = "rbt"; 
+    String sPgNamespaceTypeRangeBase = "nrbt";
     String sPgValues = "v";
     String sPgDescription = "d";
 
     StringBuilder sb = new StringBuilder();
     sb.append("SELECT");
     sb.append("\r\n  current_database() AS TYPE_CAT,");
-    sb.append("\r\n  ");
-    sb.append(sPgTypeNamespace);
-    sb.append(".nspname AS TYPE_SCHEM,");
-    sb.append("\r\n  ");
-    sb.append(sPgTypeParent);
-    sb.append(".typname AS TYPE_NAME,");
-    sb.append("\r\n  ");
-    sb.append(getCaseAttributeName(sPgAttribute,sPgValues));
-    sb.append(" AS ATTR_NAME,");
-    sb.append("\r\n  ");
-    sb.append(getCaseDataType(getCaseTypeName(sPgTypeAttribute,sPgTypeNamespaceAttribute,sPgTypeRange,sPgValues)));
-    sb.append(" AS DATA_TYPE,");
-    sb.append("\r\n  ");
-    sb.append(getCaseTypeName(sPgTypeAttribute,sPgTypeNamespaceAttribute,sPgTypeRange,sPgValues));
-    sb.append(" AS ATTR_TYPE_NAME,");
-    sb.append("\r\n  ");
-    sb.append(getCaseAttrSize(sPgTypeAttribute,sPgTypeRange,sPgValues));
-    sb.append(" AS ATTR_SIZE,");
+    sb.append("\r\n  "+sPgNamespaceTypeParent+".nspname AS TYPE_SCHEM,");
+    sb.append("\r\n  "+sPgTypeParent+".typname AS TYPE_NAME,");
+    sb.append("\r\n  "+getCaseAttributeName(sPgAttribute,sPgValues)+" AS ATTR_NAME,");
+    sb.append("\r\n  "+getCaseDataType(getCaseTypeName(sPgTypeAttribute,sPgNamespaceTypeAttribute,sPgTypeRange,sPgNamespaceTypeRange,sPgValues))+" AS DATA_TYPE,");
+    sb.append("\r\n  "+getCaseTypeName(sPgTypeAttribute,sPgNamespaceTypeAttribute,sPgTypeRange,sPgNamespaceTypeRange,sPgValues)+" AS ATTR_TYPE_NAME,");
+    sb.append("\r\n  "+getCaseAttrSize(sPgTypeAttribute,sPgTypeRange,sPgValues)+" AS ATTR_SIZE,");
     sb.append("\r\n  NULL AS DECIMAL_DIGITS,");
     sb.append("\r\n  10 AS NUM_PREC_RADIX,");
-    sb.append("\r\n  ");
-    sb.append(getCaseNullable(sPgClass, sPgAttribute, sPgTypeAttribute, sPgTypeRange, sPgValues));
-    sb.append(" AS NULLABLE,");
-    sb.append("\r\n  ");
-    sb.append(sPgDescription);
-    sb.append(".description AS REMARKS,");
+    sb.append("\r\n  "+getCaseNullable(sPgClass, sPgAttribute, sPgTypeAttribute, sPgTypeRange, sPgValues)+" AS NULLABLE,");
+    sb.append("\r\n  "+sPgDescription+".description AS REMARKS,");
     sb.append("\r\n  NULL AS ATTR_DEF,");
     sb.append("\r\n  NULL AS SQL_DATA_TYPE,");
     sb.append("\r\n  NULL AS SQL_DATETIME_SUB,");
-    sb.append("\r\n  ");
-    sb.append(String.valueOf(iMAX_VAR_SIZE));
-    sb.append(" AS CHAR_OCTET_LENGTH,");
-    sb.append("\r\n  ");
-    sb.append(getCaseOrdinalPosition(sPgAttribute, sPgValues));
-    sb.append(" AS ORDINAL_POSITION,");
-    sb.append("\r\n  ");
-    sb.append(getCaseIsNullable(sPgClass, sPgAttribute, sPgTypeAttribute, sPgTypeRange, sPgValues));
-    sb.append(" AS IS_NULLABLE,");
-    sb.append("  NULL AS SCOPE_CATALOG,");
-    sb.append("  NULL AS SCOPE_SCHEMA,");
-    sb.append("  NULL AS SCOPE_TABLE,");
-    sb.append("\r\n  ");
-    sb.append(getCaseDataType(getCaseSourceTypeName(sPgClass, sPgValues, sPgTypeAttributeBase, sPgTypeRangeBase)));
-    sb.append(" AS SOURCE_DATA_TYPE");
-    sb.append("\r\nFROM\r\n  ");
-    sb.append(getAttributesFrom(sPgTypeParent, sPgTypeNamespace, sPgClass,
-      sPgAttribute, sPgTypeAttribute, sPgTypeNamespaceAttribute, sPgTypeAttributeBase, sPgDescription,
-      sPgRange, sPgTypeRange, sPgTypeRangeBase, sPgValues));
-    sb.append("\r\nWHERE\r\n  ");
-    sb.append(getAttributesCondition(sPgTypeParent, sPgTypeNamespace, sPgClass, sPgAttribute, sPgValues,
+    sb.append("\r\n  "+String.valueOf(iMAX_VAR_SIZE)+" AS CHAR_OCTET_LENGTH,");
+    sb.append("\r\n  "+getCaseOrdinalPosition(sPgAttribute, sPgValues)+" AS ORDINAL_POSITION,");
+    sb.append("\r\n  "+getCaseIsNullable(sPgClass, sPgAttribute, sPgTypeAttribute, sPgTypeRange, sPgValues)+" AS IS_NULLABLE,");
+    sb.append("\r\n  NULL AS SCOPE_CATALOG,");
+    sb.append("\r\n  NULL AS SCOPE_SCHEMA,");
+    sb.append("\r\n  NULL AS SCOPE_TABLE,");
+    sb.append("\r\n  "+getCaseDataType(getCaseSourceTypeName(sPgClass, sPgValues, 
+      sPgTypeAttributeBase, sPgNamespaceTypeAttributeBase, sPgTypeRangeBase, sPgNamespaceTypeRangeBase))+" AS SOURCE_DATA_TYPE");
+    sb.append("\r\nFROM\r\n  "+getAttributesFrom(sPgTypeParent, sPgNamespaceTypeParent, sPgClass,
+      sPgAttribute, sPgTypeAttribute, sPgNamespaceTypeAttribute, 
+      sPgTypeAttributeBase, sPgNamespaceTypeAttributeBase, sPgDescription,
+      sPgRange, sPgTypeRange, sPgNamespaceTypeRange, 
+      sPgTypeRangeBase, sPgNamespaceTypeRangeBase, sPgValues));
+    sb.append("\r\nWHERE\r\n  "+getAttributesCondition(sPgTypeParent, sPgNamespaceTypeParent, 
+      sPgClass, sPgAttribute, sPgValues,
       catalog, schemaPattern, typeNamePattern, attributeNamePattern));
     sb.append("\r\nORDER BY 1 ASC, 2 ASC, 3 ASC, 16 ASC");
     
     Statement stmt = getConnection().createStatement();
     ResultSet rsAttributes = new PostgresResultSet(stmt.unwrap(Statement.class).executeQuery(sb.toString()),stmt);
-    return new PostgresMetaColumns(rsAttributes,getConnection(), 1,2,5,6,7,7,8,9);
+    return new PostgresMetaColumns(rsAttributes,getConnection(), 1,2,5,6,7,7,8,9,21);
   } /* getAttributes */
 
 } /* class PostgresDatabaseMetaData */

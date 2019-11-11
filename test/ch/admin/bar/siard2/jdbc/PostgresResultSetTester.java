@@ -1141,9 +1141,13 @@ public class PostgresResultSetTester
     enter();
     try
     {
-      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple,"CINTERVAL_YEAR_3_MONTH");
+      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CDISTINCT");
+      @SuppressWarnings("unchecked")
+      List<TestColumnDefinition> list = (List<TestColumnDefinition>)tcd.getValue();
+      TestColumnDefinition tcdValue = list.get(0);
       Object o = getResultSet().getObject(tcd.getName());
-      assertEquals("Invalid Interval!",((Interval)tcd.getValue()).toDuration(),(Duration)o);
+      assertEquals("Invalid DISTINCT!",(String)tcdValue.getValue(),(String)o);
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testGetObject */
@@ -1155,9 +1159,14 @@ public class PostgresResultSetTester
     enter();
     try
     {
+      /*
       openResultSet(_sNativeQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
       TestColumnDefinition tcd = findColumnDefinition(TestPostgresDatabase._listCdComplex,"CENUM_SUIT");
       getResultSet().updateObject(tcd.getName(),"diamonds");
+      */
+      openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_UPDATABLE);
+      TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdComplex,"CDISTINCT");
+      getResultSet().updateObject(tcd.getName(),"hello");
     }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateObject */
@@ -1991,6 +2000,8 @@ public class PostgresResultSetTester
           List<TestColumnDefinition> listAttributes = (List<TestColumnDefinition>)tcd.getValue();
           // sTypeName holds name of type
           PostgresQualifiedId qiType = new PostgresQualifiedId(sTypeName);
+          if (qiType.getSchema() == null)
+            qiType.setSchema("pg_catalog");;
           DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
           ResultSet rsAttribute = dmd.getAttributes(
             qiType.getCatalog(), 
@@ -2764,6 +2775,8 @@ public class PostgresResultSetTester
       
       getResultSet().insertRow();
       getResultSet().moveToCurrentRow();
+      
+      closeResultSet();
       
       openResultSet(_sSqlQueryComplex,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
       tcd = findColumnDefinition(_listCdComplex,"CID");

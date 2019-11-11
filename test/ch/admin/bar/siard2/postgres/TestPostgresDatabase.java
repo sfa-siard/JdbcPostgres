@@ -285,9 +285,9 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getListBuiltinRange()
   {
     List<TestColumnDefinition> listBuiltinRange = new ArrayList<TestColumnDefinition>();
-    listBuiltinRange.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_START,"int4",Integer.valueOf(473)));
-    listBuiltinRange.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_END,"int4",Integer.valueOf(5435)));
-    listBuiltinRange.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_SIGNATURE,"char","[)"));
+    listBuiltinRange.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_START,PostgresType.INTEGER.getKeyword(),Integer.valueOf(473)));
+    listBuiltinRange.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_END,PostgresType.INTEGER.getKeyword(),Integer.valueOf(5435)));
+    listBuiltinRange.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_SIGNATURE,PostgresType.CHAR.getKeyword()+"(2)","[)"));
     return listBuiltinRange;
   }
   public static List<TestColumnDefinition> _listBuiltinRange = getListBuiltinRange();
@@ -296,7 +296,7 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getListBaseDomain()
   {
     List<TestColumnDefinition> listBaseDomain = new ArrayList<TestColumnDefinition>();
-    listBaseDomain.add(new ColumnDefinition(getQualifiedDomainType().format(),"int4",Integer.valueOf(999)));
+    listBaseDomain.add(new ColumnDefinition(getQualifiedDomainType().format(),PostgresType.INTEGER.getKeyword(),Integer.valueOf(999)));
     return listBaseDomain;
   }
   public static List<TestColumnDefinition> _listBaseDomain = getListBaseDomain();
@@ -306,7 +306,7 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getListCompositeType()
   {
     List<TestColumnDefinition> listCompositeType = new ArrayList<TestColumnDefinition>();
-    listCompositeType.add(new ColumnDefinition("F1","int4",Integer.valueOf(-25)));
+    listCompositeType.add(new ColumnDefinition("F1",PostgresType.INTEGER.getKeyword(),Integer.valueOf(-25)));
     listCompositeType.add(new ColumnDefinition("F2","text",TestUtils.getString(511)));
     return listCompositeType;
   }
@@ -325,9 +325,9 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getListRangeType()
   {
     List<TestColumnDefinition> listRangeType = new ArrayList<TestColumnDefinition>();
-    listRangeType.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_START,"text","bstart"));
-    listRangeType.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_END,"text","cend"));
-    listRangeType.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_SIGNATURE,"char","(]"));
+    listRangeType.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_START,PostgresType.VARCHAR.getKeyword()+"(64)","bstart"));
+    listRangeType.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_END,PostgresType.VARCHAR.getKeyword()+"(64)","cend"));
+    listRangeType.add(new ColumnDefinition(PostgresDatabaseMetaData.sRANGE_SIGNATURE,PostgresType.CHAR.getKeyword()+"(2)","(]"));
     return listRangeType;
   }
   public static List<TestColumnDefinition> _listRangeType = getListRangeType();
@@ -336,10 +336,10 @@ public class TestPostgresDatabase
   private static List<TestColumnDefinition> getListStringArray()
   {
     List<TestColumnDefinition> listStringArray = new ArrayList<TestColumnDefinition>();
-    listStringArray.add(new ColumnDefinition("CARRAY[1]","text","line1"));
-    listStringArray.add(new ColumnDefinition("CARRAY[2]","text","line2"));
-    listStringArray.add(new ColumnDefinition("CARRAY[3]","text","line3"));
-    listStringArray.add(new ColumnDefinition("CARRAY[4]","text","line4"));
+    listStringArray.add(new ColumnDefinition("CARRAY[1]",PostgresType.VARCHAR.getKeyword()+"(64)","line1"));
+    listStringArray.add(new ColumnDefinition("CARRAY[2]",PostgresType.VARCHAR.getKeyword()+"(64)","line2"));
+    listStringArray.add(new ColumnDefinition("CARRAY[3]",PostgresType.VARCHAR.getKeyword()+"(64)","line3"));
+    listStringArray.add(new ColumnDefinition("CARRAY[4]",PostgresType.VARCHAR.getKeyword()+"(64)","line4"));
     return listStringArray;
   }
   public static List<TestColumnDefinition> _listStringArray = getListStringArray();
@@ -349,23 +349,23 @@ public class TestPostgresDatabase
   {
     List<TestColumnDefinition> listDoubleMatrix = new ArrayList<TestColumnDefinition>();
     List<TestColumnDefinition> listDoubleArray = new ArrayList<TestColumnDefinition>();
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][1]","float8",Double.valueOf(0.1)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][2]","float8",Double.valueOf(0.0)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][3]","float8",Double.valueOf(0.5)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][4]","float8",Double.valueOf(2.0)));
-    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[1]","float8[]",listDoubleArray));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][1]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(0.1)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][2]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(0.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][3]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(0.5)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[1][4]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(2.0)));
+    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[1]",PostgresType.DOUBLE.getKeyword()+"[4]",listDoubleArray));
     listDoubleArray = new ArrayList<TestColumnDefinition>();
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][1]","float8",Double.valueOf(10.0)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][2]","float8",null));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][3]","float8",Double.valueOf(2.0)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][4]","float8",Double.valueOf(0.5)));
-    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[2]","float8[]",listDoubleArray));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][1]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(10.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][2]",PostgresType.DOUBLE.getKeyword(),null));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][3]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(2.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[2][4]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(0.5)));
+    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[2]",PostgresType.DOUBLE.getKeyword()+"[4]",listDoubleArray));
     listDoubleArray = new ArrayList<TestColumnDefinition>();
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][1]","float8",Double.valueOf(5.0)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][2]","float8",Double.valueOf(0.0)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][3]","float8",Double.valueOf(0.25)));
-    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][4]","float8",Double.valueOf(1.0)));
-    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[3]","float8[]",listDoubleArray));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][1]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(5.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][2]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(0.0)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][3]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(0.25)));
+    listDoubleArray.add(new ColumnDefinition("CMATRIX[3][4]",PostgresType.DOUBLE.getKeyword(),Double.valueOf(1.0)));
+    listDoubleMatrix.add(new ColumnDefinition("CMATRIX[3]",PostgresType.DOUBLE.getKeyword()+"[4]",listDoubleArray));
     return listDoubleMatrix;
   }
   public static List<TestColumnDefinition> _listDoubleMatrix = getListDoubleMatrix();
@@ -375,7 +375,7 @@ public class TestPostgresDatabase
   {
     List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();
     _iPrimaryComplex = listCdComplex.size(); // next column will be primary key column 
-    listCdComplex.add(new ColumnDefinition("CID","INT",Integer.valueOf(987654321)));
+    listCdComplex.add(new ColumnDefinition("CID",PostgresType.INTEGER.getKeyword(),Integer.valueOf(987654321)));
     listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
     listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
     listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));

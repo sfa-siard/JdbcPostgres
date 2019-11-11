@@ -18,7 +18,6 @@ import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
-import ch.admin.bar.siard2.postgres.identifier.PostgresQualifiedId;
 
 /*====================================================================*/
 /** PostgresMetaColumns implements data type mapping from Postgres to ISO SQL.
@@ -27,20 +26,46 @@ import ch.admin.bar.siard2.postgres.identifier.PostgresQualifiedId;
 public class PostgresMetaColumns
   extends PostgresResultSet
 {
-  private static final String sPOSTGRES_SCHEMA_PUBLIC = "public";
   static final int iMAX_NUMERIC_PRECISION = 1000;
   static final int iMAX_VAR_LENGTH = 10485760;
   static final int iMAX_TEXT_LENGTH = 1024*1024*1024;
-  private int _iCatalog = -1;
-  private int _iSchema = -1;
   private int _iDataType = -1;
   private int _iTypeName = -1;
   private int _iPrecision = -1;
   private int _iLength = -1;
   private int _iScale = -1;
   private int _iNumPrecRadix = -1;
+  private int _iSourceDataType = -1;
 
   private Connection _conn;
+  
+  private static QualifiedId parseTypeName(String sTypeName)
+    throws ParseException
+  {
+    QualifiedId qiType = null;
+    /* we need to prevent a parsing error due to reserved keywords by quoting */
+    if (!(sTypeName.startsWith("\"") && sTypeName.endsWith("\"")))
+    {
+      String[] as = sTypeName.split("\\.");
+      sTypeName = "\"" + String.join("\".\"", as) + "\"";
+    }
+    qiType = new QualifiedId(sTypeName);
+    sTypeName = qiType.format();
+    if (sTypeName.equals("\"public\".\"clob\"") || sTypeName.equals("\"public\".\"blob\""))
+      qiType.setSchema(null);
+    return qiType;
+  }
+  
+  private static String formatTypeName(QualifiedId qiType)
+  {
+    String sTypeName = null;
+    /* we want qualified types to be quoted and simple types to be unquoted */
+    if ((qiType.getSchema() == null) || qiType.getSchema().equals("pg_catalog"))
+      sTypeName = qiType.getName();
+    else
+      sTypeName = qiType.format();
+    return sTypeName;
+  }
 
   private static int getAttTypMod(Connection conn, String sSchemaName, String sTableName, String sColumnName)
     throws SQLException
@@ -134,41 +159,7 @@ public class PostgresMetaColumns
   private String getTypeName(String sTypeName, int iType)
     throws SQLException
   {
-    if ((iType == Types.STRUCT) || (iType == Types.DISTINCT))
-    {
-      PostgresQualifiedId pqiType = null;
-      try { pqiType = new PostgresQualifiedId(sTypeName); }
-      catch (ParseException pe) 
-      { 
-        // failed because of keyword?
-        StringBuilder sb = new StringBuilder();
-        String[] as = sTypeName.split("\\.");
-        for (int i = 0; i < as.length; i++)
-        {
-          if (sb.length() > 0)
-            sb.append(".");
-          if (!(as[i].startsWith("\"") && as[i].endsWith("\"")))
-            as[i] = "\""+as[i]+"\"";
-          sb.append(as[i]);
-        }
-        try { pqiType = new PostgresQualifiedId(sb.toString()); }
-        catch(ParseException pe1) { throw new SQLException("Unexpected problem parsing type name ("+EU.getExceptionMessage(pe1)+")!"); }
-      }
-      if ((pqiType.getName().equals("blob") || pqiType.getName().equals("clob")) && 
-          ((pqiType.getSchema() == null) || pqiType.getSchema().equals("public")))
-        sTypeName = pqiType.getName();
-      else
-      {
-        QualifiedId qiType = new QualifiedId(pqiType.getCatalog(),pqiType.getSchema(),pqiType.getName());
-        sTypeName = qiType.format();
-      }
-    }
-    else if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
-    {
-      QualifiedId qiType = new QualifiedId(null,"pg_catalog",sTypeName);
-      sTypeName = qiType.format();
-    }
-    else if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
+    if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
     {
       String sSchemaName = this.getString(2);
       String sTableName = this.getString(3);
@@ -188,7 +179,15 @@ public class PostgresMetaColumns
       }
       sTypeName = sTypeName + " ARRAY["+String.valueOf(Integer.MAX_VALUE)+"]";
     }
-    
+    else
+    {
+      try
+      {
+        QualifiedId qiType = parseTypeName(sTypeName);
+        sTypeName = formatTypeName(qiType);
+      }
+      catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
+    }
     return sTypeName;
   } /* getTypeName */
   
@@ -196,6 +195,13 @@ public class PostgresMetaColumns
   private int getDataType(int iType, String sTypeName)
     throws SQLException
   {
+    QualifiedId qiType = null;
+    try
+    {
+     qiType = parseTypeName(sTypeName);
+     sTypeName = formatTypeName(qiType);
+    }
+    catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
     if (pgt != null)
     {
@@ -217,29 +223,20 @@ public class PostgresMetaColumns
       {
         if (PostgresType.setBUILTIN_RANGES.contains(sTypeName))
           iType = Types.STRUCT;
+        else if (sTypeName.equals("clob"))
+          iType = Types.CLOB;
+        else if (sTypeName.equals("blob"))
+          iType = Types.BLOB;
         else
         {
-          try
-          {
-            if (sTypeName.equals("public.clob") || sTypeName.equals("clob"))
-              iType = Types.CLOB;
-            else if (sTypeName.equals("public.blob") || sTypeName.equals("blob"))
-              iType = Types.BLOB;
-            else
-            {
-              QualifiedId qiType = new QualifiedId(sTypeName);
-              PostgresQualifiedId pqiType = new PostgresQualifiedId(qiType.format());
-              BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
-              ResultSet  rs = bdmd.getUDTs(pqiType.getCatalog(),
-                bdmd.toPattern(pqiType.getSchema()),
-                bdmd.toPattern(pqiType.getName()), 
-                null);
-              if (rs.next())
-                iType = rs.getInt("DATA_TYPE");
-              rs.close();
-            }
-          }
-          catch(ParseException pe) { throw new SQLException("Type "+sTypeName+" could not be parsed ("+EU.getExceptionMessage(pe)+")!"); }
+          BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
+          ResultSet  rs = bdmd.getUDTs(qiType.getCatalog(),
+            bdmd.toPattern(qiType.getSchema()),
+            bdmd.toPattern(qiType.getName()), 
+            null);
+          if (rs.next())
+            iType = rs.getInt("DATA_TYPE");
+          rs.close();
         }
       }
     }
@@ -247,51 +244,131 @@ public class PostgresMetaColumns
   } /* getDataType */
   
   /*------------------------------------------------------------------*/
-  private int getPrecision(int iPrecision, int iType, String sTypeName,
-    String sCatalogName, String sSchemaName)
+  private int getPrecision(int iPrecision, int iType, String sTypeName)
+    throws SQLException
   {
+    QualifiedId qiType = null;
+    try
+    {
+     qiType = parseTypeName(sTypeName);
+     sTypeName = formatTypeName(qiType);
+    }
+    catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
     if (pgt != null)
     {
-      if ((pgt == PostgresType.BIT) || (pgt == PostgresType.VARBIT))
-        iPrecision = (iPrecision + 7) / 8;
-      else if (pgt == PostgresType.UUID)
-        iPrecision = 16;
-      else if (pgt == PostgresType.MACADDR)
-        iPrecision = 6;
-      else if (pgt == PostgresType.MACADDR8)
-        iPrecision = 8;
-      else if ((pgt == PostgresType.NUMERIC) || (pgt == PostgresType.MONEY))
+      switch (pgt)
       {
-        if (iPrecision > iMAX_NUMERIC_PRECISION)
-        iPrecision = 0;
-      }
-      else if ((pgt == PostgresType.BYTEA) || (pgt == PostgresType.TEXT))
-        iPrecision = iMAX_TEXT_LENGTH;
-      else if ((pgt.getPreType() == PreType.CLOB) ||
-        (pgt.getPreType() == PreType.NCLOB) ||
-        (pgt.getPreType() == PreType.BLOB))
-        iPrecision = Integer.MAX_VALUE;
-      else if ((pgt.getPreType() == PreType.CHAR) || 
-          (pgt.getPreType() == PreType.NCHAR) ||
-          (pgt.getPreType() == PreType.VARCHAR) ||
-          (pgt.getPreType() == PreType.NVARCHAR) ||
-          (pgt.getPreType() == PreType.XML) ||
-          (pgt.getPreType() == PreType.BINARY) ||
-          (pgt.getPreType() == PreType.VARBINARY))
-      {
-        if (iPrecision > iMAX_VAR_LENGTH)
-          iPrecision = iMAX_VAR_LENGTH;
+        case SMALLINT:
+        case SMALLSERIAL: 
+          iPrecision = 5;
+          break;
+        case INTEGER:
+        case SERIAL: 
+          iPrecision = 10; 
+          break;
+        case BIGINT:
+        case BIGSERIAL:
+        case OID:
+        case TXID:
+          iPrecision = 19; 
+          break;
+        case MONEY:
+        case NUMERIC:
+          if (iPrecision > iMAX_NUMERIC_PRECISION)
+            iPrecision = 0;
+          break;
+        case DOUBLE: 
+          iPrecision = 17;
+          break;
+        case REAL: 
+          iPrecision = 8;
+          break;
+        case BOOLEAN: 
+          iPrecision = 1; 
+          break;
+        case DATE: 
+          iPrecision = 13; 
+          break;
+        case TIME: 
+          iPrecision = 15; 
+          break;
+        case TIMETZ: 
+          iPrecision = 21; 
+          break;
+        case TIMESTAMP: 
+          iPrecision = 29; 
+          break;
+        case TIMESTAMPTZ: 
+          iPrecision = 29; 
+          break;
+        case INTERVAL: 
+          iPrecision = 49; break;
+        case CHAR: 
+        case VARCHAR:
+        case JSON:
+        case JSONB:
+        case XML:
+        case TSVECTOR:
+        case TSQUERY:
+        case POINT:
+        case LINE:
+        case LSEG:
+        case BOX:
+        case PATH:
+        case POLYGON:
+        case CIRCLE:
+          if (iPrecision > iMAX_VAR_LENGTH)
+            iPrecision = iMAX_VAR_LENGTH;
+          break;
+        case TEXT:
+        case BYTEA: 
+          iPrecision = iMAX_TEXT_LENGTH; 
+          break;
+        case BIT:
+        case VARBIT: 
+          iPrecision = (iPrecision + 7) / 8; 
+          break;
+        case UUID: 
+          iPrecision = 16; 
+          break;
+        case MACADDR: 
+          iPrecision = 6;
+          break;
+        case MACADDR8: 
+          iPrecision = 8; 
+          break;
+        case NAME:
+          iPrecision = 63;
+          break;
+        case INET:
+        case CIDR:
+          iPrecision = 16;
+          break;
+        case CLOB:
+        case BLOB: 
+          iPrecision = Integer.MAX_VALUE;
+          break;
       }
     }
-    else if (sPOSTGRES_SCHEMA_PUBLIC.equals(sSchemaName))
+    else if (iType == Types.DISTINCT)
     {
-      /* These types are created by PostgresConnection */
-      iPrecision = Integer.MAX_VALUE; 
-      /* theoretically it should be 4G but JDBC only specifies int ... */
-    }
-    else if ((iType == Types.ARRAY) || (iType == Types.STRUCT) || (iType == Types.DISTINCT))
       iPrecision = Integer.MAX_VALUE;
+      if (_iSourceDataType > 0)  // for columns/attributes
+      {
+        int iSourceDataType = getInt(_iSourceDataType);
+        PreType pt = PreType.getBySqlType(iSourceDataType);
+        if (pt != null)
+        {
+          pgt = PostgresType.getByPreType(pt);
+          iPrecision = getPrecision(iPrecision, iSourceDataType, pgt.getKeyword());
+        }
+      }
+    }
+    else if (iType == Types.STRUCT)
+      iPrecision = 0; // Integer.MAX_VALUE;
+    else if (iType == Types.ARRAY)
+      iPrecision = 0; // Integer.MAX_VALUE;
     return iPrecision;
   } /* getPrecision */
   
@@ -331,19 +408,19 @@ public class PostgresMetaColumns
    */
   public PostgresMetaColumns(ResultSet rsWrapped,Connection conn,
     int iCatalog, int iSchema, int iDataType, int iTypeName,
-    int iPrecision, int iLength, int iScale, int iNumPrecRadix)
+    int iPrecision, int iLength, int iScale, int iNumPrecRadix,
+    int iSourceDataType)
     throws SQLException
   {
     super(rsWrapped, rsWrapped.getStatement());
     _conn = conn;
-    _iCatalog = iCatalog;
-    _iSchema = iSchema;
     _iDataType = iDataType;
     _iTypeName = iTypeName;
     _iPrecision = iPrecision;
     _iLength = iLength;
     _iScale = iScale;
     _iNumPrecRadix = iNumPrecRadix;
+    _iSourceDataType = iSourceDataType;
   } /* constructor */
 
   /*------------------------------------------------------------------*/
@@ -388,9 +465,7 @@ public class PostgresMetaColumns
       iResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iScale)
     {
@@ -404,9 +479,7 @@ public class PostgresMetaColumns
       iResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iNumPrecRadix)
     {
@@ -452,9 +525,7 @@ public class PostgresMetaColumns
       oResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iScale)
     {
@@ -470,9 +541,7 @@ public class PostgresMetaColumns
       oResult = getPrecision(
         iResult,
         super.getInt(_iDataType),
-        super.getString(_iTypeName),
-        super.getString(_iCatalog), 
-        super.getString(_iSchema));
+        super.getString(_iTypeName));
     }
     else if (columnIndex == _iNumPrecRadix)
     {

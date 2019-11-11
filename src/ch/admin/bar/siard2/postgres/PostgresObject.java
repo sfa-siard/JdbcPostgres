@@ -106,7 +106,11 @@ public class PostgresObject
     _sIndent = sIndent;
     //System.out.println(sIndent + _sValue);
     if ((iDataType == Types.STRUCT) || (iDataType == Types.DISTINCT))
+    {
       _qiType = new PostgresQualifiedId(sTypeName);
+      if (_qiType.getSchema() == null) // builtin ranges
+        _qiType.setSchema("pg_catalog");
+    }
     else if (iDataType == Types.ARRAY)
       _sBaseType = getBaseType(sTypeName);
     _pconn = pconn;
