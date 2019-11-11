@@ -158,14 +158,7 @@ public class PostgresMetaColumns
   private String getTypeName(String sTypeName, int iType)
     throws SQLException
   {
-    if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
-    {
-      String sSchemaName = this.getString(2);
-      String sTableName = this.getString(3);
-      String sColumnName = this.getString(4);
-      sTypeName = getIntervalTypeName(_conn, sSchemaName, sTableName, sColumnName, sTypeName);
-    }
-    else if (iType == Types.ARRAY)
+    if (iType == Types.ARRAY)
     {
       // internal names starting with _ are used for array elements
       if (sTypeName.startsWith("_"))
@@ -184,6 +177,13 @@ public class PostgresMetaColumns
       {
         QualifiedId qiType = parseTypeName(sTypeName);
         sTypeName = formatTypeName(qiType);
+        if (PostgresType.INTERVAL.getKeyword().equals(sTypeName)) 
+        {
+          String sSchemaName = this.getString(2);
+          String sTableName = this.getString(3);
+          String sColumnName = this.getString(4);
+          sTypeName = getIntervalTypeName(_conn, sSchemaName, sTableName, sColumnName, sTypeName);
+        }
       }
       catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     }
