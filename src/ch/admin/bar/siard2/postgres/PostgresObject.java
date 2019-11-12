@@ -305,6 +305,8 @@ public class PostgresObject
           BigInteger bi = (BigInteger)o;
           bd = new BigDecimal(bi);
         }
+        else if (o instanceof BigDecimal)
+          bd = (BigDecimal)o;
         if (o != null)
           sValue = PostgresLiterals.formatExactLiteral(bd);
         break;
