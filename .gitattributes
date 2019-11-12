@@ -30,3 +30,5 @@ LICENSE text
 *.woff binary
 *.woff2 binary
 *.pdf binary
+*.odt binary
+*.ods binary
