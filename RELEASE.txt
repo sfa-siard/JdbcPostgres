@@ -1,5 +1,8 @@
 Release Notes for JdbcPostgres 2.1
 ==================================
 
+2.1.41
+First fully tested release in branch master
+
 2.1.0
 First release of JdbcPostgres on GitHub.
