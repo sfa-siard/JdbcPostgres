@@ -15,7 +15,6 @@ import java.text.*;
 
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
-import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -65,8 +64,9 @@ public class PostgresMetaColumns
     {
       if (!PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
       {
-        if (PostgresType.getByKeyword(qiType.getName()) != null)
-          sTypeName = qiType.getName();
+        sTypeName = qiType.getName();
+        if (PostgresType.getByKeyword(sTypeName) == null)
+          sTypeName = PostgresLiterals.quoteId(sTypeName);
       }
     }
     return sTypeName;
