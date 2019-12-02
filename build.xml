@@ -124,7 +124,6 @@ Created    : 16.06.2016, Simon Jutz
     </condition>
     <echo message="branch: ${branch}"/>
     <echo message="branch.master: ${branch.master}"/>
-    <echo message="build.properties.configured: ${build.properties.configured}"/>
   </target>
   
   <!-- commit local work -->
