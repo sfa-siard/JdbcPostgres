@@ -62,9 +62,13 @@ public class PostgresMetaColumns
     String sTypeName = qiType.format();
     /* we want qualified types to be quoted and simple types to be unquoted */
     if (qiType.getSchema().equals("pg_catalog"))
+    {
       if (!PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
-        if (!SqlLiterals.isReservedKeyword(qiType.getName().toUpperCase()))
+      {
+        if (PostgresType.getByKeyword(qiType.getName()) != null)
           sTypeName = qiType.getName();
+      }
+    }
     return sTypeName;
   }
 
