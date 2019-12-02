@@ -15,6 +15,7 @@ import java.text.*;
 
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
+import ch.enterag.sqlparser.*;
 import ch.enterag.sqlparser.datatype.enums.*;
 import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
@@ -62,7 +63,8 @@ public class PostgresMetaColumns
     /* we want qualified types to be quoted and simple types to be unquoted */
     if (qiType.getSchema().equals("pg_catalog"))
       if (!PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
-        sTypeName = qiType.getName();
+        if (!SqlLiterals.isReservedKeyword(qiType.getName().toUpperCase()))
+          sTypeName = qiType.getName();
     return sTypeName;
   }
 
