@@ -16,8 +16,8 @@ import java.text.*;
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.datatype.enums.*;
-import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.postgres.*;
+import ch.admin.bar.siard2.postgres.identifier.*;
 
 /*====================================================================*/
 /** PostgresMetaColumns implements data type mapping from Postgres to ISO SQL.
@@ -39,36 +39,43 @@ public class PostgresMetaColumns
 
   private Connection _conn;
   
-  private static QualifiedId parseTypeName(String sTypeName)
-    throws ParseException
+  private PostgresQualifiedId parseTypeName(String sTypeName)
+    throws ParseException, SQLException
   {
-    QualifiedId qiType = null;
+    PostgresQualifiedId pqiType = null;
     /* we need to prevent a parsing error due to reserved keywords by quoting */
     if (!(sTypeName.startsWith("\"") && sTypeName.endsWith("\"")))
     {
       String[] as = sTypeName.split("\\.");
       sTypeName = "\"" + String.join("\".\"", as) + "\"";
     }
-    qiType = new QualifiedId(sTypeName);
-    if (qiType.getSchema() == null)
-      qiType.setSchema("pg_catalog");
-    sTypeName = qiType.format();
-    return qiType;
-  }
-  
-  private static String formatTypeName(QualifiedId qiType)
-  {
-    String sTypeName = qiType.format();
-    /* we want qualified types to be quoted and simple types to be unquoted */
-    if (qiType.getSchema().equals("pg_catalog"))
+    pqiType = new PostgresQualifiedId(sTypeName);
+    if (pqiType.getSchema() == null)
     {
-      if (!PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
-      {
-        sTypeName = qiType.getName();
-        if (PostgresType.getByKeyword(sTypeName) == null)
-          sTypeName = PostgresLiterals.quoteId(sTypeName);
-      }
+      BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
+      ResultSet rs = bdmd.getUDTs(null, "%", bdmd.toPattern(pqiType.getName()), null);
+      if (rs.next())
+        pqiType.setSchema(rs.getString("TYPE_SCHEM"));
+      else
+        pqiType.setSchema("pg_catalog");
+      rs.close();
     }
+    sTypeName = pqiType.format();
+    return pqiType;
+  } /* parse type name */
+  
+  private static String formatTypeName(PostgresQualifiedId pqiType)
+  {
+    String sTypeName = pqiType.format();
+    /* we want qualified types to be quoted and simple types to be unquoted */
+    if (pqiType.getSchema().equals("pg_catalog"))
+    {
+      if (!PostgresType.setBUILTIN_RANGES.contains(pqiType.getName()))
+        sTypeName = pqiType.getName();
+    }
+    else if (pqiType.getSchema().equals("public") && 
+      (pqiType.getName().equals("blob") || pqiType.getName().equals("clob")))
+      sTypeName = pqiType.getName();
     return sTypeName;
   }
 
@@ -181,8 +188,21 @@ public class PostgresMetaColumns
     {
       try
       {
-        QualifiedId qiType = parseTypeName(sTypeName);
-        sTypeName = formatTypeName(qiType);
+        PostgresQualifiedId pqiType = parseTypeName(sTypeName);
+        sTypeName = formatTypeName(pqiType);
+        /**
+        if (PostgresType.getByKeyword(sTypeName) == null)
+        {
+          BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
+          ResultSet rs = bdmd.getUDTs(null, "%", bdmd.toPattern(sTypeName), new int[] {Types.DISTINCT});
+          String sCatalog = rs.getString("TYPE_CAT");
+          String sSchemaName = rs.getString("TYPE_SCHEM");
+          String sType = rs.getString("TYPE_NAME");
+          qiType = new 
+          // get full type name
+          rs.close();
+        }
+        ***/
         if (PostgresType.INTERVAL.getKeyword().equals(sTypeName)) 
         {
           String sSchemaName = this.getString(2);
@@ -200,11 +220,11 @@ public class PostgresMetaColumns
   private int getDataType(int iType, String sTypeName)
     throws SQLException
   {
-    QualifiedId qiType = null;
+    PostgresQualifiedId pqiType = null;
     try
     {
-     qiType = parseTypeName(sTypeName);
-     sTypeName = formatTypeName(qiType);
+     pqiType = parseTypeName(sTypeName);
+     sTypeName = formatTypeName(pqiType);
     }
     catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     PostgresType pgt = PostgresType.getByKeyword(sTypeName);
@@ -226,19 +246,19 @@ public class PostgresMetaColumns
     {
       if (!sTypeName.startsWith("_"))
       {
-        if ((qiType.getSchema().equals("pg_catalog")) &&
-          PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
+        if ((pqiType.getSchema().equals("pg_catalog")) &&
+          PostgresType.setBUILTIN_RANGES.contains(pqiType.getName()))
           iType = Types.STRUCT;
-        else if (qiType.getSchema().equals("public") && qiType.getName().equals("clob"))
+        else if (pqiType.getSchema().equals("public") && pqiType.getName().equals("clob"))
           iType = Types.CLOB;
-        else if (qiType.getSchema().equals("public") && qiType.getName().equals("blob"))
+        else if (pqiType.getSchema().equals("public") && pqiType.getName().equals("blob"))
           iType = Types.BLOB;
         else
         {
           BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
-          ResultSet  rs = bdmd.getUDTs(qiType.getCatalog(),
-            bdmd.toPattern(qiType.getSchema()),
-            bdmd.toPattern(qiType.getName()), 
+          ResultSet  rs = bdmd.getUDTs(pqiType.getCatalog(),
+            bdmd.toPattern(pqiType.getSchema()),
+            bdmd.toPattern(pqiType.getName()), 
             null);
           if (rs.next())
             iType = rs.getInt("DATA_TYPE");
@@ -253,11 +273,11 @@ public class PostgresMetaColumns
   private int getPrecision(int iPrecision, int iType, String sTypeName)
     throws SQLException
   {
-    QualifiedId qiType = null;
+    PostgresQualifiedId pqiType = null;
     try
     {
-     qiType = parseTypeName(sTypeName);
-     sTypeName = formatTypeName(qiType);
+     pqiType = parseTypeName(sTypeName);
+     sTypeName = formatTypeName(pqiType);
     }
     catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     PreType pt = PreType.getBySqlType(iType);
@@ -360,8 +380,8 @@ public class PostgresMetaColumns
           break;
       }
     }
-    else if ((qiType.getSchema().equals("pg_catalog")) &&
-      PostgresType.setBUILTIN_RANGES.contains(qiType.getName()))
+    else if ((pqiType.getSchema().equals("pg_catalog")) &&
+      PostgresType.setBUILTIN_RANGES.contains(pqiType.getName()))
       iPrecision = 0;
     else if (iType == Types.DISTINCT)
     {
