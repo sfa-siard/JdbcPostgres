@@ -22,12 +22,15 @@ import ch.admin.bar.siard2.postgres.identifier.*;
 public class TestPostgresDatabase
 {
   public static final String _sTEST_SCHEMA = "TESTPGSCHEMA";
+  public static final String _sPUBLIC_SCHEMA = "PUBLIC";
   public static final String _sTEST_TABLE_SIMPLE = "TPGSIMPLE";
   public static PostgresQualifiedId getQualifiedSimpleTable() { return new PostgresQualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_SIMPLE); }
   public static final String _sTEST_TABLE_COMPLEX = "TPGCOMPLEX";
   public static PostgresQualifiedId getQualifiedComplexTable() { return new PostgresQualifiedId(null,_sTEST_SCHEMA,_sTEST_TABLE_COMPLEX); }
   private static final String _sTEST_INTEGER_DOMAIN = "TYPPGDOMAIN";
   public static PostgresQualifiedId getQualifiedDomainType() { return new PostgresQualifiedId(null,_sTEST_SCHEMA, _sTEST_INTEGER_DOMAIN); }
+  private static final String _sTEST_YEAR_DOMAIN = "year";
+  public static PostgresQualifiedId getQualifiedYearType() { return new PostgresQualifiedId(null,_sPUBLIC_SCHEMA, _sTEST_YEAR_DOMAIN); }
   private static final String _sTEST_BUILTIN_RANGE = "INT4RANGE";
   public static PostgresQualifiedId getQualifiedBuiltinRange() { return new PostgresQualifiedId(null,null, _sTEST_BUILTIN_RANGE); }
   private static final String _sTEST_TYPE_ENUM = "TYPPGENUM";
@@ -102,7 +105,7 @@ public class TestPostgresDatabase
           }
           catch (ParseException pe) { System.err.println("ParseException in getValueLiteral()!"); }
         }
-        else if (getName().equals("CINT_DOMAIN") || getName().equals("CENUM_SUIT"))
+        else if (getName().equals("CINT_DOMAIN") || getName().equals("CYEAR") || getName().equals("CENUM_SUIT"))
         {
           @SuppressWarnings("unchecked")
           List<ColumnDefinition> listCd = (List<ColumnDefinition>)getValue();
@@ -292,6 +295,14 @@ public class TestPostgresDatabase
   }
   public static List<TestColumnDefinition> _listBuiltinRange = getListBuiltinRange();
   
+  /* complex type : year domain */
+  private static List<TestColumnDefinition> getListBaseYear()
+  {
+    List<TestColumnDefinition> listBaseYear = new ArrayList<TestColumnDefinition>();
+    listBaseYear.add(new ColumnDefinition(getQualifiedYearType().format(),PostgresType.INTEGER.getKeyword(),Integer.valueOf(2019)));
+    return listBaseYear;
+  }
+  public static List<TestColumnDefinition> _listBaseYear = getListBaseYear();
   /* complex type : domain */
   private static List<TestColumnDefinition> getListBaseDomain()
   {
@@ -376,6 +387,7 @@ public class TestPostgresDatabase
     List<TestColumnDefinition> listCdComplex = new ArrayList<TestColumnDefinition>();
     _iPrimaryComplex = listCdComplex.size(); // next column will be primary key column 
     listCdComplex.add(new ColumnDefinition("CID",PostgresType.INTEGER.getKeyword(),Integer.valueOf(987654321)));
+    listCdComplex.add(new ColumnDefinition("CYEAR",getQualifiedYearType().format(),_listBaseYear));
     listCdComplex.add(new ColumnDefinition("CINT_DOMAIN",getQualifiedDomainType().format(),_listBaseDomain));
     listCdComplex.add(new ColumnDefinition("CCOMPOSITE",getQualifiedCompositeType().format(),_listCompositeType));
     listCdComplex.add(new ColumnDefinition("CENUM_SUIT",getQualifiedEnumType().format(),_listEnumType));
@@ -470,6 +482,7 @@ public class TestPostgresDatabase
 
   private void dropTypes()
   {
+    dropType(getQualifiedYearType());
     dropType(getQualifiedDomainType());
     dropType(getQualifiedCompositeType());
     dropType(getQualifiedEnumType());
@@ -517,6 +530,7 @@ public class TestPostgresDatabase
   private void createTypes()
     throws SQLException
   {
+    createType(getQualifiedYearType(),_listBaseYear);
     createType(getQualifiedDomainType(),_listBaseDomain);
     createType(getQualifiedCompositeType(),_listCompositeType);
     createType(getQualifiedEnumType(),_listEnumType);
@@ -526,7 +540,7 @@ public class TestPostgresDatabase
   private void createType(QualifiedId qiType, List<TestColumnDefinition> listAttributes)
     throws SQLException
   {
-    if (qiType.getName().equals(_sTEST_INTEGER_DOMAIN))
+    if (qiType.getName().equals(_sTEST_INTEGER_DOMAIN) || (qiType.getName().equals(_sTEST_YEAR_DOMAIN)))
     {
       TestColumnDefinition cd = listAttributes.get(0);
       executeCreate("CREATE DOMAIN "+qiType.format()+" AS "+cd.getType());

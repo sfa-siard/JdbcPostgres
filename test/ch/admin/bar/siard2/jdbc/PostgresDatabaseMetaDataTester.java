@@ -467,6 +467,19 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     return cdFound;
   } /* findTestColumnDefinition */
   
+  @Test
+  @Override
+  public void testGetColumns()
+  {
+    try
+    {    
+      PostgresQualifiedId pqiTable = new PostgresQualifiedId(TestPostgresDatabase.getQualifiedComplexTable().format());
+      print(getDatabaseMetaData().getColumns(pqiTable.getCatalog(), pqiTable.getSchema(), pqiTable.getName(), "%"));
+    }
+    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
+    catch(ParseException pe) { fail(EU.getExceptionMessage(pe)); }
+  } /* testGetColumns */
+  
   /** list columns of user tables
    */
   @Test
@@ -522,7 +535,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
               if (iPosition == TestPostgresDatabase._iPrimaryComplex)
                 iNulls = DatabaseMetaData.columnNoNulls;
             }
-            if (sColumnName.equalsIgnoreCase("CINT_DOMAIN"))
+            if (sColumnName.equalsIgnoreCase("CINT_DOMAIN") || sColumnName.equalsIgnoreCase("CYEAR"))
             {
               iType = Types.DISTINCT;
               iPrecision = sizeFromMax(Integer.MAX_VALUE);              
@@ -682,6 +695,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     Set<String>setSchemas = new HashSet<String>();
     setSchemas.add(TestPostgresDatabase._sTEST_SCHEMA.toLowerCase());
     setSchemas.add(TestSqlDatabase._sTEST_SCHEMA.toLowerCase());
+    setSchemas.add("public");
     return setSchemas;
   } /* getUserSchemas */
   
