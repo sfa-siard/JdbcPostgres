@@ -19,10 +19,16 @@ jobs:
       # defines the postgres db service using Dockerfile-postgres. No data is loaded on startup
       postgres:
         image: postgres
-        environment:
+        env:
           POSTGRES_DB: postgres
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+            # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 5432:5432
 
