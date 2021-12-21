@@ -16,7 +16,6 @@ jobs:
 
     runs-on: ubuntu-latest
     services:
-      # defines the postgres db service using Dockerfile-postgres. No data is loaded on startup
       postgres:
         image: postgres
         env:
@@ -40,4 +39,6 @@ jobs:
           java-version: '8'
           distribution: 'adopt'
       - name: Build with Ant
-        run: ant -noinput -buildfile build.xml tests build
+        run: ant -noinput -buildfile build.xml build
+      - name: Test with Ant
+        run: ant -noinput -buildfile build.xml test
