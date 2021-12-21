@@ -15,6 +15,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    container: openjdk:8
     services:
       # defines the postgres db service using Dockerfile-postgres. No data is loaded on startup
       postgres:
