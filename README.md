@@ -1,16 +1,14 @@
-JdbcPostgres - SIARD 2.1 Postgres JDBC Wrapper
-==============================================
+# JdbcPostgres - SIARD 2.1 Postgres JDBC Wrapper
 
-This package contains the JDBC Wrapper for Oracle DBMS for SIARD 2.1.
+This package contains the JDBC Wrapper for Postgres DBMS for SIARD 2.1.
 
 
 ## Getting started (for devs)
 
-For building the binaries, Java JDK (1.8 or higher), Ant, and Git must
-have been installed. Adjust build.properties to your local configuration. In it using a text editor the local values must be
-entered as directed by the comments.
+For building the binaries, Java JDK (1.8 or higher) and Ant must
+have been installed. Adjust build.properties to your local configuration (if needed)
 
-A running instance of PostgresQL is needed to run the tests - start one with:
+In order to run the test, you have to start a PostgresQL DB first:
 
 ```shell
 docker-compose up -d
