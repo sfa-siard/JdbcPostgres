@@ -87,6 +87,7 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,12,2,14,24,12,987654321)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_YEAR_3_MONTH","INTERVAL YEAR(3) TO MONTH",new Interval(1,3,6)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_DAY_2_SECONDS_6","INTERVAL DAY(2) TO SECOND(6)",new Interval(1,0,17,54,23,123456000l)));
+    listCdSimple.add(new TestColumnDefinition("CDATALINK","DATALINK","file:///etc/test"));
     return listCdSimple;
   }
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();
@@ -2129,8 +2130,7 @@ public class PostgresResultSetTester
     //}
     //catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
   } /* checkDistinct */
-  
-  
+
   private void checkObject(String sIndent, Object o, TestColumnDefinition tcd, int iDataType, String sTypeName, String sDataType)
     throws SQLException
   {
@@ -2138,18 +2138,23 @@ public class PostgresResultSetTester
     {
       switch(iDataType)
       {
-        case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-        case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
+        case Types.CHAR:
+        case Types.DATALINK:
+        case Types.VARCHAR:
+        case Types.NCHAR:
+        case Types.NVARCHAR:
+          checkString(o,tcd,sTypeName,sDataType); break;
+        case Types.CLOB:
+        case Types.NCLOB:
+          checkClob(o,tcd,sTypeName,sDataType); break;
         case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
-        case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-        case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
+        case Types.BINARY:
+        case Types.VARBINARY:
+          checkBytes(o,tcd,sTypeName,sDataType); break;
         case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
-        case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-        case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
+        case Types.NUMERIC:
+        case Types.DECIMAL:
+          checkBigDecimal(o,tcd,sTypeName,sDataType); break;
         case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
         case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
         case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
@@ -2169,7 +2174,7 @@ public class PostgresResultSetTester
     else if (o != null)
       fail("Expected NULL value not found!");
   } /* checkObject */
-  
+
   @Test
   public void testGetObjectSqlSimple()
   {

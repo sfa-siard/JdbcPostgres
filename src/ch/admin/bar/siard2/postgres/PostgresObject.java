@@ -251,6 +251,7 @@ public class PostgresObject
       case Types.VARCHAR:
       case Types.NCHAR:
       case Types.NVARCHAR:
+      case Types.DATALINK:
         String s = (String)o;
         sValue = addQuotes(s);
         break;
@@ -492,6 +493,7 @@ public class PostgresObject
       case Types.VARCHAR:
       case Types.NCHAR:
       case Types.NVARCHAR:
+      case Types.DATALINK:
         o = stripQuotes(sToken); 
         break;
       case Types.CLOB:

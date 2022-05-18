@@ -402,7 +402,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
     }
     if (iPrecision == 0)
     {
-      if (pt == PreType.VARCHAR)
+      if (pt == PreType.VARCHAR || pt == PreType.DATALINK)
         iPrecision = PostgresMetaColumns.iMAX_VAR_LENGTH;
       else if (pt == PreType.VARBINARY)
         iPrecision = PostgresMetaColumns.iMAX_TEXT_LENGTH;

@@ -57,7 +57,7 @@ public class TestSqlDatabase
     listCdSimple.add(new TestColumnDefinition("CDECIMAL_15_5","DECIMAL(15,5)",new BigDecimal(BigInteger.valueOf(3141592653210l),5)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT","SMALLINT",Short.valueOf((short)-32000)));
     listCdSimple.add(new TestColumnDefinition("CSMALLINT_BYTE","SMALLINT",Short.valueOf((short)-128)));
-    _iPrimarySimple = listCdSimple.size(); // next column will be primary key column 
+    _iPrimarySimple = listCdSimple.size(); // next column will be primary key column
     listCdSimple.add(new TestColumnDefinition("CINTEGER","INTEGER",Integer.valueOf(1234567890)));
     listCdSimple.add(new TestColumnDefinition("CBIGINT","BIGINT",Long.valueOf(-123456789012345678l)));
     DecimalFormat df = new DecimalFormat("#.######");
@@ -71,6 +71,7 @@ public class TestSqlDatabase
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,11,28,13,45,28,123456789)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_YEAR_3_MONTH","INTERVAL YEAR(3) TO MONTH",new Interval(1,123,3)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_DAY_2_SECONDS_6","INTERVAL DAY(2) TO SECOND(6)",new Interval(1,4,17,54,23,123456000l)));
+    listCdSimple.add(new TestColumnDefinition("CDATALINK","DATALINK","file:///etc/test"));
     return listCdSimple;
   }
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();
