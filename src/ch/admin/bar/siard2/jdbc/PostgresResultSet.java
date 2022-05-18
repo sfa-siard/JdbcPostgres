@@ -435,7 +435,9 @@ implements ResultSet
           (PostgresConnection)getStatement().getConnection(),"");
         o = pobj.getObject();
       }
-      catch(ParseException pe) { throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!"); }
+      catch(ParseException pe) {
+        throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!");
+      }
     }
     else if (iType == Types.DISTINCT)
     {
@@ -450,7 +452,9 @@ implements ResultSet
             (PostgresConnection)getStatement().getConnection(),"");
           o = pobj.getObject();
         }
-        catch(ParseException pe) { throw new SQLException("Parsing of DISTINCT failed ("+EU.getExceptionMessage(pe)+")!"); }
+        catch(ParseException pe) {
+          throw new SQLException("Parsing of DISTINCT failed ("+EU.getExceptionMessage(pe)+")!");
+        }
       }
     }
     else

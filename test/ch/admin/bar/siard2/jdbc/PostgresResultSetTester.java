@@ -10,6 +10,8 @@ import static org.junit.Assert.*;
 
 import java.io.*;
 import java.math.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.*;
 import java.sql.Date;
 import java.text.*;
@@ -90,6 +92,7 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CDATALINK","DATALINK","file:///etc/test"));
     return listCdSimple;
   }
+
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();
   
   private static List<TestColumnDefinition> getListAdSimple()
@@ -1527,7 +1530,7 @@ public class PostgresResultSetTester
     catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateRowId */
-  
+
   @Test
   @Override
   public void testGetUrl()
@@ -2131,6 +2134,18 @@ public class PostgresResultSetTester
     //catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
   } /* checkDistinct */
 
+  private void checkDatalink(Object o, TestColumnDefinition tcd, String sTypeName) {
+    if (o instanceof String) {
+      try {
+        assertEquals("Invalid value for " + sTypeName + "!", new URL((String) tcd.getValue()), new URL((String) o));
+      } catch (MalformedURLException e) {
+        fail("Invalid URL: " + e.getMessage());
+      }
+    } else {
+      fail("Type String expected for " + sTypeName + "!");
+    }
+  }
+
   private void checkObject(String sIndent, Object o, TestColumnDefinition tcd, int iDataType, String sTypeName, String sDataType)
     throws SQLException
   {
@@ -2139,7 +2154,6 @@ public class PostgresResultSetTester
       switch(iDataType)
       {
         case Types.CHAR:
-        case Types.DATALINK:
         case Types.VARCHAR:
         case Types.NCHAR:
         case Types.NVARCHAR:
@@ -2168,6 +2182,7 @@ public class PostgresResultSetTester
         case Types.STRUCT: checkStruct(sIndent, o,tcd,sTypeName,sDataType); break;
         case Types.DISTINCT: checkDistinct(o, tcd, sTypeName, sDataType); break;
         case Types.ARRAY: checkArray(sIndent, o,tcd,sTypeName,sDataType); break;
+        case Types.DATALINK: checkDatalink(o, tcd, sTypeName); break;
         default: fail("Invalid data type found: "+sDataType+"!");
       }
     }
