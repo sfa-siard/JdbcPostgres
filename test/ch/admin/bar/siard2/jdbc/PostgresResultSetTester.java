@@ -28,6 +28,8 @@ import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.admin.bar.siard2.postgres.identifier.*;
+import sun.misc.IOUtils;
+import sun.nio.ch.IOUtil;
 
 public class PostgresResultSetTester
   extends BaseResultSetTester
@@ -59,6 +61,10 @@ public class PostgresResultSetTester
   private static String _sSqlQuerySimple = getTableQuery(TestSqlDatabase.getQualifiedSimpleTable(),TestSqlDatabase._listCdSimple);
   private static String _sSqlQueryComplex = getTableQuery(TestSqlDatabase.getQualifiedComplexTable(),TestSqlDatabase._listCdComplex);
 
+  private static String getCircleJpgUrl() {
+    return "file://localhost" + new File("testfiles/circle.jpg").getAbsolutePath();
+  }
+
   @SuppressWarnings("deprecation")
   private static List<TestColumnDefinition> getListCdSimple()
   {
@@ -89,7 +95,6 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,12,2,14,24,12,987654321)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_YEAR_3_MONTH","INTERVAL YEAR(3) TO MONTH",new Interval(1,3,6)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_DAY_2_SECONDS_6","INTERVAL DAY(2) TO SECOND(6)",new Interval(1,0,17,54,23,123456000l)));
-    listCdSimple.add(new TestColumnDefinition("CDATALINK","DATALINK","file:///etc/test"));
     return listCdSimple;
   }
 
@@ -1537,6 +1542,35 @@ public class PostgresResultSetTester
   {
     enter();
   } /* testGetUrl */
+
+  @Test
+  public void testGetDatalink() throws MalformedURLException, SQLException {
+    enter();
+
+    // given
+    TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple, TestSqlDatabase.COLUMN_DATALINK);
+
+    // when
+    URL url = getResultSet().getURL(tcd.getName());
+
+    // then
+    assertEquals(new URL((String) tcd.getValue()), url);
+  }
+
+  @Test
+  public void testUpdateDatalink() throws MalformedURLException, SQLException {
+    enter();
+
+    // given
+    TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple, TestSqlDatabase.COLUMN_DATALINK);
+
+    // when
+    PostgresResultSet rs = (PostgresResultSet) getResultSet();
+    URL url = rs.updateURL(tcd.getName(), new URL((String) tcd.getValue()));
+
+    // then
+    assertEquals(new URL((String) tcd.getValue()), url);
+  }
   
   @Test
   @Override
