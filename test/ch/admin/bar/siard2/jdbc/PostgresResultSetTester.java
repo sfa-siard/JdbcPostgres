@@ -61,10 +61,6 @@ public class PostgresResultSetTester
   private static String _sSqlQuerySimple = getTableQuery(TestSqlDatabase.getQualifiedSimpleTable(),TestSqlDatabase._listCdSimple);
   private static String _sSqlQueryComplex = getTableQuery(TestSqlDatabase.getQualifiedComplexTable(),TestSqlDatabase._listCdComplex);
 
-  private static String getCircleJpgUrl() {
-    return "file://localhost" + new File("testfiles/circle.jpg").getAbsolutePath();
-  }
-
   @SuppressWarnings("deprecation")
   private static List<TestColumnDefinition> getListCdSimple()
   {
@@ -95,6 +91,7 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,12,2,14,24,12,987654321)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_YEAR_3_MONTH","INTERVAL YEAR(3) TO MONTH",new Interval(1,3,6)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_DAY_2_SECONDS_6","INTERVAL DAY(2) TO SECOND(6)",new Interval(1,0,17,54,23,123456000l)));
+    listCdSimple.add(new TestColumnDefinition(TestSqlDatabase.COLUMN_DATALINK,"DATALINK", TestSqlDatabase.getCircleJpgUrl()));
     return listCdSimple;
   }
 

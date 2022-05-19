@@ -41,7 +41,7 @@ public class TestSqlDatabase
 
   public static int _iPrimarySimple = -1;
 
-  private static String getCircleJpgUrl() {
+  public static String getCircleJpgUrl() {
     return "file://localhost" + new File("testfiles/circle.jpg").getAbsolutePath();
   }
 
