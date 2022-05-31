@@ -74,7 +74,7 @@ public class PostgresMetaColumns
         sTypeName = pqiType.getName();
     }
     else if (pqiType.getSchema().equals("public") && 
-      (pqiType.getName().equals("blob") || pqiType.getName().equals("clob")))
+      (pqiType.getName().equals("blob") || pqiType.getName().equals("clob")) || pqiType.getName().equals("datalink"))
       sTypeName = pqiType.getName();
     return sTypeName;
   }
@@ -253,6 +253,8 @@ public class PostgresMetaColumns
           iType = Types.CLOB;
         else if (pqiType.getSchema().equals("public") && pqiType.getName().equals("blob"))
           iType = Types.BLOB;
+        else if (pqiType.getSchema().equals("public") && pqiType.getName().equals("datalink"))
+          iType = Types.DATALINK;
         else
         {
           BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
@@ -348,6 +350,7 @@ public class PostgresMetaColumns
         case PATH:
         case POLYGON:
         case CIRCLE:
+        case DATALINK:
           if (iPrecision > iMAX_VAR_LENGTH)
             iPrecision = iMAX_VAR_LENGTH;
           break;
@@ -428,7 +431,6 @@ public class PostgresMetaColumns
   /*------------------------------------------------------------------*/
   /** constructor
    * @param rsWrapped DatabaseMetaData.getColumns() result set to be wrapped.
-   * @param stmt wrapped statment.
    * @param iCatalog catalog column in wrapped result set.
    * @param iSchema schema column in wrapped result set.
    * @param iDataType data type column in wrapped result set.

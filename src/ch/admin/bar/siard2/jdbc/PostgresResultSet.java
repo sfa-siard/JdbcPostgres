@@ -12,6 +12,8 @@ package ch.admin.bar.siard2.jdbc;
 
 import java.io.*;
 import java.math.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.*;
 import java.text.*;
 import java.util.*;
@@ -398,6 +400,28 @@ implements ResultSet
     super.updateObject(columnIndex, pgi);
   } /* updateDuration */
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public URL getURL(int columnIndex) throws SQLException {
+    try {
+      return new URL(super.getString(columnIndex));
+    } catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public URL updateURL(int columnIndex, URL url) throws SQLException {
+    super.updateObject(columnIndex, url.getPath());
+    return url;
+  }
+
+  public URL updateURL(String columnLabel, URL url) throws SQLException {
+    updateURL(this.findColumn(columnLabel), url);
+    return url;
+  }
+
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
@@ -405,6 +429,9 @@ implements ResultSet
   {
     Object o = null;
     int iType = getMetaData().getColumnType(columnIndex);
+    if (iType == Types.DATALINK) {
+      o = getURL(columnIndex);
+    }
     if (iType == Types.CLOB)
       o = getClob(columnIndex);
     else if (iType == Types.BLOB)
@@ -435,7 +462,9 @@ implements ResultSet
           (PostgresConnection)getStatement().getConnection(),"");
         o = pobj.getObject();
       }
-      catch(ParseException pe) { throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!"); }
+      catch(ParseException pe) {
+        throw new SQLException("Parsing of STRUCT failed ("+EU.getExceptionMessage(pe)+")!");
+      }
     }
     else if (iType == Types.DISTINCT)
     {
@@ -450,7 +479,9 @@ implements ResultSet
             (PostgresConnection)getStatement().getConnection(),"");
           o = pobj.getObject();
         }
-        catch(ParseException pe) { throw new SQLException("Parsing of DISTINCT failed ("+EU.getExceptionMessage(pe)+")!"); }
+        catch(ParseException pe) {
+          throw new SQLException("Parsing of DISTINCT failed ("+EU.getExceptionMessage(pe)+")!");
+        }
       }
     }
     else
@@ -486,6 +517,9 @@ implements ResultSet
     throws SQLException
   {
     int iType = getMetaData().getColumnType(columnIndex);
+    if (iType == Types.DATALINK) {
+      updateURL(columnIndex, (URL) x);
+    }
     if (iType == Types.CLOB)
       updateClob(columnIndex,(Clob)x);
     else if (iType == Types.BLOB)

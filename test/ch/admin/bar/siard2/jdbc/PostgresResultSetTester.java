@@ -10,6 +10,8 @@ import static org.junit.Assert.*;
 
 import java.io.*;
 import java.math.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.*;
 import java.sql.Date;
 import java.text.*;
@@ -26,6 +28,8 @@ import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.admin.bar.siard2.postgres.identifier.*;
+import sun.misc.IOUtils;
+import sun.nio.ch.IOUtil;
 
 public class PostgresResultSetTester
   extends BaseResultSetTester
@@ -87,8 +91,10 @@ public class PostgresResultSetTester
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,12,2,14,24,12,987654321)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_YEAR_3_MONTH","INTERVAL YEAR(3) TO MONTH",new Interval(1,3,6)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_DAY_2_SECONDS_6","INTERVAL DAY(2) TO SECOND(6)",new Interval(1,0,17,54,23,123456000l)));
+    listCdSimple.add(new TestColumnDefinition(TestSqlDatabase.COLUMN_DATALINK,"DATALINK", TestSqlDatabase.getCircleJpgUrl()));
     return listCdSimple;
   }
+
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();
   
   private static List<TestColumnDefinition> getListAdSimple()
@@ -1526,13 +1532,42 @@ public class PostgresResultSetTester
     catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateRowId */
-  
+
   @Test
   @Override
   public void testGetUrl()
   {
     enter();
   } /* testGetUrl */
+
+  @Test
+  public void testGetDatalink() throws MalformedURLException, SQLException {
+    enter();
+
+    // given
+    TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple, TestSqlDatabase.COLUMN_DATALINK);
+
+    // when
+    URL url = getResultSet().getURL(tcd.getName());
+
+    // then
+    assertEquals(new URL((String) tcd.getValue()), url);
+  }
+
+  @Test
+  public void testUpdateDatalink() throws MalformedURLException, SQLException {
+    enter();
+
+    // given
+    TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple, TestSqlDatabase.COLUMN_DATALINK);
+
+    // when
+    PostgresResultSet rs = (PostgresResultSet) getResultSet();
+    URL url = rs.updateURL(tcd.getName(), new URL((String) tcd.getValue()));
+
+    // then
+    assertEquals(new URL((String) tcd.getValue()), url);
+  }
   
   @Test
   @Override
@@ -2129,8 +2164,19 @@ public class PostgresResultSetTester
     //}
     //catch(ParseException pe) { fail("Type name "+sTypeName+" could not be parsed!"); }
   } /* checkDistinct */
-  
-  
+
+  private void checkDatalink(Object o, TestColumnDefinition tcd, String sTypeName) {
+    if (o instanceof String) {
+      try {
+        assertEquals("Invalid value for " + sTypeName + "!", new URL((String) tcd.getValue()), new URL((String) o));
+      } catch (MalformedURLException e) {
+        fail("Invalid URL: " + e.getMessage());
+      }
+    } else {
+      fail("Type String expected for " + sTypeName + "!");
+    }
+  }
+
   private void checkObject(String sIndent, Object o, TestColumnDefinition tcd, int iDataType, String sTypeName, String sDataType)
     throws SQLException
   {
@@ -2138,18 +2184,22 @@ public class PostgresResultSetTester
     {
       switch(iDataType)
       {
-        case Types.CHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.VARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.NCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.NVARCHAR: checkString(o,tcd,sTypeName,sDataType); break;
-        case Types.CLOB: checkClob(o,tcd,sTypeName,sDataType); break;
-        case Types.NCLOB: checkClob(o,tcd,sTypeName,sDataType); break;
+        case Types.CHAR:
+        case Types.VARCHAR:
+        case Types.NCHAR:
+        case Types.NVARCHAR:
+          checkString(o,tcd,sTypeName,sDataType); break;
+        case Types.CLOB:
+        case Types.NCLOB:
+          checkClob(o,tcd,sTypeName,sDataType); break;
         case Types.SQLXML: checkSqlXml(o,tcd,sTypeName,sDataType); break;
-        case Types.BINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
-        case Types.VARBINARY: checkBytes(o,tcd,sTypeName,sDataType); break;
+        case Types.BINARY:
+        case Types.VARBINARY:
+          checkBytes(o,tcd,sTypeName,sDataType); break;
         case Types.BLOB: checkBlob(o,tcd,sTypeName,sDataType); break;
-        case Types.NUMERIC: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
-        case Types.DECIMAL: checkBigDecimal(o,tcd,sTypeName,sDataType); break;
+        case Types.NUMERIC:
+        case Types.DECIMAL:
+          checkBigDecimal(o,tcd,sTypeName,sDataType); break;
         case Types.SMALLINT: checkShort(o,tcd,sTypeName,sDataType); break;
         case Types.INTEGER: checkInteger(o,tcd,sTypeName,sDataType); break;
         case Types.BIGINT: checkLong(o,tcd,sTypeName,sDataType); break;
@@ -2163,13 +2213,14 @@ public class PostgresResultSetTester
         case Types.STRUCT: checkStruct(sIndent, o,tcd,sTypeName,sDataType); break;
         case Types.DISTINCT: checkDistinct(o, tcd, sTypeName, sDataType); break;
         case Types.ARRAY: checkArray(sIndent, o,tcd,sTypeName,sDataType); break;
+        case Types.DATALINK: checkDatalink(o, tcd, sTypeName); break;
         default: fail("Invalid data type found: "+sDataType+"!");
       }
     }
     else if (o != null)
       fail("Expected NULL value not found!");
   } /* checkObject */
-  
+
   @Test
   public void testGetObjectSqlSimple()
   {

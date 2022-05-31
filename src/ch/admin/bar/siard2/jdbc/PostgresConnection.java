@@ -33,13 +33,13 @@ implements Connection
   /*** meta data */
   private DatabaseMetaData _dmd = null;
   
-  private void createDomain(String sDomain)
+  private void createDomain(String sDomain, PostgresType postgresType)
     throws SQLException
   {
     /* if it exists already, do not do anything */
     try
     {
-      String sSql = "CREATE DOMAIN public."+sDomain+" AS "+PostgresType.OID;
+      String sSql = "CREATE DOMAIN public."+sDomain+" AS "+postgresType;
       Statement stmt = super.createStatement();
       stmt.executeUpdate(sSql);
       stmt.close();
@@ -68,8 +68,9 @@ implements Connection
     boolean bAutoCommit = super.getAutoCommit();
     super.setAutoCommit(false);
     /* create standard domains BLOB, CLOB and NCLOB for oid */
-    createDomain(PreType.BLOB.getKeyword());
-    createDomain(PreType.CLOB.getKeyword());
+    createDomain(PreType.BLOB.getKeyword(), PostgresType.OID);
+    createDomain(PreType.CLOB.getKeyword(), PostgresType.OID);
+    createDomain(PreType.DATALINK.getKeyword(), PostgresType.VARCHAR);
     DatabaseMetaData dmd = super.getMetaData();
     if (dmd != null)
     {

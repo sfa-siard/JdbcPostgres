@@ -27,13 +27,13 @@ Created    : 16.06.2016, Simon Jutz
   <property name="dirdist" value="dist"/>
   <!-- enterutils jar -->
   <property name="jarenterutils" value="enterutils.jar"/>
-  <property name="cpenterutils" value="${direnterutils}/${dirdist}/${jarenterutils}"/> 
+  <property name="cpenterutils" value="${dirlib}/${jarenterutils}"/>
   <!-- sqlparser jar -->
   <property name="jarsqlparser" value="sqlparser.jar"/>
   <property name="cpsqlparser" value="${dirlib}/${jarsqlparser}"/> 
   <!-- antlr 4 jar -->
   <property name="jarantlr4runtime" value="antlr-runtime-4.5.2.jar"/>
-  <property name="cpantlr" value="${direnterutils}/${dirlib}/${jarantlr4runtime}"/>
+  <property name="cpantlr" value="${dirlib}/${jarantlr4runtime}"/>
   <!-- jdbcbase jars -->
   <property name="jarjdbcbase" value="jdbcbase.jar"/>
   <property name="jarjdbcbasetest" value="jdbcbase-test.jar"/>
@@ -304,6 +304,14 @@ Created    : 16.06.2016, Simon Jutz
     <echo message="${ant.project.name}: deploy"/>
     <delete dir="${dirdeploy}/${ant.project.name}"/>
     <unzip dest="${dirdeploy}" src="${dirdist}/${ant.project.name}-${version}.${revision}.zip" />
+  </target>
+
+  <target name="copy-dependencies" depends="check">
+    <echo message="Copy jar files from dependency projects on local file system"/>
+    <copy file="../EnterUtilities/dist/enterutils.jar" todir="${dirlib}" failonerror="false"/>
+    <copy file="../SqlParser/dist/sqlparser.jar" todir="${dirlib}" failonerror="false"/>
+    <copy file="../JdbcBase/dist/jdbcbase.jar" todir="${dirlib}" failonerror="false"/>
+    <copy file="../JdbcBase/dist/jdbcbase-test.jar" todir="${dirlib}" failonerror="false"/>
   </target>
   
 </project>

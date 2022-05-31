@@ -65,7 +65,8 @@ public enum PostgresType
   NAME(PreType.VARCHAR, "name"), // length 63
   TXID(PreType.VARCHAR, "txid_snapshot"), // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
   BLOB(PreType.BLOB, "blob"), // domain in schema public based on oid created by PostgresConnection
-  CLOB(PreType.CLOB, "clob"); // domain in schema public based on oid created by PostgresConnection
+  CLOB(PreType.CLOB, "clob"), // domain in schema public based on oid created by PostgresConnection
+  DATALINK(PreType.DATALINK, "datalink");
   
   /* https://www.postgresql.org/docs/11/rangetypes.html */
   public static Set<String>  setBUILTIN_RANGES = new HashSet<String>(Arrays.asList(new String[] 
@@ -129,6 +130,7 @@ public enum PostgresType
       case TIME: pgt = TIME; break;
       case TIMESTAMP: pgt = TIMESTAMP; break;
       case INTERVAL: pgt = INTERVAL; break;
+      case DATALINK: pgt = DATALINK; break;
     }
     return pgt;
   } /* getByPreType */
