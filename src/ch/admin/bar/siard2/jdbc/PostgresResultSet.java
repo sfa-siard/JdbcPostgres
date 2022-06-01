@@ -518,7 +518,7 @@ implements ResultSet
   {
     int iType = getMetaData().getColumnType(columnIndex);
     if (iType == Types.DATALINK) {
-      updateURL(columnIndex, (URL) x);
+      updateString(columnIndex, (String) x);
     }
     if (iType == Types.CLOB)
       updateClob(columnIndex,(Clob)x);
