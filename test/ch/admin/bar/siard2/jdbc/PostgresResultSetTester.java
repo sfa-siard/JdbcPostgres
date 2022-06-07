@@ -2222,43 +2222,33 @@ public class PostgresResultSetTester
   } /* checkObject */
 
   @Test
-  public void testGetObjectSqlSimple()
-  {
-    try
-    {
-      openResultSet(_sSqlQuerySimple,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
-      DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
-      ResultSet rsColumn = dmd.getColumns(null, 
-        TestSqlDatabase._sTEST_SCHEMA.toLowerCase(),
-        TestSqlDatabase._sTEST_TABLE_SIMPLE.toLowerCase(),
-        "%");
-      for (int iColumn = 0; iColumn < TestSqlDatabase._listCdSimple.size(); iColumn++)
-      {
-        TestColumnDefinition tcd = TestSqlDatabase._listCdSimple.get(iColumn);
-        if (rsColumn.next())
-        {
-          String sColumnName = rsColumn.getString("COLUMN_NAME");
-          int iDataType = rsColumn.getInt("DATA_TYPE");
-          String sDataType = String.valueOf(iDataType)+" ("+SqlTypes.getTypeName(iDataType)+")";
-          String sTypeName = rsColumn.getString("TYPE_NAME");
-          System.out.println(sColumnName + ": " +sDataType+" "+sTypeName);
-          if (tcd.getName().toLowerCase().equals(sColumnName))
-          {
-            Object o = getResultSet().getObject(sColumnName);
-            checkObject("  ",o, tcd, iDataType, sTypeName, sDataType);
-          }
-          else
-            fail("Invalid column found: "+tcd.getName());
-        }
-        else
-          fail("Column meta data not found!");
-      }
-      if (rsColumn.next())
-        fail("Too many column meta data found!");
-      rsColumn.close();
+  public void testGetObjectSqlSimple() throws SQLException {
+    openResultSet(_sSqlQuerySimple, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+    DatabaseMetaData dmd = getResultSet().getStatement().getConnection().getMetaData();
+    ResultSet rsColumn = dmd.getColumns(null,
+            TestSqlDatabase._sTEST_SCHEMA.toLowerCase(),
+            TestSqlDatabase._sTEST_TABLE_SIMPLE.toLowerCase(),
+            "%");
+    for (int iColumn = 0; iColumn < TestSqlDatabase._listCdSimple.size(); iColumn++) {
+      TestColumnDefinition tcd = TestSqlDatabase._listCdSimple.get(iColumn);
+      if (rsColumn.next()) {
+        String sColumnName = rsColumn.getString("COLUMN_NAME");
+        int iDataType = rsColumn.getInt("DATA_TYPE");
+        String sDataType = String.valueOf(iDataType) + " (" + SqlTypes.getTypeName(iDataType) + ")";
+        String sTypeName = rsColumn.getString("TYPE_NAME");
+        System.out.println(sColumnName + ": " + sDataType + " " + sTypeName);
+        if (tcd.getName().toLowerCase().equals(sColumnName)) {
+          Object o = getResultSet().getObject(sColumnName);
+          checkObject("  ", o, tcd, iDataType, sTypeName, sDataType);
+        } else
+          fail("Invalid column found: " + tcd.getName());
+      } else
+        fail("Column meta data not found!");
     }
-    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  } /* testGetObjectSqlSimple */
+    if (rsColumn.next())
+      fail("Too many column meta data found!");
+    rsColumn.close();
+  }
     
   @Test
   public void testGetObjectNativeSimple()

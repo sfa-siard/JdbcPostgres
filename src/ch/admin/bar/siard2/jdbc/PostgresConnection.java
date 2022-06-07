@@ -275,6 +275,11 @@ implements Connection
     return new PostgresBlob(this,lOid);
   }
 
+  @Override
+  public Blob createDatalinkObject() throws SQLException {
+    return createBlob();
+  }
+
   /*------------------------------------------------------------------*/
   /** {@inheritDoc}
    */
