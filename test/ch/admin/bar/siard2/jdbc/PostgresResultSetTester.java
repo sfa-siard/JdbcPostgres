@@ -1543,7 +1543,8 @@ public class PostgresResultSetTester
     TestColumnDefinition tcd = findColumnDefinition(TestSqlDatabase._listCdSimple, TestSqlDatabase.COLUMN_DATALINK);
 
     // when
-    URL url = getResultSet().getURL(tcd.getName());
+    PostgresResultSet rs = (PostgresResultSet) getResultSet();
+    URL url = rs.getURL(tcd.getName());
 
     // then
     assertEquals(new URL((String) tcd.getValue()), url);
