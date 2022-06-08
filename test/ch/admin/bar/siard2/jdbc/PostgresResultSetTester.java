@@ -1533,15 +1533,10 @@ public class PostgresResultSetTester
     catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
   } /* testUpdateRowId */
 
-  @Test
-  @Override
-  public void testGetUrl()
-  {
-    enter();
-  } /* testGetUrl */
 
+  @Override
   @Test
-  public void testGetDatalink() throws MalformedURLException, SQLException {
+  public void testGetUrl() throws MalformedURLException, SQLException {
     enter();
 
     // given
@@ -1555,7 +1550,7 @@ public class PostgresResultSetTester
   }
 
   @Test
-  public void testUpdateDatalink() throws MalformedURLException, SQLException {
+  public void testUpdateUrl() throws MalformedURLException, SQLException {
     enter();
 
     // given
