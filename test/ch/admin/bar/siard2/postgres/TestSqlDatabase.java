@@ -2,6 +2,7 @@ package ch.admin.bar.siard2.postgres;
 
 import java.io.*;
 import java.math.*;
+import java.nio.file.Files;
 import java.sql.*;
 import java.sql.Date;
 import java.text.*;
@@ -41,8 +42,12 @@ public class TestSqlDatabase
 
   public static int _iPrimarySimple = -1;
 
-  public static String getCircleJpgUrl() {
-    return "file://localhost" + new File("testfiles/circle.jpg").getAbsolutePath();
+  public static byte[] getCircleJpgBytes() {
+    try {
+      return Files.readAllBytes(new File("testfiles/circle.jpg").toPath());
+    } catch (IOException e) {
+      return TestUtils.getBytes(1000000);
+    }
   }
 
   @SuppressWarnings("deprecation")
@@ -78,7 +83,7 @@ public class TestSqlDatabase
     listCdSimple.add(new TestColumnDefinition("CTIMESTAMP","TIMESTAMP(9)",new Timestamp(2016-1900,11,28,13,45,28,123456789)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_YEAR_3_MONTH","INTERVAL YEAR(3) TO MONTH",new Interval(1,123,3)));
     listCdSimple.add(new TestColumnDefinition("CINTERVAL_DAY_2_SECONDS_6","INTERVAL DAY(2) TO SECOND(6)",new Interval(1,4,17,54,23,123456000l)));
-    listCdSimple.add(new TestColumnDefinition(COLUMN_DATALINK,"DATALINK", getCircleJpgUrl()));
+    listCdSimple.add(new TestColumnDefinition(COLUMN_DATALINK,"BLOB", getCircleJpgBytes()));
     return listCdSimple;
   }
   public static List<TestColumnDefinition> _listCdSimple = getListCdSimple();

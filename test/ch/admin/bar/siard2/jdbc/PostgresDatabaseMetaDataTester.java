@@ -104,10 +104,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
   } /* print */
   
   @BeforeClass
-  public static void setUpClass()
-  {
-    try 
-    { 
+  public static void setUpClass() throws SQLException, IOException {
       PostgresDataSource dsPostgres = new PostgresDataSource();
       dsPostgres.setUrl(_sDB_URL);
       dsPostgres.setUser(_sDBA_USER);
@@ -119,10 +116,7 @@ public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
       new TestPostgresDatabase(connPostgres,_sDB_USER);
       TestPostgresDatabase.grantSchemaUser(connPostgres, TestPostgresDatabase._sTEST_SCHEMA, _sDB_USER);
       connPostgres.close();
-    }
-    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-    catch(IOException ie) { fail(EU.getExceptionMessage(ie)); }
-  } /* setUpClass */
+  }
   
   @Before
   public void setUp()

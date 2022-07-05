@@ -11,7 +11,7 @@ import org.junit.runners.Suite.SuiteClasses;
 	PostgresDatabaseMetaDataTester.class,
 	PostgresResultSetMetaDataTester.class,
 	PostgresResultSetTester.class,
-  PostgresStatementTester.class
+  	PostgresStatementTester.class
 })
 public class _PostgresJdbcTestSuite {
 

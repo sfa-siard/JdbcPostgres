@@ -273,15 +273,9 @@ public class PostgresObject
         sValue = addQuotes(sValue.substring(1,sValue.length()-1));
         break;
       case Types.BLOB:
+      case Types.DATALINK:
         PostgresBlob blob = (PostgresBlob)o;
         sValue = String.valueOf(blob.getOid());
-        break;
-      case Types.DATALINK:
-        if (o instanceof String) {
-          sValue = addQuotes((String) o);
-        } else if (o instanceof PostgresBlob) {
-          sValue = String.valueOf(((PostgresBlob) o).getOid());
-        }
         break;
       case Types.NUMERIC:
       case Types.DECIMAL:
@@ -499,7 +493,6 @@ public class PostgresObject
       case Types.VARCHAR:
       case Types.NCHAR:
       case Types.NVARCHAR:
-      case Types.DATALINK:
         o = stripQuotes(sToken); 
         break;
       case Types.CLOB:
@@ -515,6 +508,7 @@ public class PostgresObject
         o = PostgresLiterals.parseBytesLiteral(stripQuotes(sToken));
         break;
       case Types.BLOB:
+      case Types.DATALINK:
         lOid = Long.parseLong(sToken);
         o = new PostgresBlob(_pconn,lOid);
         break;
