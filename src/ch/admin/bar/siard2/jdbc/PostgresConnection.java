@@ -70,7 +70,6 @@ implements Connection
     /* create standard domains BLOB, CLOB and NCLOB for oid */
     createDomain(PreType.BLOB.getKeyword(), PostgresType.OID);
     createDomain(PreType.CLOB.getKeyword(), PostgresType.OID);
-    createDomain(PreType.DATALINK.getKeyword(), PostgresType.VARCHAR);
     DatabaseMetaData dmd = super.getMetaData();
     if (dmd != null)
     {
@@ -273,6 +272,11 @@ implements Connection
   {
     long lOid = createLob();
     return new PostgresBlob(this,lOid);
+  }
+
+  @Override
+  public Blob createDatalinkObject() throws SQLException {
+    return createBlob();
   }
 
   /*------------------------------------------------------------------*/

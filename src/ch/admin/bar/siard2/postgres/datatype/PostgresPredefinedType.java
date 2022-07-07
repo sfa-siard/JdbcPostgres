@@ -59,33 +59,29 @@ public class PostgresPredefinedType
    * @return the SQL string corresponding to the fields of the data type.
    */
   @Override
-  public String format()
-  {
+  public String format() {
     String sType = null;
-    if (getType() != null)
-    {
+    if (getType() != null) {
       PostgresType pgt = PostgresType.getByPreType(getType());
       sType = pgt.getKeyword();
-      if ((pgt != PostgresType.TEXT) && (pgt != PostgresType.BYTEA))
-      {
-        if ((getType() == PreType.CHAR) ||
-            (getType() == PreType.VARCHAR) ||
-            (getType() == PreType.NCHAR) ||
-            (getType() == PreType.NVARCHAR))
+      if ((pgt != PostgresType.TEXT) && (pgt != PostgresType.BYTEA)) {
+        if ((getType() == PreType.CHAR) || (getType() == PreType.VARCHAR) || (getType() == PreType.NCHAR) || (getType() == PreType.NVARCHAR)) {
           sType = sType + formatLength();
-        else if ((getType() == PreType.NUMERIC) ||
-            (getType() == PreType.DECIMAL))
+        } else if ((getType() == PreType.NUMERIC) || (getType() == PreType.DECIMAL)) {
           sType = sType + formatPrecisionScale();
-        else if (getType() == PreType.TIME)
+        } else if (getType() == PreType.TIME) {
           sType = sType + formatSecondsDecimals(iTIME_DECIMALS_DEFAULT) + formatTimeZone();
-        else if (getType() == PreType.TIMESTAMP)
+        } else if (getType() == PreType.TIMESTAMP) {
           sType = sType + formatSecondsDecimals(iTIMESTAMP_DECIMALS_DEFAULT) + formatTimeZone();
-        else if (getType() == PreType.INTERVAL)
+        } else if (getType() == PreType.INTERVAL) {
           sType = sType + sSP + getIntervalQualifier().format();
+        } else if (getType() == PreType.DATALINK) {
+          sType = PreType.BLOB.getKeyword();
+        }
       }
-   }
+    }
     return sType;
-  } /* format */
+  }
 
   /*------------------------------------------------------------------*/
   /** constructor with factory only to be called by factory.

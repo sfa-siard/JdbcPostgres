@@ -281,8 +281,6 @@ public class TestPostgresDatabase
     listCdSimple.add(new ColumnDefinition("CPOLYGON",PostgresType.POLYGON.getKeyword(),"((0,0),(10,0),(10,10),(0,10))"));
     listCdSimple.add(new ColumnDefinition("CCIRCLE",PostgresType.CIRCLE.getKeyword(),"<(1.0,0.0),5.0>"));
 
-    listCdSimple.add(new TestColumnDefinition(TestSqlDatabase.COLUMN_DATALINK,PostgresType.DATALINK.getKeyword(), TestSqlDatabase.getCircleJpgUrl()));
-
     return listCdSimple;
   }
   public static List<TestColumnDefinition> _listCdSimple = getCdSimple();

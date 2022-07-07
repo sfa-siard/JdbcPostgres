@@ -251,7 +251,6 @@ public class PostgresObject
       case Types.VARCHAR:
       case Types.NCHAR:
       case Types.NVARCHAR:
-      case Types.DATALINK:
         String s = (String)o;
         sValue = addQuotes(s);
         break;
@@ -274,6 +273,7 @@ public class PostgresObject
         sValue = addQuotes(sValue.substring(1,sValue.length()-1));
         break;
       case Types.BLOB:
+      case Types.DATALINK:
         PostgresBlob blob = (PostgresBlob)o;
         sValue = String.valueOf(blob.getOid());
         break;
@@ -482,18 +482,17 @@ public class PostgresObject
   private Object fromString(String sValue, int iDataType)
     throws SQLException, ParseException
   {
-    Object o = null;
+    Object o;
     String sToken = sValue; 
     BaseConnection bc = (BaseConnection)_pconn.unwrap(Connection.class);
-    long lOid = -1;
-    BigDecimal bd = null;
+    long lOid;
+    BigDecimal bd;
     switch(iDataType)
     {
       case Types.CHAR:
       case Types.VARCHAR:
       case Types.NCHAR:
       case Types.NVARCHAR:
-      case Types.DATALINK:
         o = stripQuotes(sToken); 
         break;
       case Types.CLOB:
@@ -509,6 +508,7 @@ public class PostgresObject
         o = PostgresLiterals.parseBytesLiteral(stripQuotes(sToken));
         break;
       case Types.BLOB:
+      case Types.DATALINK:
         lOid = Long.parseLong(sToken);
         o = new PostgresBlob(_pconn,lOid);
         break;

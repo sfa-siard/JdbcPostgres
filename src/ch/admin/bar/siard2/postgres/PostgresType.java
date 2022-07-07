@@ -65,8 +65,7 @@ public enum PostgresType
   NAME(PreType.VARCHAR, "name"), // length 63
   TXID(PreType.VARCHAR, "txid_snapshot"), // https://www.postgresql.org/docs/11/functions-info.html#FUNCTIONS-TXID-SNAPSHOT-PARTS
   BLOB(PreType.BLOB, "blob"), // domain in schema public based on oid created by PostgresConnection
-  CLOB(PreType.CLOB, "clob"), // domain in schema public based on oid created by PostgresConnection
-  DATALINK(PreType.DATALINK, "datalink");
+  CLOB(PreType.CLOB, "clob"); // domain in schema public based on oid created by PostgresConnection
   
   /* https://www.postgresql.org/docs/11/rangetypes.html */
   public static Set<String>  setBUILTIN_RANGES = new HashSet<String>(Arrays.asList(new String[] 
@@ -107,30 +106,37 @@ public enum PostgresType
     PostgresType pgt = null;
     switch(pt)
     {
-      case CHAR: pgt = CHAR; break;
-      case VARCHAR: pgt = VARCHAR; break;
-      case CLOB: pgt = CLOB; break;
-      case NCHAR: pgt = CHAR; break;
-      case NVARCHAR: pgt = VARCHAR; break;
-      case NCLOB: pgt = CLOB; break;
+      case CHAR:
+      case NCHAR:
+        pgt = CHAR; break;
+      case VARCHAR:
+      case NVARCHAR:
+        pgt = VARCHAR; break;
+      case CLOB:
+      case NCLOB:
+        pgt = CLOB; break;
       case XML: pgt = XML; break;
-      case BINARY: pgt = BYTEA; break;
-      case VARBINARY: pgt = BYTEA; break;
-      case BLOB: pgt = BLOB; break;
-      case NUMERIC: pgt = NUMERIC; break;
-      case DECIMAL: pgt = NUMERIC; break;
+      case BINARY:
+      case VARBINARY:
+        pgt = BYTEA; break;
+      case BLOB:
+      case DATALINK:
+        pgt = BLOB; break;
+      case NUMERIC:
+      case DECIMAL:
+        pgt = NUMERIC; break;
       case SMALLINT: pgt = SMALLINT; break;
       case INTEGER: pgt = INTEGER; break;
       case BIGINT: pgt = BIGINT; break;
-      case FLOAT: pgt = DOUBLE; break;
+      case FLOAT:
+      case DOUBLE:
+        pgt = DOUBLE; break;
       case REAL: pgt = REAL; break;
-      case DOUBLE: pgt = DOUBLE; break;
       case BOOLEAN: pgt = BOOLEAN; break;
       case DATE: pgt = DATE; break;
       case TIME: pgt = TIME; break;
       case TIMESTAMP: pgt = TIMESTAMP; break;
       case INTERVAL: pgt = INTERVAL; break;
-      case DATALINK: pgt = DATALINK; break;
     }
     return pgt;
   } /* getByPreType */

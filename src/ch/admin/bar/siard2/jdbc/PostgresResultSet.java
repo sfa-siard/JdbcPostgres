@@ -427,14 +427,11 @@ implements ResultSet
   @Override
   public Object getObject(int columnIndex) throws SQLException
   {
-    Object o = null;
+    Object o;
     int iType = getMetaData().getColumnType(columnIndex);
-    if (iType == Types.DATALINK) {
-      o = getURL(columnIndex);
-    }
     if (iType == Types.CLOB)
       o = getClob(columnIndex);
-    else if (iType == Types.BLOB)
+    else if (iType == Types.BLOB || iType == Types.DATALINK)
       o = getBlob(columnIndex);
     else if ((iType == Types.BINARY) ||
       (iType == Types.VARBINARY))
@@ -513,16 +510,14 @@ implements ResultSet
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
+  @SuppressWarnings("unchecked")
   public void updateObject(int columnIndex, Object x)
     throws SQLException
   {
     int iType = getMetaData().getColumnType(columnIndex);
-    if (iType == Types.DATALINK) {
-      updateURL(columnIndex, (URL) x);
-    }
     if (iType == Types.CLOB)
       updateClob(columnIndex,(Clob)x);
-    else if (iType == Types.BLOB)
+    else if (iType == Types.BLOB || iType == Types.DATALINK)
       updateBlob(columnIndex,(Blob)x);
     else if ((iType == Types.BINARY) ||
       (iType == Types.VARBINARY))
