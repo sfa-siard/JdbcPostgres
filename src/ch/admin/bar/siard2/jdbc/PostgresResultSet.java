@@ -239,7 +239,7 @@ implements ResultSet
   public Array getArray(int columnIndex) throws SQLException
   {
     PgArray pgarray = (PgArray)super.getArray(columnIndex);
-    Array array = new PostgresArray(pgarray);
+    Array array = pgarray != null ? new PostgresArray(pgarray) : null;
     return array;
   } /* getArray */
 
