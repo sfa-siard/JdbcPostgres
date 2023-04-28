@@ -44,7 +44,8 @@ public class TestSqlDatabase
 
   public static byte[] getCircleJpgBytes() {
     try {
-      return Files.readAllBytes(new File("testfiles/circle.jpg").toPath());
+
+      return Files.readAllBytes(new File("src/test/resources/circle.jpg").toPath());
     } catch (IOException e) {
       return TestUtils.getBytes(1000000);
     }
