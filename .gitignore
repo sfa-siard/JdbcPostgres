@@ -2,6 +2,8 @@
 .idea/
 *.iml
 out/
+build/
+./gradle/
 
 # asdf configuration
 .tool-versions
@@ -22,3 +24,4 @@ out/
 
 ./target
 
+/.gradle/**
