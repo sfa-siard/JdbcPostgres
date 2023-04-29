@@ -38,10 +38,7 @@ dependencies {
     implementation(fileTree("lib") { include("*.jar") })
 
     // test dependencies
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
-    testImplementation("org.junit.vintage:junit-vintage-engine")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
 
     // integration tests
     intTestImplementation("junit:junit:4.13.2")
