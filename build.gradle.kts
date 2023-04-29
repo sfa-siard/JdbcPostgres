@@ -45,6 +45,9 @@ dependencies {
 
     // integration tests
     intTestImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
+    intTestImplementation("org.testcontainers:testcontainers:1.18.0")
+    intTestImplementation("org.testcontainers:junit-jupiter:1.18.0")
+    intTestImplementation("org.testcontainers:postgresql:1.18.0")
 }
 
 tasks.test {
