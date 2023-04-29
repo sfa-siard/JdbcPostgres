@@ -41,12 +41,12 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
     testImplementation("org.junit.vintage:junit-vintage-engine")
-    testImplementation("org.testcontainers:testcontainers:1.18.0")
-    testImplementation("org.testcontainers:postgresql:1.18.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
 
     // integration tests
+    intTestImplementation("junit:junit:4.13.2")
     intTestImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
+    intTestImplementation("org.junit.vintage:junit-vintage-engine")
     intTestImplementation("org.testcontainers:testcontainers:1.18.0")
     intTestImplementation("org.testcontainers:junit-jupiter:1.18.0")
     intTestImplementation("org.testcontainers:postgresql:1.18.0")
