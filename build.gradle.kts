@@ -41,6 +41,8 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
     testImplementation("org.junit.vintage:junit-vintage-engine")
+    testImplementation("org.testcontainers:testcontainers:1.18.0")
+    testImplementation("org.testcontainers:postgresql:1.18.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
 
     // integration tests

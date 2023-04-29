@@ -6,19 +6,24 @@ import java.util.*;
 import static org.junit.Assert.*;
 import org.junit.*;
 import ch.enterag.utils.base.*;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 public class PostgresDriverTester
 {
-  private static final ConnectionProperties _cp = new ConnectionProperties();
-  private static final String _sDB_URL = PostgresDriver.getUrl(_cp.getHost()+":"+_cp.getPort()+"/"+_cp.getCatalog());
-  private static final String _sDB_USER = _cp.getUser();
-  private static final String _sDB_PASSWORD = _cp.getPassword();
+  private static PostgreSQLContainer postgres;
+
   private static final String sDRIVER_CLASS = "ch.admin.bar.siard2.jdbc.PostgresDriver";
   private static final String sTEST_POSTGRES_URL = "jdbc:postgresql://localhost";
   private static final String sINVALID_POSTGRES_URL = "jdbc:oracle:thin:@//localhost:1521/orcl";;
   
   private Driver _driver = null;
   private Connection _conn = null;
+
+  @BeforeClass
+  public static void startPostgres() {
+    postgres = new PostgreSQLContainer(PostgreSQLContainer.IMAGE);
+    postgres.start();
+  }
 
   @Before
   public void setUp()
@@ -28,7 +33,7 @@ public class PostgresDriverTester
     try
     {
       _driver = DriverManager.getDriver(sTEST_POSTGRES_URL);
-      _conn = DriverManager.getConnection(_sDB_URL, _sDB_USER, _sDB_PASSWORD);
+      _conn = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
     }
     catch(SQLException se) { fail(se.getClass().getName()+": "+se.getMessage()); }
   } /* setUp */
@@ -64,7 +69,7 @@ public class PostgresDriverTester
   {
     try
     {
-      assertSame("Valid Postgres URL not accepted!", true, _driver.acceptsURL(_sDB_URL));
+      assertSame("Valid Postgres URL not accepted!", true, _driver.acceptsURL(postgres.getJdbcUrl()));
       assertSame("Invalid Postgres URL accepted!", false, _driver.acceptsURL(sINVALID_POSTGRES_URL));
     }
     catch(SQLException se) { fail(se.getClass().getName()+": "+se.getMessage()); }
@@ -84,7 +89,7 @@ public class PostgresDriverTester
   {
     try
     {
-      DriverPropertyInfo[] apropInfo = _driver.getPropertyInfo(_sDB_URL, new Properties());
+      DriverPropertyInfo[] apropInfo = _driver.getPropertyInfo(postgres.getJdbcUrl(), new Properties());
       for (DriverPropertyInfo dpi: apropInfo)
         System.out.println(dpi.name+": "+dpi.value+" ("+String.valueOf(dpi.description)+")");
       assertSame("Unexpected driver properties!", 58, apropInfo.length);

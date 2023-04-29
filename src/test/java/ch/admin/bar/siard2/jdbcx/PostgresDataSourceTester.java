@@ -5,19 +5,21 @@ import javax.sql.DataSource;
 
 import static org.junit.Assert.*;
 import org.junit.*;
-import ch.enterag.utils.base.*;
 import ch.admin.bar.siard2.jdbc.*;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 public class PostgresDataSourceTester
 {
-  // see https://jdbc.postgresql.org/documentation/head/connect.html
-  private static final ConnectionProperties _cp = new ConnectionProperties();
-  private static final String _sDB_URL = "jdbc:postgresql://" + _cp.getHost() + ":" + _cp.getPort()+"/"+_cp.getCatalog();
-  private static final String _sDB_USER = _cp.getUser();
-  private static final String _sDB_PASSWORD = _cp.getPassword();
+  private static PostgreSQLContainer postgres;
+
   private PostgresDataSource _dsPostgres = null;
   private Connection _conn = null;
 
+  @BeforeClass
+  public static void startPostgres() {
+    postgres = new PostgreSQLContainer();
+    postgres.start();
+  }
   @Before
   public void setUp()
   {
@@ -50,9 +52,9 @@ public class PostgresDataSourceTester
   @Test
   public void testGetConnection()
   {
-    _dsPostgres.setUrl(_sDB_URL);
-    _dsPostgres.setUser(_sDB_USER);
-    _dsPostgres.setPassword(_sDB_PASSWORD);
+    _dsPostgres.setUrl(postgres.getJdbcUrl());
+    _dsPostgres.setUser(postgres.getUsername());
+    _dsPostgres.setPassword(postgres.getPassword());
     try 
     {
       _conn = _dsPostgres.getConnection();
