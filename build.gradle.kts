@@ -18,6 +18,19 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    create("intTest") {
+        compileClasspath += sourceSets.main.get().output
+        runtimeClasspath += sourceSets.main.get().output
+    }
+}
+
+val intTestImplementation by configurations.getting {
+    extendsFrom(configurations.implementation.get())
+}
+
+configurations["intTestRuntimeOnly"].extendsFrom(configurations.runtimeOnly.get())
+
 dependencies {
     implementation("org.antlr:antlr4-runtime:4.5.2-1")
 
@@ -26,11 +39,12 @@ dependencies {
 
     // test dependencies
     testImplementation("junit:junit:4.13.2")
-
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
     testImplementation("org.junit.vintage:junit-vintage-engine")
-
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
+
+    // integration tests
+    intTestImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
 }
 
 tasks.test {
@@ -47,3 +61,20 @@ tasks.register<Jar>("testJar") {
     archiveFileName.set("jdbcpostgres-test.jar")
     from(project.the<SourceSetContainer>()["test"].output)
 }
+
+val integrationTest = task<Test>("integrationTest") {
+    description = "Runs integration tests."
+    group = "verification"
+
+    testClassesDirs = sourceSets["intTest"].output.classesDirs
+    classpath = sourceSets["intTest"].runtimeClasspath
+    shouldRunAfter("test")
+
+    useJUnitPlatform()
+
+    testLogging {
+        events("passed")
+    }
+}
+
+tasks.check { dependsOn(integrationTest) }
