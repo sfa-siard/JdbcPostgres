@@ -95,7 +95,7 @@ implements Connection
   /*------------------------------------------------------------------*/
   /** {@inheritDoc} */
   @Override
-  public String nativeSQL(String sql) 
+  public String nativeSQL(String sql) //remove this method
     throws SQLException
   {
     _il.enter(sql);

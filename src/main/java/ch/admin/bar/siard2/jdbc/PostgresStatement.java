@@ -65,11 +65,11 @@ public class PostgresStatement
   {
     ResultSet rs = null;
     _lParse = System.currentTimeMillis();
+    String sNative = getConnection().nativeSQL(sql);
     _lExecute = System.currentTimeMillis();
     _lParse = _lExecute - _lParse;
-    rs = new PostgresResultSet(super.executeQuery(sql),this);
+    rs = new PostgresResultSet(super.executeQuery(sNative),this);
     _lExecute = System.currentTimeMillis() - _lExecute;
-    // System.out.println(String.valueOf(_lParse)+","+String.valueOf(_lExecute));
     return rs;
   } /* executeQuery */
 
