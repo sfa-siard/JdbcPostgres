@@ -93,22 +93,6 @@ implements Connection
   } /* getMetadata */
 
   /*------------------------------------------------------------------*/
-  /** {@inheritDoc} */
-  @Override
-  public String nativeSQL(String sql) //remove this method
-    throws SQLException
-  {
-    _il.enter(sql);
-    PostgresSqlFactory psf = new PostgresSqlFactory();
-    psf.setConnection(this);
-    SqlStatement ss = psf.newSqlStatement();
-    ss.parse(sql);
-    sql = ss.format();
-    _il.exit(sql);
-    return sql;
-  } /* nativeSQL */
-
-  /*------------------------------------------------------------------*/
   /**
    * {@inheritDoc} wraps statement.
    */
