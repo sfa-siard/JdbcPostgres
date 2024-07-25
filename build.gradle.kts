@@ -25,7 +25,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.2.5")
     implementation("ch.admin.bar:enterutilities:v2.2.3")
     implementation("ch.admin.bar:SqlParser:v2.2.2")
-    implementation("ch.admin.bar:JdbcBase:v2.2.2")
+    implementation("ch.admin.bar:JdbcBase:v2.2.3")
     implementation(fileTree(mapOf("dir" to "lib", "include" to listOf("*.jar"))))
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testImplementation("org.junit.vintage:junit-vintage-engine")
