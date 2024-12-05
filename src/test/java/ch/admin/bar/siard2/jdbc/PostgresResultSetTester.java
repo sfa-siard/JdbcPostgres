@@ -28,8 +28,6 @@ import ch.enterag.sqlparser.identifier.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.admin.bar.siard2.postgres.identifier.*;
-import sun.misc.IOUtils;
-import sun.nio.ch.IOUtil;
 
 public class PostgresResultSetTester
   extends BaseResultSetTester
