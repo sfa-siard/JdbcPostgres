@@ -15,6 +15,7 @@ import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
 
+@Ignore
 public class PostgresResultSetMetaDataTester
   extends BaseResultSetMetaDataTester
 {

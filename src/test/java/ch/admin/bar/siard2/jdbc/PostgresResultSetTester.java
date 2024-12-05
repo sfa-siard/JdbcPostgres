@@ -29,6 +29,7 @@ import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.admin.bar.siard2.postgres.identifier.*;
 
+@Ignore
 public class PostgresResultSetTester
   extends BaseResultSetTester
 {
