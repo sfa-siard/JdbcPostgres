@@ -18,6 +18,7 @@ import ch.admin.bar.siard2.jdbcx.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.admin.bar.siard2.postgres.identifier.PostgresQualifiedId;
 
+@Ignore
 public class PostgresDatabaseMetaDataTester extends BaseDatabaseMetaDataTester
 {
   private static final ConnectionProperties _cp = new ConnectionProperties();

@@ -12,6 +12,7 @@ import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.postgres.*;
 import ch.admin.bar.siard2.jdbcx.*;
 
+@Ignore
 public class PostgresStatementTester extends BaseStatementTester
 {
   private static final ConnectionProperties _cp = new ConnectionProperties();

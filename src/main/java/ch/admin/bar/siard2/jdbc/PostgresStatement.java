@@ -70,7 +70,6 @@ public class PostgresStatement
     _lParse = _lExecute - _lParse;
     rs = new PostgresResultSet(super.executeQuery(sNative),this);
     _lExecute = System.currentTimeMillis() - _lExecute;
-    // System.out.println(String.valueOf(_lParse)+","+String.valueOf(_lExecute));
     return rs;
   } /* executeQuery */
 

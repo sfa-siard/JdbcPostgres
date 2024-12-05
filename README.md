@@ -1,39 +1,31 @@
-# JdbcPostgres - SIARD 2.1 Postgres JDBC Wrapper
+# JdbcPostgres - SIARD Postgres JDBC Wrapper
 
-This package contains the JDBC Wrapper for Postgres DBMS for SIARD 2.1.
+This package contains the JDBC Wrapper for Postgres DBMS for SIARD.
 
+## Prerequisites
+For building the binaries, Java JDK (1.8 or higher) must be installed.
+In order to run the tests, you have to start a PostgreSQL DB first:
 
-## Getting started (for devs)
-
-For building the binaries, Java JDK (1.8 or higher) and Ant must
-have been installed. Adjust build.properties to your local configuration (if needed)
-
-In order to run the test, you have to start a PostgresQL DB first:
-
+### Start PostgreSQL DB
 ```shell
-docker-compose up -d
+docker compose up -d
 ```
 
-Run all tests
-
+### Build the project
 ```shell
-ant test
+./gradlew clean build
 ```
 
-Create a release
-
+### Create a release
+This creates a new tag and pushes the tag to main branch.
 ```shell
-ant relase
+./gradlew release
 ```
-
-This task increments the version number in the project [MANIFEST.MF](./src/META-INF/MANIFEST.MF)
 
 ## Documentation
+- [User's Manual](./doc/manual/user/index.html)
+- [Developer's Manual](./doc/manual/user/index.html) 
 
-[./doc/manual/user/index.html](./doc/manual/user/index.html) contains the manual for using the binaries.
-[./doc/manual/developer/index.html](./doc/manual/user/index.html) is the manual for developers wishing
-build the binaries or work on the code.
-
-More information about the build process can be found in
-[./doc/manual/developer/build.html](./doc/manual/developer/build.html)
+## Declaration
+Contributions to the codebase have been made with the support of Codeium. Codeium is AI-powered code completion tool, that is trained exclusively on natural language and source code data with [permissive licenses](https://codeium.com/blog/copilot-trains-on-gpl-codeium-does-not ). 
 
