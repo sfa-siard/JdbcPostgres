@@ -43,7 +43,7 @@ jobs:
       - name: Test with Ant
         run: ant -noinput -buildfile build.xml test
       - name: Upload datasource test output file
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: datasource-test.txt
           path: ${{ github.workspace}}/tmp/datasource-test.txt
