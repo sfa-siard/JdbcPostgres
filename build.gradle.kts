@@ -22,7 +22,7 @@ repositories {
 dependencies {
     implementation("org.antlr:antlr4-runtime:4.5.2")
     implementation("com.googlecode.json-simple:json-simple:1.1.1")
-    implementation("org.postgresql:postgresql:42.2.5")
+    implementation("org.postgresql:postgresql:42.7.2")
     implementation("ch.admin.bar:enterutilities:v2.2.3")
     implementation("ch.admin.bar:SqlParser:v2.2.2")
 /*    implementation("ch.admin.bar:JdbcBase:v2.2.3")*/
@@ -30,6 +30,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testImplementation("org.junit.vintage:junit-vintage-engine")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
+
+    testImplementation("org.testcontainers:testcontainers:1.20.4")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
 }
 
 tasks.test {
