@@ -203,19 +203,60 @@ public class PostgresMetaColumns
           rs.close();
         }
         ***/
+        String sSchemaName = this.getString(2); // TABLE_SCHEM
+        String sTableName = this.getString(3); // TABLE_NAME
+        String sColumnName = this.getString(4); // COLUMN_NAME
+
         if (PostgresType.INTERVAL.getKeyword().equals(sTypeName)) 
         {
-          String sSchemaName = this.getString(2);
-          String sTableName = this.getString(3);
-          String sColumnName = this.getString(4);
           sTypeName = getIntervalTypeName(_conn, sSchemaName, sTableName, sColumnName, sTypeName);
         }
+
+        //add type length/precision
+        sTypeName = addTypeLengthAndPrecision(sTypeName, iType, getAttTypMod(_conn, sSchemaName, sTableName, sColumnName));
       }
       catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     }
     return sTypeName;
   } /* getTypeName */
-  
+
+  private String addTypeLengthAndPrecision(String sTypeName, int iType, int atttypmod) {
+    if (atttypmod < 0){
+      return sTypeName;
+    }
+
+    String sPrecisionType = "(" + atttypmod + ")";
+
+    if(iType == Types.VARCHAR || iType == Types.CHAR){
+      atttypmod = atttypmod - 4;
+      sPrecisionType = "(" + atttypmod + ")";
+    }
+
+    if(iType == Types.NUMERIC) {
+      int[] decoded = decodeNumericTypmod(atttypmod);
+      int precision = decoded[0];
+      int scale = decoded[1];
+      sPrecisionType = scale <= 0 ? "(" + precision + ")" : "(" + precision + "," + scale + ")";
+    }
+
+//    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
+//    if (pgt != null)
+//    {
+//      PreType pt = pgt.getPreType();
+//      sTypeName = pt.getKeyword();
+//    }
+
+    return sTypeName + sPrecisionType;
+  } /* addTypeLengthAndPrecision */
+
+  private int[] decodeNumericTypmod(int atttypmod) {
+    if (atttypmod < 0) return new int[] { -1, -1 }; // no precision/scale
+    int typmod = atttypmod - 4;
+    int precision = typmod >> 16;
+    int scale = typmod & 0xFFFF;
+    return new int[] { precision, scale };
+  } /* decodeNumericTypmod */
+
   /*------------------------------------------------------------------*/
   private int getDataType(int iType, String sTypeName)
     throws SQLException
