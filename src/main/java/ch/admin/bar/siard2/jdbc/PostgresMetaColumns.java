@@ -396,8 +396,15 @@ public class PostgresMetaColumns
           iPrecision = iMAX_TEXT_LENGTH; 
           break;
         case BIT:
-        case VARBIT: 
-          iPrecision = (iPrecision + 7) / 8; 
+        case VARBIT:
+          // Get the actual bit length directly from the system catalog
+          String schema = this.getString(2);
+          String table = this.getString(3);
+          String column = this.getString(4);
+          int typmod = getAttTypMod(_conn, schema, table, column);
+          if (typmod > 0) {
+            iPrecision = typmod;
+          }
           break;
         case UUID: 
           iPrecision = 16; 
