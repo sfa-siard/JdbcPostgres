@@ -212,7 +212,6 @@ public class PostgresMetaColumns
           sTypeName = getIntervalTypeName(_conn, sSchemaName, sTableName, sColumnName, sTypeName);
         }
 
-        //add type length/precision
         sTypeName = addTypeLengthAndPrecision(sTypeName, iType, getAttTypMod(_conn, sSchemaName, sTableName, sColumnName));
       }
       catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
@@ -220,42 +219,33 @@ public class PostgresMetaColumns
     return sTypeName;
   } /* getTypeName */
 
-  private String addTypeLengthAndPrecision(String sTypeName, int iType, int atttypmod) {
-    if (atttypmod < 0){
-      return sTypeName;
+  private String addTypeLengthAndPrecision(String typeName, int type, int typePrecision) {
+    if (typePrecision < 0) return typeName;
+
+    String sPrecisionType = "_" + typePrecision;
+
+    if (type == Types.VARCHAR || type == Types.CHAR) {
+      typePrecision = typePrecision - 4;
+      sPrecisionType = "_" + typePrecision;
     }
 
-    String sPrecisionType = "_" + atttypmod;
-
-    if(iType == Types.VARCHAR || iType == Types.CHAR){
-      atttypmod = atttypmod - 4;
-      sPrecisionType = "_" + atttypmod ;
-    }
-
-    if(iType == Types.NUMERIC) {
-      int[] decoded = decodeNumericTypmod(atttypmod);
+    if (type == Types.NUMERIC) {
+      int[] decoded = decodeNumericTypmod(typePrecision);
       int precision = decoded[0];
       int scale = decoded[1];
-      sPrecisionType = scale <= 0 ? "_" + precision  : "_" + precision + "_" + scale;
+      sPrecisionType = scale <= 0 ? "_" + precision : "_" + precision + "_" + scale;
     }
 
-//    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
-//    if (pgt != null)
-//    {
-//      PreType pt = pgt.getPreType();
-//      sTypeName = pt.getKeyword();
-//    }
-
-    return sTypeName + sPrecisionType;
-  } /* addTypeLengthAndPrecision */
+    return typeName + sPrecisionType;
+  }
 
   private int[] decodeNumericTypmod(int atttypmod) {
-    if (atttypmod < 0) return new int[] { -1, -1 }; // no precision/scale
+    if (atttypmod < 0) return new int[]{-1, -1}; // no precision/scale
     int typmod = atttypmod - 4;
     int precision = typmod >> 16;
     int scale = typmod & 0xFFFF;
-    return new int[] { precision, scale };
-  } /* decodeNumericTypmod */
+    return new int[]{precision, scale};
+  }
 
   /*------------------------------------------------------------------*/
   private int getDataType(int iType, String sTypeName)
