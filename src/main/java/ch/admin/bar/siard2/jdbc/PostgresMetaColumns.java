@@ -225,18 +225,18 @@ public class PostgresMetaColumns
       return sTypeName;
     }
 
-    String sPrecisionType = "(" + atttypmod + ")";
+    String sPrecisionType = "_" + atttypmod;
 
     if(iType == Types.VARCHAR || iType == Types.CHAR){
       atttypmod = atttypmod - 4;
-      sPrecisionType = "(" + atttypmod + ")";
+      sPrecisionType = "_" + atttypmod ;
     }
 
     if(iType == Types.NUMERIC) {
       int[] decoded = decodeNumericTypmod(atttypmod);
       int precision = decoded[0];
       int scale = decoded[1];
-      sPrecisionType = scale <= 0 ? "(" + precision + ")" : "(" + precision + "," + scale + ")";
+      sPrecisionType = scale <= 0 ? "_" + precision  : "_" + precision + "_" + scale;
     }
 
 //    PostgresType pgt = PostgresType.getByKeyword(sTypeName);
