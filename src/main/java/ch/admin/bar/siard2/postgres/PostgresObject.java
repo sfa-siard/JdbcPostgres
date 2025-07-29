@@ -6,6 +6,7 @@ import java.sql.Date;
 import java.text.*;
 import java.util.*;
 import javax.xml.datatype.*;
+import ch.admin.bar.siard2.ColumnIdentifier;
 import org.postgresql.jdbc.*;
 import org.postgresql.util.*;
 import org.postgresql.core.*;
@@ -151,10 +152,8 @@ public class PostgresObject
       String sAttributeTypeName = rsAttributes.getString("ATTR_TYPE_NAME");
       if ((iDataType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sAttributeTypeName)))
       {
-        String sSchemaName = rsAttributes.getString("TYPE_SCHEM");
-        String sTypeName = rsAttributes.getString("TYPE_NAME");
-        String sAttributeName = rsAttributes.getString("ATTR_NAME");
-        sAttributeTypeName = PostgresMetaColumns.getIntervalTypeName(_pconn, sSchemaName, sTypeName, sAttributeName, sAttributeTypeName);
+        ColumnIdentifier columnIdentifier = new ColumnIdentifier(rsAttributes.getString("TYPE_SCHEM"), rsAttributes.getString("TYPE_NAME"), rsAttributes.getString("ATTR_NAME"));
+        sAttributeTypeName = PostgresMetaColumns.getIntervalTypeName(_pconn, columnIdentifier, sAttributeTypeName);
       }
       TypeDescription ad = new TypeDescription(
         iDataType,

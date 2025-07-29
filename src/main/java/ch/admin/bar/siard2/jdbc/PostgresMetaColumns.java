@@ -80,6 +80,10 @@ public class PostgresMetaColumns
     return sTypeName;
   }
 
+  private static int getAttTypMod(Connection conn, ColumnIdentifier columnIdentifier) throws SQLException {
+    return getAttTypMod(conn, columnIdentifier.getSchemaName(), columnIdentifier.getTableName(), columnIdentifier.getColumnName());
+  }
+
   private static int getAttTypMod(Connection conn, String sSchemaName, String sTableName, String sColumnName)
     throws SQLException
   {
@@ -107,12 +111,11 @@ public class PostgresMetaColumns
     return iAttTypMod;
   } /* getAttTypMod */
 
-  public static String getIntervalTypeName(Connection conn,
-    String sSchemaName, String sTableName, String sColumnName,
-    String sTypeName)
+
+  public static String getIntervalTypeName(Connection conn, ColumnIdentifier columnIdentifier, String sTypeName)
       throws SQLException
   {
-    int iAttTypMod = getAttTypMod(conn,sSchemaName,sTableName,sColumnName);
+    int iAttTypMod = getAttTypMod(conn,columnIdentifier);
     if (iAttTypMod <= 0)
       sTypeName = "VARCHAR";
     else
@@ -204,13 +207,13 @@ public class PostgresMetaColumns
           rs.close();
         }
         ***/
-        ColumnIdentifier columnIdentifier = new ColumnIdentifier(this.getString(2), this.getString(3), this.getString(4));
+        ColumnIdentifier columnIdentifier = new ColumnIdentifier(this);
 
           if (PostgresType.INTERVAL.getKeyword().equals(sTypeName)) {
-              sTypeName = getIntervalTypeName(_conn, columnIdentifier.getSchemaName(), columnIdentifier.getTableName(), columnIdentifier.getColumnName(), sTypeName);
+              sTypeName = getIntervalTypeName(_conn, columnIdentifier, sTypeName);
           }
 
-        sTypeName = addTypeLengthAndPrecision(sTypeName, iType, getAttTypMod(_conn, columnIdentifier.getSchemaName(), columnIdentifier.getTableName(), columnIdentifier.getColumnName()));
+        sTypeName = addTypeLengthAndPrecision(sTypeName, iType, getAttTypMod(_conn, columnIdentifier));
       }
       catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     }
@@ -264,8 +267,8 @@ public class PostgresMetaColumns
         iType = pt.getSqlType();
       if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName)))
       {
-        ColumnIdentifier columnIdentifier = new ColumnIdentifier(this.getString(2), this.getString(3), this.getString(4));
-        if (getAttTypMod(_conn, columnIdentifier.getSchemaName(), columnIdentifier.getTableName(), columnIdentifier.getColumnName()) <= 0)
+        ColumnIdentifier columnIdentifier = new ColumnIdentifier(this);
+        if (getAttTypMod(_conn, columnIdentifier) <= 0)
           iType = Types.VARCHAR;
       }
     }
@@ -384,8 +387,8 @@ public class PostgresMetaColumns
         case BIT:
         case VARBIT:
           // Get the actual bit length directly from the system catalog
-          ColumnIdentifier columnIdentifier = new ColumnIdentifier(this.getString(2), this.getString(3), this.getString(4));
-          int typmod = getAttTypMod(_conn, columnIdentifier.getSchemaName(), columnIdentifier.getTableName(), columnIdentifier.getColumnName());
+          ColumnIdentifier columnIdentifier = new ColumnIdentifier(this);
+          int typmod = getAttTypMod(_conn, columnIdentifier);
           if (typmod > 0) {
             iPrecision = typmod;
           }

@@ -1,5 +1,9 @@
 package ch.admin.bar.siard2;
 
+import ch.admin.bar.siard2.jdbc.PostgresMetaColumns;
+
+import java.sql.SQLException;
+
 /**
  * Represents a database column, identified by its schema name,
  * table name, and column name.
@@ -13,6 +17,10 @@ public class ColumnIdentifier {
         this.schemaName = schemaName;
         this.tableName = tableName;
         this.columnName = columnName;
+    }
+
+    public ColumnIdentifier(PostgresMetaColumns pgMetaColumns) throws SQLException {
+        this(pgMetaColumns.getString(2), pgMetaColumns.getString(3), pgMetaColumns.getString(4));
     }
 
     public String getSchemaName() {
