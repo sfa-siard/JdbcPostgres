@@ -13,6 +13,7 @@ package ch.admin.bar.siard2.jdbc;
 import java.sql.*;
 import java.text.*;
 
+import ch.admin.bar.siard2.ColumnIdentifier;
 import ch.enterag.utils.*;
 import ch.enterag.utils.jdbc.*;
 import ch.enterag.sqlparser.datatype.enums.*;
@@ -38,7 +39,7 @@ public class PostgresMetaColumns
   private int _iSourceDataType = -1;
 
   private Connection _conn;
-  
+
   private PostgresQualifiedId parseTypeName(String sTypeName)
     throws ParseException, SQLException
   {
@@ -63,7 +64,7 @@ public class PostgresMetaColumns
     sTypeName = pqiType.format();
     return pqiType;
   } /* parse type name */
-  
+
   private static String formatTypeName(PostgresQualifiedId pqiType)
   {
     String sTypeName = pqiType.format();
@@ -73,10 +74,14 @@ public class PostgresMetaColumns
       if (!PostgresType.setBUILTIN_RANGES.contains(pqiType.getName()))
         sTypeName = pqiType.getName();
     }
-    else if (pqiType.getSchema().equals("public") && 
+    else if (pqiType.getSchema().equals("public") &&
       (pqiType.getName().equals("blob") || pqiType.getName().equals("clob")))
       sTypeName = pqiType.getName();
     return sTypeName;
+  }
+
+  private static int getAttTypMod(Connection conn, ColumnIdentifier columnIdentifier) throws SQLException {
+    return getAttTypMod(conn, columnIdentifier.getSchemaName(), columnIdentifier.getTableName(), columnIdentifier.getColumnName());
   }
 
   private static int getAttTypMod(Connection conn, String sSchemaName, String sTableName, String sColumnName)
@@ -103,15 +108,14 @@ public class PostgresMetaColumns
     if (rs.next())
       iAttTypMod = rs.getInt(1);
     rs.close();
-    return iAttTypMod;    
+    return iAttTypMod;
   } /* getAttTypMod */
-  
-  public static String getIntervalTypeName(Connection conn, 
-    String sSchemaName, String sTableName, String sColumnName, 
-    String sTypeName)
+
+
+  public static String getIntervalTypeName(Connection conn, ColumnIdentifier columnIdentifier, String sTypeName)
       throws SQLException
   {
-    int iAttTypMod = getAttTypMod(conn,sSchemaName,sTableName,sColumnName);
+    int iAttTypMod = getAttTypMod(conn,columnIdentifier);
     if (iAttTypMod <= 0)
       sTypeName = "VARCHAR";
     else
@@ -156,7 +160,7 @@ public class PostgresMetaColumns
       {
         if (bSecond)
           sTypeName = "interval minute to second";
-        else 
+        else
           sTypeName = "interval minute";
       }
       else if (bSecond)
@@ -166,7 +170,7 @@ public class PostgresMetaColumns
     }
     return sTypeName;
   } /* getIntervalTypeName */
-  
+
   /*------------------------------------------------------------------*/
   private String getTypeName(String sTypeName, int iType)
     throws SQLException
@@ -198,24 +202,52 @@ public class PostgresMetaColumns
           String sCatalog = rs.getString("TYPE_CAT");
           String sSchemaName = rs.getString("TYPE_SCHEM");
           String sType = rs.getString("TYPE_NAME");
-          qiType = new 
+          qiType = new
           // get full type name
           rs.close();
         }
         ***/
-        if (PostgresType.INTERVAL.getKeyword().equals(sTypeName)) 
-        {
-          String sSchemaName = this.getString(2);
-          String sTableName = this.getString(3);
-          String sColumnName = this.getString(4);
-          sTypeName = getIntervalTypeName(_conn, sSchemaName, sTableName, sColumnName, sTypeName);
-        }
+        ColumnIdentifier columnIdentifier = new ColumnIdentifier(this);
+
+          if (PostgresType.INTERVAL.getKeyword().equals(sTypeName)) {
+              sTypeName = getIntervalTypeName(_conn, columnIdentifier, sTypeName);
+          }
+
+        sTypeName = addTypeLengthAndPrecision(sTypeName, iType, getAttTypMod(_conn, columnIdentifier));
       }
       catch(ParseException pe) { throw new SQLException("Parsing of "+sTypeName+" failed ("+EU.getExceptionMessage(pe)+")!"); }
     }
     return sTypeName;
   } /* getTypeName */
-  
+
+  private String addTypeLengthAndPrecision(String typeName, int type, int typePrecision) {
+    if (typePrecision < 0) return typeName;
+
+    String sPrecisionType = "_" + typePrecision;
+
+    if (type == Types.VARCHAR || type == Types.CHAR) {
+      typePrecision = typePrecision - 4;
+      sPrecisionType = "_" + typePrecision;
+    }
+
+    if (type == Types.NUMERIC) {
+      int[] decoded = decodeNumericTypmod(typePrecision);
+      int precision = decoded[0];
+      int scale = decoded[1];
+      sPrecisionType = scale <= 0 ? "_" + precision : "_" + precision + "_" + scale;
+    }
+
+    return typeName + sPrecisionType;
+  }
+
+  private int[] decodeNumericTypmod(int atttypmod) {
+    if (atttypmod < 0) return new int[]{-1, -1}; // no precision/scale
+    int typmod = atttypmod - 4;
+    int precision = typmod >> 16;
+    int scale = typmod & 0xFFFF;
+    return new int[]{precision, scale};
+  }
+
   /*------------------------------------------------------------------*/
   private int getDataType(int iType, String sTypeName)
     throws SQLException
@@ -233,12 +265,10 @@ public class PostgresMetaColumns
       PreType pt = pgt.getPreType();
       if (pt != null)
         iType = pt.getSqlType();
-      if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName))) 
+      if ((iType == Types.OTHER) && (PostgresType.INTERVAL.getKeyword().equals(sTypeName)))
       {
-        String sSchemaName = this.getString(2);
-        String sTableName = this.getString(3);
-        String sColumnName = this.getString(4);
-        if (getAttTypMod(_conn,sSchemaName,sTableName,sColumnName) <= 0)
+        ColumnIdentifier columnIdentifier = new ColumnIdentifier(this);
+        if (getAttTypMod(_conn, columnIdentifier) <= 0)
           iType = Types.VARCHAR;
       }
     }
@@ -258,7 +288,7 @@ public class PostgresMetaColumns
           BaseDatabaseMetaData bdmd = (BaseDatabaseMetaData)_conn.getMetaData();
           ResultSet  rs = bdmd.getUDTs(pqiType.getCatalog(),
             bdmd.toPattern(pqiType.getSchema()),
-            bdmd.toPattern(pqiType.getName()), 
+            bdmd.toPattern(pqiType.getName()),
             null);
           if (rs.next())
             iType = rs.getInt("DATA_TYPE");
@@ -268,7 +298,7 @@ public class PostgresMetaColumns
     }
     return iType;
   } /* getDataType */
-  
+
   /*------------------------------------------------------------------*/
   private int getPrecision(int iPrecision, int iType, String sTypeName)
     throws SQLException
@@ -289,51 +319,51 @@ public class PostgresMetaColumns
       switch (pgt)
       {
         case SMALLINT:
-        case SMALLSERIAL: 
+        case SMALLSERIAL:
           iPrecision = 5;
           break;
         case INTEGER:
-        case SERIAL: 
-          iPrecision = 10; 
+        case SERIAL:
+          iPrecision = 10;
           break;
         case BIGINT:
         case BIGSERIAL:
         case OID:
         case TXID:
-          iPrecision = 19; 
+          iPrecision = 19;
           break;
         case MONEY:
         case NUMERIC:
           if (iPrecision > iMAX_NUMERIC_PRECISION)
             iPrecision = 0;
           break;
-        case DOUBLE: 
+        case DOUBLE:
           iPrecision = 17;
           break;
-        case REAL: 
+        case REAL:
           iPrecision = 8;
           break;
-        case BOOLEAN: 
-          iPrecision = 1; 
+        case BOOLEAN:
+          iPrecision = 1;
           break;
-        case DATE: 
-          iPrecision = 13; 
+        case DATE:
+          iPrecision = 13;
           break;
-        case TIME: 
-          iPrecision = 15; 
+        case TIME:
+          iPrecision = 15;
           break;
-        case TIMETZ: 
-          iPrecision = 21; 
+        case TIMETZ:
+          iPrecision = 21;
           break;
-        case TIMESTAMP: 
-          iPrecision = 29; 
+        case TIMESTAMP:
+          iPrecision = 29;
           break;
-        case TIMESTAMPTZ: 
-          iPrecision = 29; 
+        case TIMESTAMPTZ:
+          iPrecision = 29;
           break;
-        case INTERVAL: 
+        case INTERVAL:
           iPrecision = 49; break;
-        case CHAR: 
+        case CHAR:
         case VARCHAR:
         case TEXT:
         case JSON:
@@ -351,21 +381,26 @@ public class PostgresMetaColumns
           if (iPrecision > iMAX_VAR_LENGTH)
             iPrecision = iMAX_VAR_LENGTH;
           break;
-        case BYTEA: 
-          iPrecision = iMAX_TEXT_LENGTH; 
+        case BYTEA:
+          iPrecision = iMAX_TEXT_LENGTH;
           break;
         case BIT:
-        case VARBIT: 
-          iPrecision = (iPrecision + 7) / 8; 
+        case VARBIT:
+          // Get the actual bit length directly from the system catalog
+          ColumnIdentifier columnIdentifier = new ColumnIdentifier(this);
+          int typmod = getAttTypMod(_conn, columnIdentifier);
+          if (typmod > 0) {
+            iPrecision = typmod;
+          }
           break;
-        case UUID: 
-          iPrecision = 16; 
+        case UUID:
+          iPrecision = 16;
           break;
-        case MACADDR: 
+        case MACADDR:
           iPrecision = 6;
           break;
-        case MACADDR8: 
-          iPrecision = 8; 
+        case MACADDR8:
+          iPrecision = 8;
           break;
         case NAME:
           iPrecision = 63;
@@ -375,7 +410,7 @@ public class PostgresMetaColumns
           iPrecision = 16;
           break;
         case CLOB:
-        case BLOB: 
+        case BLOB:
           iPrecision = Integer.MAX_VALUE;
           break;
       }
@@ -403,7 +438,7 @@ public class PostgresMetaColumns
       iPrecision = 0; // Integer.MAX_VALUE;
     return iPrecision;
   } /* getPrecision */
-  
+
   /*------------------------------------------------------------------*/
   private int getScale(int iScale, int iType, String sTypeName)
   {
@@ -417,14 +452,14 @@ public class PostgresMetaColumns
       iScale = 0;
     return iScale;
   } /* getScale */
-  
+
   /*------------------------------------------------------------------*/
   private int getNumPrecRadix(int iNumPrecRadix, int iType, String sTypeName)
   {
     return iNumPrecRadix;
   } /* getNumPrecRadix */
-  
-  
+
+
   /*------------------------------------------------------------------*/
   /** constructor
    * @param rsWrapped DatabaseMetaData.getColumns() result set to be wrapped.
@@ -457,7 +492,7 @@ public class PostgresMetaColumns
   /*------------------------------------------------------------------*/
   /** {@inheritDoc}
    * Type name (mapped to ISO SQL) is returned in TYPE_NAME.
-   * Original type name can be retrieved by using unwrap. 
+   * Original type name can be retrieved by using unwrap.
    */
   @Override
   public String getString(int columnIndex) throws SQLException
@@ -469,7 +504,7 @@ public class PostgresMetaColumns
       if (iLength <= 0)
         iLength = super.getInt(_iLength);
       sResult = getTypeName(
-        sResult, 
+        sResult,
         super.getInt(_iDataType));
     }
     return sResult;
@@ -478,7 +513,7 @@ public class PostgresMetaColumns
   /*------------------------------------------------------------------*/
   /** {@inheritDoc}
    * Mapped java.sql.Types type is returned in DATA_TYPE.
-   * Original java.sql.Types type can be retrieved by using unwrap. 
+   * Original java.sql.Types type can be retrieved by using unwrap.
    */
   @Override
   public long getLong(int columnIndex) throws SQLException
@@ -487,7 +522,7 @@ public class PostgresMetaColumns
     if (columnIndex == _iDataType)
     {
       iResult = getDataType(
-        iResult, 
+        iResult,
         super.getString(_iTypeName)
         );
     }
@@ -515,7 +550,7 @@ public class PostgresMetaColumns
     else if (columnIndex == _iNumPrecRadix)
     {
       iResult = getNumPrecRadix(
-        iResult, 
+        iResult,
         super.getInt(_iDataType),
         super.getString(_iTypeName));
     }
@@ -525,7 +560,7 @@ public class PostgresMetaColumns
   /*------------------------------------------------------------------*/
   /** {@inheritDoc}
    * Mapped java.sql.Types type is returned in DATA_TYPE.
-   * Original java.sql.Types type can be retrieved by using unwrap. 
+   * Original java.sql.Types type can be retrieved by using unwrap.
    */
   @Override
   public int getInt(int columnIndex) throws SQLException
@@ -547,7 +582,7 @@ public class PostgresMetaColumns
     {
       int iResult = super.getInt(columnIndex); // maps null to 0
       oResult = getDataType(
-        iResult, 
+        iResult,
         super.getString(_iTypeName));
     }
     else if (columnIndex == _iPrecision)
@@ -578,7 +613,7 @@ public class PostgresMetaColumns
     {
       int iResult = super.getInt(columnIndex);
       oResult = getNumPrecRadix(
-        iResult, 
+        iResult,
         super.getInt(_iDataType),
         super.getString(_iTypeName));
     }
@@ -588,7 +623,7 @@ public class PostgresMetaColumns
       if (iLength <= 0)
         iLength = super.getInt(_iLength);
       oResult = getTypeName(
-        (String)oResult, 
+        (String)oResult,
         super.getInt(_iDataType));
     }
     return oResult;
