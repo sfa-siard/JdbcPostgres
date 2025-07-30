@@ -37,7 +37,13 @@ dependencies {
     testImplementation("org.junit.vintage:junit-vintage-engine")
     testImplementation(testFixtures("ch.admin.bar:jdbc-base:${versions["jdbc-base"]}"))
 
+    testImplementation("org.testcontainers:junit-jupiter:1.20.1")
+    testImplementation("org.testcontainers:postgresql:1.20.1")
+
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
+
+    testFixturesImplementation(testFixtures("ch.admin.bar:jdbc-base:${versions["jdbc-base"]}"))
+    testFixturesImplementation("ch.admin.bar:enterutilities:v2.2.3")
 }
 
 tasks.test {
