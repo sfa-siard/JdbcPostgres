@@ -1,66 +1,57 @@
 package ch.admin.bar.siard2.jdbc;
 
 import java.sql.*;
-import static org.junit.Assert.*;
-import org.junit.*;
+
 import ch.enterag.utils.*;
-import ch.enterag.utils.base.*;
 import ch.enterag.utils.jdbc.*;
 import ch.admin.bar.siard2.jdbcx.*;
+import lombok.SneakyThrows;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.postgresql.util.PSQLException;
+import org.testcontainers.containers.PostgreSQLContainer;
 
-public class PostgresConnectionTester extends BaseConnectionTester
-{
-  private static final ConnectionProperties _cp = new ConnectionProperties();
-  private static final String _sDB_URL = PostgresDriver.getUrl(_cp.getHost()+":"+_cp.getPort()+"/"+_cp.getCatalog());
-  private static final String _sDB_USER = _cp.getUser();
-  private static final String _sDB_PASSWORD = _cp.getPassword();
-  
-  @Before
-  public void setUp()
-  {
-    try 
-    { 
-      PostgresDataSource dsPostgres = new PostgresDataSource();
-      dsPostgres.setUrl(_sDB_URL);
-      dsPostgres.setUser(_sDB_USER);
-      dsPostgres.setPassword(_sDB_PASSWORD);
-      PostgresConnection connPostgres = (PostgresConnection)dsPostgres.getConnection();
-      connPostgres.setAutoCommit(false);
-      setConnection(connPostgres);
-    }
-    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  } /* setUp */
-  
-  @Test
-  public void testClass()
-  {
-    assertEquals("Wrong connection class!", PostgresConnection.class, getConnection().getClass());
-  } /* testClass */
+import static org.junit.Assert.assertEquals;
 
-  @Override
-  @Test
-  public void testCreateArrayOf()
-  {
-    enter();
-    try 
-    {
-      /* For some reason VARCHAR is OK, but VARCHAR(255) is not. */
-      Array array = getConnection().createArrayOf("VARCHAR", new String[] {"a", "bc", "abc"});
-      array.free();
+
+public class PostgresConnectionTester extends BaseConnectionTester {
+
+    @Rule
+    public PostgreSQLContainer PG_CONTAINER = new PostgreSQLContainer("postgres:latest");
+
+
+    @Before
+    public void beforeAll() throws SQLException {
+        PostgresDataSource dsPostgres = new PostgresDataSource();
+        dsPostgres.setUrl(PG_CONTAINER.getJdbcUrl());
+        dsPostgres.setUser(PG_CONTAINER.getUsername());
+        dsPostgres.setPassword(PG_CONTAINER.getPassword());
+
+        PostgresConnection connection = (PostgresConnection) dsPostgres.getConnection();
+        connection.setAutoCommit(false);
+        setConnection(connection);
     }
-    catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
-    catch(SQLException se) { fail(EU.getExceptionMessage(se)); }
-  } /* createArrayOf */
-  
-  @Override
-  @Test
-  public void testPrepareStatement_String_AInt()
-  {
-    enter();
-    /* should really throw feature not supported */ 
-    try { getConnection().prepareStatement(_sSQL, new int[] {1,2}); }
-    catch(SQLFeatureNotSupportedException sfnse) { System.out.println(EU.getExceptionMessage(sfnse)); }
-    catch(SQLException se) { System.out.println(EU.getExceptionMessage(se)); }
-  } /* testPrepareStatement_String_AInt */
-  
-} /* class PostgresConnectionTester */
+
+    @Test
+    public void testClass() {
+        assertEquals(PostgresConnection.class, getConnection().getClass());
+    }
+
+    @SneakyThrows
+    @Override
+    @Test
+    public void testCreateArrayOf() {
+        /* For some reason VARCHAR is OK, but VARCHAR(255) is not. */
+        Array array = getConnection().createArrayOf("VARCHAR", new String[]{"a", "bc", "abc"});
+        array.free();
+    }
+
+    @SneakyThrows
+    @Override
+    @Test(expected = PSQLException.class)
+    public void testPrepareStatement_String_AInt() {
+        /* should really throw feature not supported */
+        getConnection().prepareStatement(_sSQL, new int[]{1, 2});
+    }
+}

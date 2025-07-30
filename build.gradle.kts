@@ -3,6 +3,7 @@ import java.util.*
 
 plugins {
     `java-library`
+    `java-test-fixtures`
     id("pl.allegro.tech.build.axion-release") version "1.14.3"
     id("io.freefair.lombok") version "6.5.0"
 }
@@ -11,13 +12,18 @@ group = "ch.admin.bar"
 version = scmVersion.version
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
 }
 
 repositories {
     mavenCentral()
 }
+
+val versions = mapOf(
+    "jdbc-base" to "v2.2.9",
+)
 
 dependencies {
     implementation("org.antlr:antlr4-runtime:4.5.2")
@@ -25,10 +31,15 @@ dependencies {
     implementation("org.postgresql:postgresql:42.2.5")
     implementation("ch.admin.bar:enterutilities:v2.2.3")
     implementation("ch.admin.bar:SqlParser:v2.2.2")
-/*    implementation("ch.admin.bar:JdbcBase:v2.2.3")*/
-    implementation(fileTree(mapOf("dir" to "lib", "include" to listOf("*.jar"))))
+    implementation("ch.admin.bar:jdbc-base:${versions["jdbc-base"]}")
+
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testImplementation("org.junit.vintage:junit-vintage-engine")
+    testImplementation(testFixtures("ch.admin.bar:jdbc-base:${versions["jdbc-base"]}"))
+
+    testImplementation("org.testcontainers:junit-jupiter:1.20.1")
+    testImplementation("org.testcontainers:postgresql:1.20.1")
+
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
 }
 
@@ -46,6 +57,5 @@ tasks.withType(Jar::class) {
         attributes["Implementation-Version"] = archiveVersion
         attributes["Implementation-Vendor"] = "Swiss Federal Archives, Berne, Switzerland"
         attributes["Built-Date"] = DateFormat.getDateInstance().format(Date())
-
     }
 }
