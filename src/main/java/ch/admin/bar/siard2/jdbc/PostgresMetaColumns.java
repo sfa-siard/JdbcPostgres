@@ -2,7 +2,7 @@
 PostgresMetaColumns implements data type mapping from Postgres to ISO SQL.
 Application : SIARD2
 Description : PostgresMetaColumns implements data type mapping from Postgres to ISO SQL.
-Platform    : Java 8-10   
+Platform    : Java 17   
 ------------------------------------------------------------------------
 Copyright  : 2019, Swiss Federal Archives, Berne, Switzerland
 License    : CDDL 1.0

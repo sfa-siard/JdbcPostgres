@@ -4,7 +4,7 @@ Application : SIARD2
 Description : PostgresDropTypeStatement overrides DropTypeStatement of 
               SQL parser because Postgres does not support DISTINCT types
               but uses DOMAINs instead. 
-Platform    : Java 8-10   
+Platform    : Java 17   
 ------------------------------------------------------------------------
 Copyright  : 2019, Swiss Federal Archives, Berne, Switzerland
 License    : CDDL 1.0

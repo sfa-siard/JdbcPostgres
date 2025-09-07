@@ -2,7 +2,7 @@
 PostgresPreparedStatement implements a wrapped Postgres PreparedStatement.
 Application : SIARD2
 Description : PostgresPreparedStatement implements a wrapped Postgres PreparedStatement.
-Platform    : Java 8-10   
+Platform    : Java 17   
 ------------------------------------------------------------------------
 Copyright  : 2019, Swiss Federal Archives, Berne, Switzerland
 License    : CDDL 1.0
