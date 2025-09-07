@@ -2,7 +2,7 @@
 PostgresDatabaseMetaData implements wrapped Postgres DatabaseMetaData.
 Application : SIARD2
 Description : PostgresDatabaseMetaData implements wrapped Postgres DatabaseMetaData.
-Platform    : Java 8-10   
+Platform    : Java 17   
 ------------------------------------------------------------------------
 Copyright  : 2019, Swiss Federal Archives, Berne, Switzerland
 License    : CDDL 1.0
@@ -328,7 +328,7 @@ public class PostgresDatabaseMetaData
     String sPgClass, String sPgAttribute, String sPgValues, 
     String catalog, String schemaPattern, String typeNamePattern, String attributeNamePattern)
   {
-    String sPgTypeType = sPgTypeParent + ".typtype";
+    String sPgTypeType = sPgTypeParent + ".typtype"; 
     StringBuilder sb = new StringBuilder();
     sb.append("\r\n  "+sPgTypeParent+".typisdefined");
     sb.append(" AND (("+sPgTypeType+" = 'c' AND "+sPgClass+".relkind = 'c') OR ("+sPgTypeType+" = 'r'))");
